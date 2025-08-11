@@ -60,7 +60,7 @@ textarea {
   width: 100%;
   padding: 10px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  /* Clear custom styles except React Flow overrides */
   font-family: monospace;
   font-size: 12px;
   resize: vertical;

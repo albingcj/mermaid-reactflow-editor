@@ -39,6 +39,36 @@ export function EditingToolbar({
   }
 
   return (
+    <div className="btn-toolbar mb-2" role="toolbar" aria-label="Editing toolbar">
+      <div className="btn-group me-2" role="group" aria-label="Align group">
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onAlignNodes('left')}>Left</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onAlignNodes('center-horizontal')}>Center</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onAlignNodes('right')}>Right</button>
+      </div>
+      <div className="btn-group me-2" role="group" aria-label="Distribute group">
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onDistributeNodes('horizontal')}>Distribute H</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onDistributeNodes('vertical')}>Distribute V</button>
+      </div>
+      <div className="btn-group me-2" role="group" aria-label="Group/Ungroup">
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onGroupNodes}>Group</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onUngroupNodes}>Ungroup</button>
+      </div>
+      <div className="btn-group me-2" role="group" aria-label="Layer group">
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onBringToFront}>Front</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onSendToBack}>Back</button>
+      </div>
+      <div className="btn-group me-2" role="group" aria-label="Duplicate/Delete">
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onDuplicateNodes}>Duplicate</button>
+        <button type="button" className="btn btn-outline-danger btn-sm" onClick={onDeleteSelected}>Delete</button>
+      </div>
+      <div className="btn-group" role="group" aria-label="Lock group">
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onLockNodes}>Lock</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onUnlockNodes}>Unlock</button>
+      </div>
+    </div>
+  );
+
+  return (
     <div className="editing-toolbar">
       <div className="editing-toolbar-section">
         <span className="editing-toolbar-label">Selection: {selectedNodes.length} nodes, {selectedEdges.length} edges</span>

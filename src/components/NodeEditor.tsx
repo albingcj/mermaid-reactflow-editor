@@ -42,77 +42,50 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   };
   
   return (
-    <div className="node-editor-overlay">
-      <div className="node-editor">
-        <h3>Edit Node</h3>
-        
-        <div className="form-group">
-          <label>Label:</label>
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Node label"
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>GitHub URL:</label>
-          <input
-            type="url"
-            value={githubUrl}
-            onChange={(e) => setGithubUrl(e.target.value)}
-            placeholder="https://github.com/..."
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Description:</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add a description..."
-            rows={3}
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Background Color:</label>
-          <div className="color-input">
-            <input
-              type="color"
-              value={backgroundColor}
-              onChange={(e) => setBackgroundColor(e.target.value)}
-            />
-            <input
-              type="text"
-              value={backgroundColor}
-              onChange={(e) => setBackgroundColor(e.target.value)}
-              placeholder="#ffffff"
-            />
-          </div>
-        </div>
-        
-        <div className="form-group">
-          <label>Border Color:</label>
-          <div className="color-input">
-            <input
-              type="color"
-              value={borderColor}
-              onChange={(e) => setBorderColor(e.target.value)}
-            />
-            <input
-              type="text"
-              value={borderColor}
-              onChange={(e) => setBorderColor(e.target.value)}
-              placeholder="#222222"
-            />
-          </div>
-        </div>
-        
-        <div className="button-group">
-          <button onClick={handleSave} className="save-btn">Save</button>
-          <button onClick={onClose} className="cancel-btn">Cancel</button>
+    <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center" style={{zIndex: 1050}}>
+      <div className="card shadow-lg" style={{minWidth: 350, maxWidth: 500}}>
+        <div className="card-body">
+          <h5 className="card-title mb-3">Edit Node</h5>
+          <form>
+            <div className="mb-3">
+              <label className="form-label">Label</label>
+              <input type="text" className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">GitHub URL</label>
+              <input type="url" className="form-control" value={githubUrl} onChange={e => setGithubUrl(e.target.value)} placeholder="https://github.com/..." />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Description</label>
+              <textarea className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Add a description..." rows={3} />
+            </div>
+            <div className="mb-3 row g-2 align-items-center">
+              <div className="col-auto">
+                <label className="form-label mb-0">Background</label>
+              </div>
+              <div className="col-auto">
+                <input type="color" className="form-control form-control-color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} title="Choose background color" />
+              </div>
+              <div className="col">
+                <input type="text" className="form-control" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} placeholder="#ffffff" />
+              </div>
+            </div>
+            <div className="mb-3 row g-2 align-items-center">
+              <div className="col-auto">
+                <label className="form-label mb-0">Border</label>
+              </div>
+              <div className="col-auto">
+                <input type="color" className="form-control form-control-color" value={borderColor} onChange={e => setBorderColor(e.target.value)} title="Choose border color" />
+              </div>
+              <div className="col">
+                <input type="text" className="form-control" value={borderColor} onChange={e => setBorderColor(e.target.value)} placeholder="#222222" />
+              </div>
+            </div>
+            <div className="d-flex justify-content-end gap-2">
+              <button type="button" onClick={handleSave} className="btn btn-primary">Save</button>
+              <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

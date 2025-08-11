@@ -17,6 +17,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "bootstrap": "^5.3.7",
     "dagre": "^0.8.5",
     "mermaid": "^11.7.0",
     "react": "^19.1.0",

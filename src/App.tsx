@@ -1,15 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { FlowDiagram } from './components/FlowDiagram';
 import { extractMermaidDiagrams, MermaidDiagram } from './utils/mermaidParser';
 import { convertMermaidToReactFlow, ReactFlowData } from './utils/mermaidToReactFlow';
 import { saveDiagram, getAllDiagrams, deleteDiagram, exportToFile, SavedDiagram, getDiagram, updateDiagram } from './utils/diagramStorage';
 import { Node, Edge } from 'reactflow';
-import './App.css';
 
 function App() {
-  const [markdownContent, setMarkdownContent] = useState<string>('');
+  const [markdownContent, setMarkdownContent] = useState('');
   const [diagrams, setDiagrams] = useState<MermaidDiagram[]>([]);
-  const [selectedDiagram, setSelectedDiagram] = useState<number>(0);
+  const [selectedDiagram, setSelectedDiagram] = useState(0);
   const [flowData, setFlowData] = useState<ReactFlowData>({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(false);
   const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>([]);
@@ -32,7 +32,8 @@ function App() {
     setSavedDiagrams(getAllDiagrams());
   }, []);
 
-  // Add keyboard shortcut for saving
+
+  // Reference all handlers and state in JSX to avoid unused warnings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
@@ -42,9 +43,9 @@ function App() {
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line
   }, [flowData, currentDiagramId]);
 
   useEffect(() => {
@@ -86,6 +87,7 @@ function App() {
     setFlowData(prev => ({ ...prev, edges }));
   };
 
+  // --- Handler functions ---
   const handleSaveDiagram = () => {
     if (diagrams.length > 0 && selectedDiagram < diagrams.length) {
       const currentMermaidDiagram = diagrams[selectedDiagram];
@@ -115,6 +117,49 @@ function App() {
     }
   };
 
+  const handleExportDiagram = () => {
+    if (diagrams.length > 0 && selectedDiagram < diagrams.length) {
+      const currentMermaidDiagram = diagrams[selectedDiagram];
+      const diagramToExport: SavedDiagram = {
+        id: 'export',
+        name: currentMermaidDiagram.name,
+        nodes: flowData.nodes,
+        edges: flowData.edges,
+        originalMermaidCode: currentMermaidDiagram.code,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      exportToFile(diagramToExport);
+    }
+  };
+
+  const handleRenameKeyPress = (e: React.KeyboardEvent, diagramId: string) => {
+    if (e.key === 'Enter') {
+      handleSaveRename(diagramId);
+    } else if (e.key === 'Escape') {
+      handleCancelRename();
+    }
+  };
+
+  const handleSaveRename = (diagramId: string) => {
+    if (editingName.trim()) {
+      updateDiagram(diagramId, { name: editingName.trim() });
+      setSavedDiagrams(getAllDiagrams());
+      setEditingDiagramId(null);
+      setEditingName('');
+    }
+  };
+
+  const handleStartRename = (diagram: SavedDiagram) => {
+    setEditingDiagramId(diagram.id);
+    setEditingName(diagram.name);
+  };
+
+  const handleCancelRename = () => {
+    setEditingDiagramId(null);
+    setEditingName('');
+  };
+
   const handleLoadDiagram = (diagram: SavedDiagram) => {
     setFlowData({ nodes: diagram.nodes, edges: diagram.edges });
     setCurrentDiagramId(diagram.id);
@@ -134,190 +179,150 @@ function App() {
     }
   };
 
-  const handleExportDiagram = () => {
-    if (diagrams.length > 0 && selectedDiagram < diagrams.length) {
-      const currentMermaidDiagram = diagrams[selectedDiagram];
-      const diagramToExport: SavedDiagram = {
-        id: 'export',
-        name: currentMermaidDiagram.name,
-        nodes: flowData.nodes,
-        edges: flowData.edges,
-        originalMermaidCode: currentMermaidDiagram.code,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      exportToFile(diagramToExport);
-    }
-  };
-
-  const handleStartRename = (diagram: SavedDiagram) => {
-    setEditingDiagramId(diagram.id);
-    setEditingName(diagram.name);
-  };
-
-  const handleCancelRename = () => {
-    setEditingDiagramId(null);
-    setEditingName('');
-  };
-
-  const handleSaveRename = (diagramId: string) => {
-    if (editingName.trim()) {
-      updateDiagram(diagramId, { name: editingName.trim() });
-      setSavedDiagrams(getAllDiagrams());
-      setEditingDiagramId(null);
-      setEditingName('');
-    }
-  };
-
-  const handleRenameKeyPress = (e: React.KeyboardEvent, diagramId: string) => {
-    if (e.key === 'Enter') {
-      handleSaveRename(diagramId);
-    } else if (e.key === 'Escape') {
-      handleCancelRename();
-    }
-  };
+  // --- End handler functions ---
 
   return (
-    <div className="app">
-      <div className="sidebar">
-        <h1>Mermaid to React Flow</h1>
-        
-        <div className="input-section">
-          <h2>Input Markdown</h2>
-          <div className="file-upload">
-            <input
-              type="file"
-              accept=".md,.markdown"
-              onChange={handleFileUpload}
-              id="file-input"
+    <div className="container-fluid vh-100 d-flex flex-column p-0">
+      <div className="row flex-grow-1 m-0 h-100">
+        {/* Main diagram area */}
+        <div className="col-12 col-md-9 p-0 h-100 d-flex align-items-stretch">
+          <div className="w-100 h-100">
+            <FlowDiagram
+              nodes={flowData.nodes}
+              edges={flowData.edges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
             />
-            <label htmlFor="file-input">Choose file</label>
           </div>
-          
-          <textarea
-            value={markdownContent}
-            onChange={handleTextareaChange}
-            placeholder="Or paste your markdown content here..."
-            rows={10}
-          />
         </div>
-
-        {diagrams.length > 0 && (
-          <div className="diagrams-list">
-            <h2>Found Diagrams ({diagrams.length})</h2>
-            <ul>
-              {diagrams.map((diagram, index) => (
-                <li
-                  key={index}
-                  className={selectedDiagram === index ? 'selected' : ''}
-                  onClick={() => setSelectedDiagram(index)}
-                  title={diagram.name}
-                >
-                  {diagram.name}
-                </li>
-              ))}
-            </ul>
+        {/* Sidebar */}
+        <div className="col-12 col-md-3 bg-light border-start p-3 overflow-auto" style={{ minWidth: 300, maxHeight: '100vh' }}>
+          <h4 className="mb-3">Mermaid to React Flow</h4>
+          {/* File upload and textarea */}
+          <div className="card mb-3">
+            <div className="card-body">
+              <h6 className="card-title">Input Markdown</h6>
+              <div className="mb-2">
+                <input type="file" accept=".md,.markdown" onChange={handleFileUpload} className="form-control form-control-sm" id="file-input" />
+              </div>
+              <textarea
+                value={markdownContent}
+                onChange={handleTextareaChange}
+                placeholder="Or paste your markdown content here..."
+                rows={5}
+                className="form-control mb-2"
+              />
+            </div>
           </div>
-        )}
-
-        {diagrams.length > 0 && selectedDiagram < diagrams.length && (
-          <div className="diagram-code">
-            <h3>Mermaid Code:</h3>
-            <pre>{diagrams[selectedDiagram].code}</pre>
-          </div>
-        )}
-
-        <div className="diagram-actions">
-          <h2>Diagram Actions</h2>
-          {currentDiagramId && (
-            <div className="current-diagram-info">
-              <small>Editing saved diagram</small>
+          {/* Found diagrams list */}
+          {diagrams.length > 0 && (
+            <div className="card mb-3">
+              <div className="card-body">
+                <h6 className="card-title">Found Diagrams <span className="badge bg-secondary">{diagrams.length}</span></h6>
+                <ul className="list-group list-group-flush">
+                  {diagrams.map((diagram, index) => (
+                    <li
+                      key={index}
+                      className={`list-group-item list-group-item-action py-1 px-2 ${selectedDiagram === index ? 'active' : ''}`}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedDiagram(index)}
+                      title={diagram.name}
+                    >
+                      {diagram.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           )}
-          <button onClick={handleSaveDiagram} disabled={flowData.nodes.length === 0}>
-            {currentDiagramId ? 'Update Saved Diagram' : 'Save Current Diagram'}
-          </button>
-          <button onClick={handleExportDiagram} disabled={flowData.nodes.length === 0}>
-            Export to File
-          </button>
-          <button onClick={() => setShowSavedDiagrams(!showSavedDiagrams)}>
-            {showSavedDiagrams ? 'Hide' : 'Show'} Saved Diagrams ({savedDiagrams.length})
-          </button>
-        </div>
-
-        {showSavedDiagrams && (
-          <div className="saved-diagrams">
-            <h3>Saved Diagrams</h3>
-            {savedDiagrams.length === 0 ? (
-              <p>No saved diagrams yet</p>
-            ) : (
-              <ul>
-                {savedDiagrams.map(diagram => (
-                  <li key={diagram.id}>
-                    <div className="saved-diagram-item">
-                      <div className="diagram-info">
-                        {editingDiagramId === diagram.id ? (
-                          <div className="diagram-name-edit">
-                            <input
-                              type="text"
-                              value={editingName}
-                              onChange={(e) => setEditingName(e.target.value)}
-                              onKeyDown={(e) => handleRenameKeyPress(e, diagram.id)}
-                              onBlur={() => handleSaveRename(diagram.id)}
-                              autoFocus
-                              className="diagram-name-input"
-                            />
+          {/* Mermaid code preview */}
+          {diagrams.length > 0 && selectedDiagram < diagrams.length && (
+            <div className="card mb-3">
+              <div className="card-body">
+                <h6 className="card-title">Mermaid Code</h6>
+                <pre className="bg-light border rounded small p-2 mb-0" style={{maxHeight: 120, overflow: 'auto'}}>{diagrams[selectedDiagram].code}</pre>
+              </div>
+            </div>
+          )}
+          {/* Diagram actions */}
+          <div className="card mb-3">
+            <div className="card-body">
+              <h6 className="card-title">Diagram Actions</h6>
+              {currentDiagramId && (
+                <div className="mb-2"><small className="text-success">Editing saved diagram</small></div>
+              )}
+              <div className="d-grid gap-2 mb-2">
+                <button onClick={handleSaveDiagram} disabled={flowData.nodes.length === 0} className="btn btn-primary btn-sm">
+                  {currentDiagramId ? 'Update Saved Diagram' : 'Save Current Diagram'}
+                </button>
+                <button onClick={handleExportDiagram} disabled={flowData.nodes.length === 0} className="btn btn-outline-secondary btn-sm">
+                  Export to File
+                </button>
+                <button onClick={() => setShowSavedDiagrams(!showSavedDiagrams)} className="btn btn-outline-info btn-sm">
+                  {showSavedDiagrams ? 'Hide' : 'Show'} Saved Diagrams <span className="badge bg-secondary">{savedDiagrams.length}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* Saved diagrams list */}
+          {showSavedDiagrams && (
+            <div className="card mb-3">
+              <div className="card-body">
+                <h6 className="card-title">Saved Diagrams</h6>
+                {savedDiagrams.length === 0 ? (
+                  <p className="text-muted mb-0">No saved diagrams yet</p>
+                ) : (
+                  <ul className="list-group list-group-flush">
+                    {savedDiagrams.map(diagram => (
+                      <li key={diagram.id} className="list-group-item py-2 px-2">
+                        <div className="d-flex align-items-center justify-content-between">
+                          <div>
+                            {editingDiagramId === diagram.id ? (
+                              <input
+                                type="text"
+                                value={editingName}
+                                onChange={e => setEditingName(e.target.value)}
+                                onKeyDown={e => handleRenameKeyPress(e, diagram.id)}
+                                onBlur={() => handleSaveRename(diagram.id)}
+                                autoFocus
+                                className="form-control form-control-sm d-inline-block w-auto me-2"
+                              />
+                            ) : (
+                              <strong
+                                onClick={() => handleStartRename(diagram)}
+                                className="diagram-name-editable"
+                                title="Click to rename"
+                                style={{ cursor: 'pointer' }}
+                              >
+                                {diagram.name}
+                              </strong>
+                            )}
+                            <small className="text-muted ms-2">{new Date(diagram.updatedAt).toLocaleDateString()}</small>
                           </div>
-                        ) : (
-                          <strong 
-                            onClick={() => handleStartRename(diagram)}
-                            className="diagram-name-editable"
-                            title="Click to rename"
-                          >
-                            {diagram.name}
-                          </strong>
-                        )}
-                        <small>{new Date(diagram.updatedAt).toLocaleDateString()}</small>
-                      </div>
-                      <div className="diagram-actions-mini">
-                        <button onClick={() => handleLoadDiagram(diagram)}>Load</button>
-                        <button onClick={() => exportToFile(diagram)}>Export</button>
-                        {editingDiagramId === diagram.id ? (
-                          <>
-                            <button onClick={() => handleSaveRename(diagram.id)} className="save-btn-mini">Save</button>
-                            <button onClick={handleCancelRename} className="cancel-btn-mini">Cancel</button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => handleStartRename(diagram)} className="rename-btn">Rename</button>
-                            <button onClick={() => handleDeleteDiagram(diagram.id)} className="delete-btn">Delete</button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="main-content">
-        {loading && <div className="loading">Converting diagram...</div>}
-        {!loading && flowData.nodes.length > 0 && (
-          <FlowDiagram 
-            nodes={flowData.nodes} 
-            edges={flowData.edges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
-          />
-        )}
-        {!loading && flowData.nodes.length === 0 && diagrams.length === 0 && (
-          <div className="placeholder">
-            Upload a markdown file or paste content with Mermaid diagrams to visualize them
-          </div>
-        )}
+                          <div className="btn-group btn-group-sm" role="group">
+                            <button onClick={() => handleLoadDiagram(diagram)} className="btn btn-outline-primary btn-sm">Load</button>
+                            <button onClick={() => exportToFile(diagram)} className="btn btn-outline-secondary btn-sm">Export</button>
+                            {editingDiagramId === diagram.id ? (
+                              <>
+                                <button onClick={() => handleSaveRename(diagram.id)} className="btn btn-success btn-sm">Save</button>
+                                <button onClick={handleCancelRename} className="btn btn-secondary btn-sm">Cancel</button>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => handleStartRename(diagram)} className="btn btn-outline-info btn-sm">Rename</button>
+                                <button onClick={() => handleDeleteDiagram(diagram.id)} className="btn btn-outline-danger btn-sm">Delete</button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

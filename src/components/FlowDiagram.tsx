@@ -33,12 +33,46 @@ interface FlowDiagramProps {
   onEdgesChange?: (edges: Edge[]) => void;
 }
 
-export function FlowDiagram({ 
+export function FlowDiagram({
   nodes: initialNodes, 
   edges: initialEdges,
   onNodesChange: onNodesChangeCallback,
   onEdgesChange: onEdgesChangeCallback
 }: FlowDiagramProps) {
+  // State declarations
+
+  // Handler for node changes
+  const onNodesChange = React.useCallback((changes: NodeChange[]) => {
+    setNodes((nds) => {
+      const updated = applyNodeChanges(changes, nds);
+      onNodesChangeCallback?.(updated);
+      return updated;
+    });
+  }, [onNodesChangeCallback]);
+
+  // Handler for edge changes
+  const onEdgesChange = React.useCallback((changes: EdgeChange[]) => {
+    setEdges((eds) => {
+      const updated = applyEdgeChanges(changes, eds);
+      onEdgesChangeCallback?.(updated);
+      return updated;
+    });
+  }, [onEdgesChangeCallback]);
+
+
+  // Handler for connecting nodes (now after edges is defined)
+  const onConnect = React.useCallback((connection: Connection) => {
+    setEdges((eds) => {
+      const updated = addEdge(connection, eds);
+      onEdgesChangeCallback?.(updated);
+      return updated;
+    });
+  }, [onEdgesChangeCallback]);
+
+  // Handler for edge click
+  const onEdgeClick = React.useCallback((event: React.MouseEvent, edge: Edge) => {
+    setSelectedEdgeId(edge.id);
+  }, []);
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -60,71 +94,6 @@ export function FlowDiagram({
     []
   );
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      const newNodes = applyNodeChanges(changes, nodes);
-      setNodes(newNodes);
-      
-      // Track selected nodes
-      const selected = newNodes.filter(node => node.selected);
-      setSelectedNodes(selected);
-      
-      onNodesChangeCallback?.(newNodes);
-    },
-    [nodes, onNodesChangeCallback]
-  );
-
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      const newEdges = applyEdgeChanges(changes, edges);
-      setEdges(newEdges);
-      
-      // Track selected edges
-      const selected = newEdges.filter(edge => edge.selected);
-      setSelectedEdges(selected);
-      
-      onEdgesChangeCallback?.(newEdges);
-      // Deselect edge if it was removed
-      if (selectedEdgeId && !newEdges.some(e => e.id === selectedEdgeId)) {
-        setSelectedEdgeId(null);
-      }
-    },
-    [edges, onEdgesChangeCallback, selectedEdgeId]
-  );
-
-  // Edge click handler
-  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
-    event.stopPropagation();
-    setSelectedEdgeId(edge.id);
-    setSelectedNode(null); // Deselect node if any
-  }, []);
-
-  const onConnect = useCallback(
-    (params: Connection) => {
-      // Create a new edge with the exact same properties as auto-generated edges
-      // Including animation by default
-      const newEdge = {
-        ...params,
-        type: 'smoothstep',
-        animated: true, // Set animation to true by default for manually added edges
-        style: {
-          stroke: '#1976D2',
-          strokeWidth: 2.5, // Match the width of animated edges
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: '#1976D2'
-        }
-      };
-      
-      const newEdges = addEdge(newEdge, edges);
-      setEdges(newEdges);
-      onEdgesChangeCallback?.(newEdges);
-    },
-    [edges, onEdgesChangeCallback]
-  );
 
   // Add a menu for edge type selection (optional enhancement)
   const [selectedEdgeType, setSelectedEdgeType] = useState('animated');
@@ -224,6 +193,11 @@ export function FlowDiagram({
 
       case 'top':
         const topY = Math.min(...bounds.map(b => b.y));
+        // Handler for connecting nodes (now after edges is defined)
+        const onConnect = React.useCallback((connection: Connection) => {
+          setEdges((eds) => addEdge(connection, eds));
+          onEdgesChangeCallback?.(addEdge(connection, edges));
+        }, [edges, onEdgesChangeCallback]);
         bounds.forEach(bound => {
           const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
           if (nodeIndex !== -1) {
