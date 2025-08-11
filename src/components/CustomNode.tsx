@@ -29,11 +29,20 @@ export function CustomNode({ data, isConnectable }: NodeProps) {
       className={getNodeClassName()}
       onDoubleClick={data.onEdit}
     >
+      {/* Top handle for incoming connections */}
       <Handle
         type="target"
         position={Position.Top}
-        isConnectable={isConnectable}
-        style={{ visibility: data.shape === 'diamond' ? 'hidden' : 'visible' }}
+        isConnectable={true} // Always allow connections
+        id="top"
+        style={{
+          background: '#555',
+          width: 10,
+          height: 10,
+          borderRadius: '50%',
+          border: '2px solid white',
+          zIndex: 10, // Make sure handles are above other elements
+        }}
       />
       
       <div className="node-content">
@@ -54,11 +63,51 @@ export function CustomNode({ data, isConnectable }: NodeProps) {
         )}
       </div>
       
+      {/* Bottom handle for outgoing connections */}
       <Handle
         type="source"
         position={Position.Bottom}
-        isConnectable={isConnectable}
-        style={{ visibility: data.shape === 'diamond' ? 'hidden' : 'visible' }}
+        isConnectable={true} // Always allow connections
+        id="bottom"
+        style={{
+          background: '#555',
+          width: 10,
+          height: 10,
+          borderRadius: '50%',
+          border: '2px solid white',
+          zIndex: 10, // Make sure handles are above other elements
+        }}
+      />
+      
+      {/* Add additional handles for more connection points (optional) */}
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left"
+        style={{
+          background: '#555',
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          border: '2px solid white',
+          zIndex: 10,
+        }}
+        isConnectable={true}
+      />
+      
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right"
+        style={{
+          background: '#555',
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          border: '2px solid white',
+          zIndex: 10,
+        }}
+        isConnectable={true}
       />
     </div>
   );

@@ -547,44 +547,49 @@ textarea {
   outline-offset: -2px;
 }
 
+
 .subgraph-header {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 0; /* Keep it at the very top */
+  left: 0; /* Keep it at the very left */
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px; /* Reduce gap for a smaller appearance */
+  max-width: calc(100% - 40px); /* Prevent overlap with drag handle */
+  overflow: hidden; /* Hide overflow */
+  white-space: nowrap; /* Prevent breaking */
+  text-overflow: ellipsis; /* Add ellipsis for long titles */
 }
 
 .subgraph-title {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px; /* Make the font size smaller */
   font-weight: 700;
   text-align: left;
   background: rgba(255, 255, 255, 0.95);
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 4px 6px; /* Reduce padding for a smaller appearance */
+  border-radius: 10px; /* Adjust border radius for a smaller look */
   display: inline-block;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); /* Reduce shadow for a smaller look */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Adjust border for a smaller look */
+  backdrop-filter: blur(5px); /* Reduce blur effect */
   color: #2D3748;
 }
 
 .subgraph-drag-handle {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
+  top: 0px; /* Move closer to the top */
+  right: 0px; /* Move closer to the right */
+  width: 24px; /* Make it smaller */
+  height: 24px; /* Make it smaller */
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 6px;
+  border-radius: 4px; /* Adjust border radius for a smaller look */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: move;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); /* Reduce shadow for a smaller look */
   transition: all 0.2s;
   color: #718096;
 }
@@ -594,6 +599,7 @@ textarea {
   transform: scale(1.1);
   color: #2D3748;
 }
+
 
 /* React Flow overrides for better styling */
 .react-flow__node-group {

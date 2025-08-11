@@ -706,7 +706,7 @@ function layoutMetaGraph(
   return { subgraphPositions, standalonePositions };
 }
 
-// Phase 3: Combine layouts and create React Flow nodes/edges
+// Phase 3: Combine layouts and create React Flow elements
 function createReactFlowElements(
   nodes: MermaidNode[],
   edges: MermaidEdge[],
@@ -749,7 +749,7 @@ function createReactFlowElements(
     return subgraphColors[index % subgraphColors.length];
   };
   
-  // Process subgraphs in hierarchical order to ensure parents are added before children
+  // Process subgraphs in hierarchical order
   const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
   
   // Add subgraph containers
@@ -783,10 +783,6 @@ function createReactFlowElements(
         parentNode: layout.parentId ? `subgraph-${layout.parentId}` : undefined,
         extent: layout.parentId ? 'parent' : undefined,
       });
-      
-      debugLog(`Added subgraph container: ${subgraph.id} at position (${position.x}, ${position.y})`);
-    } else {
-      debugLog(`Warning: Missing layout or position for subgraph ${subgraph.id}`);
     }
   });
   
@@ -836,22 +832,13 @@ function createReactFlowElements(
           y: nodeLayout.y - nodeLayout.height / 2
         };
         parentNode = `subgraph-${node.subgraph}`;
-        
-        debugLog(`Positioned node ${node.id} inside subgraph ${node.subgraph} at relative position (${position.x}, ${position.y})`);
       } else {
         position = { x: 0, y: 0 };
-        debugLog(`Warning: Missing layout information for node ${node.id} in subgraph ${node.subgraph}`);
       }
     } else {
       // Standalone node
       const standalonePos = standalonePositions.get(node.id);
-      if (standalonePos) {
-        position = standalonePos;
-        debugLog(`Positioned standalone node ${node.id} at (${position.x}, ${position.y})`);
-      } else {
-        position = { x: 0, y: 0 };
-        debugLog(`Warning: Missing position for standalone node ${node.id}`);
-      }
+      position = standalonePos || { x: 0, y: 0 };
     }
     
     reactFlowNodes.push({
@@ -875,7 +862,7 @@ function createReactFlowElements(
     });
   });
   
-  // Create edges with prettier styling and better routing for cross-subgraph edges
+  // Create edges with consistent styling
   const reactFlowEdges: Edge[] = edges.map((edge, index) => {
     const edgeColors = ['#1976D2', '#388E3C', '#F57C00', '#7B1FA2', '#C2185B'];
     const edgeColor = edgeColors[index % edgeColors.length];
@@ -885,7 +872,8 @@ function createReactFlowElements(
       strokeWidth: 2,
     };
     
-    let edgeType = 'smoothstep';
+    // Always use smoothstep for consistency
+    const edgeType = 'smoothstep';
     let animated = false;
     
     // Style edges based on type
@@ -908,18 +896,7 @@ function createReactFlowElements(
         break;
     }
     
-    // Determine if this is a cross-subgraph edge
-    const sourceNode = nodes.find(n => n.id === edge.source);
-    const targetNode = nodes.find(n => n.id === edge.target);
-    const isCrossSubgraph = sourceNode?.subgraph !== targetNode?.subgraph;
-    
-    if (isCrossSubgraph) {
-      // Use smart edge routing for cross-subgraph connections
-      edgeType = 'smoothstep';
-      
-      debugLog(`Created cross-subgraph edge from ${edge.source} (${sourceNode?.subgraph || 'none'}) to ${edge.target} (${targetNode?.subgraph || 'none'})`);
-    }
-    
+    // Create edge with explicit properties
     return {
       id: `edge-${edge.source}-${edge.target}-${index}`,
       source: edge.source,
@@ -943,14 +920,17 @@ function createReactFlowElements(
         height: 20,
         color: edgeColor,
       },
+      // These ensure consistent connections
+      sourceHandle: null,
+      targetHandle: null,
       zIndex: 0,
     };
   });
   
-  debugLog(`Created ${reactFlowNodes.length} nodes and ${reactFlowEdges.length} edges`);
-  
   return { nodes: reactFlowNodes, edges: reactFlowEdges };
 }
+
+
 
 // Main layout function using the three-phase approach
 function layoutGraph(

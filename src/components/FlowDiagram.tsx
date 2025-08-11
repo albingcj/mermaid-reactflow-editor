@@ -15,6 +15,8 @@ import ReactFlow, {
   NodeChange,
   EdgeChange,
   NodeDragHandler,
+  MarkerType,
+  ConnectionLineType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { CustomNode } from './CustomNode';
@@ -72,12 +74,38 @@ export function FlowDiagram({
 
   const onConnect = useCallback(
     (params: Connection) => {
-      const newEdges = addEdge(params, edges);
+      // Create a new edge with the exact same properties as auto-generated edges
+      // Including animation by default
+      const newEdge = {
+        ...params,
+        type: 'smoothstep',
+        animated: true, // Set animation to true by default for manually added edges
+        style: {
+          stroke: '#1976D2',
+          strokeWidth: 2.5, // Match the width of animated edges
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: '#1976D2'
+        }
+      };
+      
+      const newEdges = addEdge(newEdge, edges);
       setEdges(newEdges);
       onEdgesChangeCallback?.(newEdges);
     },
     [edges, onEdgesChangeCallback]
   );
+
+  // Add a menu for edge type selection (optional enhancement)
+  const [selectedEdgeType, setSelectedEdgeType] = useState('animated');
+
+  useEffect(() => {
+    // Update default edge options when edge type changes
+    // This is an optional enhancement if you want to allow users to choose edge types
+  }, [selectedEdgeType]);
 
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     // Only show editor for non-group nodes
@@ -133,6 +161,18 @@ export function FlowDiagram({
           nodeTypes={nodeTypes}
           fitView
           deleteKeyCode={['Delete', 'Backspace']}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            animated: true, // Default to animated edges
+            style: { stroke: '#1976D2', strokeWidth: 2.5 },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: '#1976D2'
+            }
+          }}
+          connectionLineType={ConnectionLineType.SmoothStep}
         >
           <Controls />
           <MiniMap />
