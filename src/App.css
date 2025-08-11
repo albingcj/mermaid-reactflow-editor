@@ -566,6 +566,82 @@ textarea {
   border-width: 2px !important;
 }
 
+/* Editing Toolbar Styles */
+.editing-toolbar {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  max-width: calc(100vw - 40px);
+  font-size: 12px;
+}
+
+.editing-toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 16px;
+  border-right: 1px solid #e0e0e0;
+}
+
+.editing-toolbar-section:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.editing-toolbar-label {
+  font-weight: 600;
+  color: #555;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.editing-toolbar-btn {
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.editing-toolbar-btn:hover {
+  background: #1976D2;
+  color: white;
+  border-color: #1976D2;
+  transform: translateY(-1px);
+}
+
+.editing-toolbar-btn:active {
+  transform: translateY(0);
+}
+
+.editing-toolbar-btn-danger {
+  background: #ffebee;
+  border-color: #f44336;
+  color: #f44336;
+}
+
+.editing-toolbar-btn-danger:hover {
+  background: #f44336;
+  color: white;
+}
+
 
 .subgraph-header {
   position: absolute;
@@ -627,6 +703,59 @@ textarea {
 
 .react-flow__node-group.selected {
   box-shadow: 0 0 0 2px #1976D2 !important;
+}
+
+/* Enhanced selection styles for all React Flow nodes */
+.react-flow__node.selected {
+  box-shadow: 0 0 0 3px #1976D2 !important;
+  z-index: 999 !important;
+}
+
+/* Custom node selection enhancement */
+.custom-node.react-flow__node.selected,
+.react-flow__node.selected .custom-node {
+  border-color: #1976D2 !important;
+  border-width: 3px !important;
+  box-shadow: 
+    0 0 0 3px rgba(25, 118, 210, 0.3),
+    0 8px 25px rgba(25, 118, 210, 0.2) !important;
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #E3F2FD, #ffffff) !important;
+}
+
+/* Locked node visual indicator */
+.custom-node.locked {
+  border-style: dashed !important;
+  border-color: #ff9800 !important;
+  background: linear-gradient(135deg, #fff8e1, #ffffff) !important;
+  position: relative;
+}
+
+.custom-node.locked::before {
+  content: "🔒";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff9800;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Selected and locked combination */
+.custom-node.locked.react-flow__node.selected,
+.react-flow__node.selected .custom-node.locked {
+  border-color: #ff9800 !important;
+  box-shadow: 
+    0 0 0 3px rgba(255, 152, 0, 0.3),
+    0 8px 25px rgba(255, 152, 0, 0.2) !important;
 }
 
 /* Edge label styling */

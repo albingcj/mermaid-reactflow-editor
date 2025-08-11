@@ -23,6 +23,7 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
     if (data.githubUrl) className += ' has-link';
     if (data.shape === 'diamond') className += ' diamond-node';
     if (selected) className += ' selected';
+    if (data.locked) className += ' locked';
     return className;
   };
   
