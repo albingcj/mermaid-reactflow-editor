@@ -1116,8 +1116,8 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
       color: edgeColor,
     },
     // These ensure consistent connections
-    sourceHandle: edge.isSourceSubgraph ? "subgraph-bottom" : null,
-    targetHandle: edge.isTargetSubgraph ? "subgraph-top" : null,
+    sourceHandle: edge.isSourceSubgraph ? "subgraph-bottom-source" : "bottom-source",
+    targetHandle: edge.isTargetSubgraph ? "subgraph-bottom-target" : "top-target",
     zIndex: 0,
   };
 });
