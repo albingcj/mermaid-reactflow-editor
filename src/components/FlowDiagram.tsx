@@ -187,6 +187,9 @@ export function FlowDiagram({
           nodeTypes={nodeTypes}
           fitView
           deleteKeyCode={['Delete', 'Backspace']}
+          nodesDraggable={true}
+          nodesConnectable={true}
+          elementsSelectable={true}
           defaultEdgeOptions={{
             type: 'smoothstep',
             animated: true, // Default to animated edges

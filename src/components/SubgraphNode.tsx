@@ -1,9 +1,26 @@
 import React from "react";
-import { NodeProps, Handle, Position } from "reactflow";
+import { NodeProps, Handle, Position, NodeResizer } from "reactflow";
 
 export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
   return (
     <div className={`subgraph-node ${selected ? "selected" : ""}`}>
+      {/* Add NodeResizer for manual resizing */}
+      <NodeResizer
+        isVisible={selected}
+        minWidth={200}
+        minHeight={150}
+        handleStyle={{
+          backgroundColor: '#1976D2',
+          border: '2px solid white',
+          width: 8,
+          height: 8,
+        }}
+        lineStyle={{
+          borderColor: '#1976D2',
+          borderWidth: 2,
+        }}
+      />
+      
       {/* Bottom handles */}
       <Handle
         type="target"

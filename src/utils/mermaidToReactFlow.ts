@@ -51,8 +51,8 @@ interface SubgraphLayout {
   parentId?: string;
 }
 
-const SUBGRAPH_HEADER_HEIGHT = 50;
-const SUBGRAPH_PADDING = 30;
+const SUBGRAPH_HEADER_HEIGHT = 10;
+const SUBGRAPH_PADDING = 10; // Increased from 30 to 40 for more breathing room
 const DEBUG = true; // Set to true to enable debug logging
 
 function debugLog(...args: any[]) {
@@ -500,17 +500,23 @@ function parseMermaidCode(code: string): {
 function calculateNodeSize(label: string, shape: string) {
   const lines = label.split("\n");
   const maxLineLength = Math.max(...lines.map((line) => line.length));
-  const width = Math.max(100, Math.min(250, maxLineLength * 7 + 30));
-  const height = Math.max(40, lines.length * 18 + 25);
+  
+  // Base size from content, with reasonable minimums and generous padding
+  const baseWidth = maxLineLength * 8 + 30; // Content-based width
+  const baseHeight = lines.length * 20 + 20; // Content-based height
+  
+  // Add some additional space based on content (not rigid minimums)
+  const width = Math.max(80, baseWidth + 30); // Content + 30px extra, min 80px for readability
+  const height = Math.max(40, baseHeight + 20); // Content + 20px extra, min 40px for readability
 
   if (shape === "diamond") {
     return {
-      width: Math.max(80, width * 0.8),
-      height: Math.max(80, height * 0.8),
+      width: Math.max(80, width * 0.9), // Slightly smaller for diamond visual balance
+      height: Math.max(80, height * 0.9),
     };
   }
   if (shape === "circle") {
-    const size = Math.max(width, height) + 10;
+    const size = Math.max(width, height) + 10; // Equal dimensions for circles
     return { width: size, height: size };
   }
   return { width, height };
@@ -679,8 +685,16 @@ function layoutSubgraphs(
       });
     });
 
-    const width = maxX - minX + SUBGRAPH_PADDING * 2;
-    const height = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT;
+    // Calculate base size from actual content
+    const baseWidth = maxX - minX + SUBGRAPH_PADDING * 2;
+    const baseHeight = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT;
+    
+    // Add generous additional space based on content size (instead of static minimums)
+    const additionalWidth = Math.max(100, baseWidth * 0.5); // Add 50% more width, minimum 100px
+    const additionalHeight = Math.max(80, baseHeight * 0.4); // Add 40% more height, minimum 80px
+    
+    const width = baseWidth + additionalWidth; // Content-based size + generous addition
+    const height = baseHeight + additionalHeight; // Content-based size + generous addition
 
     subgraphLayouts.set(subgraph.id, {
       id: subgraph.id,
@@ -692,11 +706,81 @@ function layoutSubgraphs(
     });
 
     debugLog(
-      `Subgraph ${subgraph.id} layout: width=${width}, height=${height}`
+      `Subgraph ${subgraph.id} sizing: base(${baseWidth.toFixed(1)}x${baseHeight.toFixed(1)}) + additional(${additionalWidth.toFixed(1)}x${additionalHeight.toFixed(1)}) = final(${width.toFixed(1)}x${height.toFixed(1)})`
     );
   });
 
+  // Recalculate parent subgraph sizes to accommodate nested subgraphs
+  recalculateParentSubgraphSizes(subgraphLayouts, orderedSubgraphs);
+
   return subgraphLayouts;
+}
+
+// Recalculate parent subgraph sizes to include nested subgraphs
+function recalculateParentSubgraphSizes(
+  subgraphLayouts: Map<string, SubgraphLayout>,
+  orderedSubgraphs: SubgraphInfo[]
+) {
+  // Process in reverse order (children first, then parents)
+  for (let i = orderedSubgraphs.length - 1; i >= 0; i--) {
+    const subgraph = orderedSubgraphs[i];
+    const layout = subgraphLayouts.get(subgraph.id);
+    
+    if (!layout) continue;
+
+    // Find all direct child subgraphs
+    const childSubgraphs = orderedSubgraphs.filter(sg => sg.parentId === subgraph.id);
+    
+    if (childSubgraphs.length === 0) continue;
+
+    // Calculate the minimum required size to contain all child subgraphs
+    let maxChildRight = 0;
+    let maxChildBottom = 0;
+
+    childSubgraphs.forEach(childSg => {
+      const childLayout = subgraphLayouts.get(childSg.id);
+      if (childLayout) {
+        // Child will be positioned at SUBGRAPH_PADDING from left/top
+        const childRight = SUBGRAPH_PADDING + childLayout.width;
+        const childBottom = SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_PADDING + childLayout.height;
+        
+        maxChildRight = Math.max(maxChildRight, childRight);
+        maxChildBottom = Math.max(maxChildBottom, childBottom);
+      }
+    });
+
+    // Calculate minimum required parent size based on child content + generous additional space
+    const baseRequiredWidth = maxChildRight + SUBGRAPH_PADDING;
+    const baseRequiredHeight = maxChildBottom + SUBGRAPH_PADDING;
+    
+    // Add content-based additional space (not multipliers)
+    const additionalWidthForChildren = Math.max(80, baseRequiredWidth * 0.3); // Add 30% more, min 80px
+    const additionalHeightForChildren = Math.max(60, baseRequiredHeight * 0.3); // Add 30% more, min 60px
+    
+    const minRequiredWidth = baseRequiredWidth + additionalWidthForChildren;
+    const minRequiredHeight = baseRequiredHeight + additionalHeightForChildren;
+
+    // Update parent size if it needs to be larger
+    const needsUpdate = minRequiredWidth > layout.width || minRequiredHeight > layout.height;
+    
+    if (needsUpdate) {
+      // Use the larger of current size or required size, with generous buffer
+      layout.width = Math.max(layout.width, minRequiredWidth);
+      layout.height = Math.max(layout.height, minRequiredHeight);
+      
+      debugLog(
+        `Updated subgraph ${subgraph.id} size to accommodate nested subgraphs: width=${layout.width}, height=${layout.height} (was too small for ${childSubgraphs.length} children)`
+      );
+      
+      // Also log the child details for debugging
+      childSubgraphs.forEach(child => {
+        const childLayout = subgraphLayouts.get(child.id);
+        if (childLayout) {
+          debugLog(`  Child ${child.id}: ${childLayout.width}x${childLayout.height}`);
+        }
+      });
+    }
+  }
 }
 
 // Calculate connection weights between containers
@@ -907,7 +991,7 @@ function createReactFlowElements(
   debugLog("Creating React Flow elements");
 
   // Color schemes
-  const getNodeColors = (shape: string, index: number) => {
+  const getNodeColors = (shape: string) => {
     const colorSchemes = {
       rect: ["#E3F2FD", "#1976D2"], // Blue
       diamond: ["#FFF3E0", "#F57C00"], // Orange
@@ -937,10 +1021,10 @@ function createReactFlowElements(
     return subgraphColors[index % subgraphColors.length];
   };
 
-  // Process subgraphs in hierarchical order
+  // Process subgraphs in hierarchical order (parents first for proper rendering)
   const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
 
-  // Add subgraph containers
+  // Add subgraph containers in the correct order (parents before children)
   orderedSubgraphs.forEach((subgraph, index) => {
     const layout = subgraphLayouts.get(subgraph.id);
     const position = subgraphPositions.get(subgraph.id);
@@ -967,17 +1051,17 @@ function createReactFlowElements(
         },
         selectable: true,
         draggable: true,
-        connectable: true, // Changed from false to true
+        connectable: true,
         parentNode: layout.parentId ? `subgraph-${layout.parentId}` : undefined,
         extent: layout.parentId ? "parent" : undefined,
+        zIndex: layout.parentId ? 1 : 0, // Child subgraphs should render above parents
       });
     }
   });
 
   // Add nodes
-  let nodeIndex = 0;
   nodes.forEach((node) => {
-    const colors = getNodeColors(node.shape, nodeIndex++);
+    const colors = getNodeColors(node.shape);
 
     let nodeStyle = {
       backgroundColor: colors.backgroundColor,
@@ -1014,7 +1098,8 @@ function createReactFlowElements(
       const nodeLayout = subgraphLayout?.nodes.get(node.id);
 
       if (nodeLayout && subgraphPosition) {
-        // Position relative to parent
+        // Position relative to the subgraph container (not global coordinates)
+        // The nodeLayout positions are already relative within the subgraph
         position = {
           x: nodeLayout.x - nodeLayout.width / 2,
           y: nodeLayout.y - nodeLayout.height / 2,

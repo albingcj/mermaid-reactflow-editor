@@ -547,6 +547,25 @@ textarea {
   outline-offset: -2px;
 }
 
+/* Resize handles styling for subgraphs */
+.subgraph-node .react-flow__resize-control {
+  background: #1976D2 !important;
+  border: 2px solid white !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+}
+
+.subgraph-node .react-flow__resize-control:hover {
+  background: #1565C0 !important;
+  transform: scale(1.2);
+}
+
+.subgraph-node .react-flow__resize-control-line {
+  border-color: #1976D2 !important;
+  border-width: 2px !important;
+}
+
 
 .subgraph-header {
   position: absolute;
