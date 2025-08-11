@@ -4,25 +4,22 @@ import { NodeProps, Handle, Position } from 'reactflow';
 export function SubgraphNode({ data, selected }: NodeProps) {
   return (
     <div className={`subgraph-node ${selected ? 'selected' : ''}`}>
-      {/* Top handles */}
-      <div className="handle-group top-handles">
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="subgraph-top-target"
-          className="handle target-handle"
-          style={{ left: '35%' }}
-          isConnectable={true}
-        />
-        <Handle
-          type="source"
-          position={Position.Top}
-          id="subgraph-top-source"
-          className="handle source-handle"
-          style={{ left: '65%' }}
-          isConnectable={true}
-        />
-      </div>
+      {/* Add connection handles to the subgraph container */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="subgraph-top"
+        style={{
+          background: '#555',
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          border: '2px solid white',
+          top: -20,
+          zIndex: 10,
+        }}
+        isConnectable={true}
+      />
       
       <div className="subgraph-header">
         <div className="subgraph-title">{data.label}</div>
@@ -34,65 +31,56 @@ export function SubgraphNode({ data, selected }: NodeProps) {
         </svg>
       </div>
       
-      {/* Bottom handles */}
-      <div className="handle-group bottom-handles">
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="subgraph-bottom-source"
-          className="handle source-handle"
-          style={{ left: '35%' }}
-          isConnectable={true}
-        />
-        <Handle
-          type="target"
-          position={Position.Bottom}
-          id="subgraph-bottom-target"
-          className="handle target-handle"
-          style={{ left: '65%' }}
-          isConnectable={true}
-        />
-      </div>
+      {/* Bottom handle */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="subgraph-bottom"
+        style={{
+          background: '#555',
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          border: '2px solid white',
+          bottom: -20,
+          zIndex: 10,
+        }}
+        isConnectable={true}
+      />
       
-      {/* Left handles */}
-      <div className="handle-group left-handles">
-        <Handle
-          type="source"
-          position={Position.Left}
-          id="subgraph-left-source"
-          className="handle source-handle"
-          style={{ top: '35%' }}
-          isConnectable={true}
-        />
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="subgraph-left-target"
-          className="handle target-handle"
-          style={{ top: '65%' }}
-          isConnectable={true}
-        />
-      </div>
+      {/* Left handle */}
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="subgraph-left"
+        style={{
+          background: '#555',
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          border: '2px solid white',
+          left: -20,
+          zIndex: 10,
+        }}
+        isConnectable={true}
+      />
       
-      {/* Right handles */}
-      <div className="handle-group right-handles">
-        <Handle
-          type="target"
-          position={Position.Right}
-          id="subgraph-right-target"
-          className="handle target-handle"
-          style={{ top: '35%' }}
-          isConnectable={true}
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="subgraph-right-source"
-          className="handle source-handle"
-          style={{ top: '65%' }}
-          isConnectable={true}
-        />
-      </div>
+      {/* Right handle */}
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="subgraph-right"
+        style={{
+          background: '#555',
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          border: '2px solid white',
+          right: -20,
+          zIndex: 10,
+        }}
+        isConnectable={true}
+      />
     </div>
   );
 }
