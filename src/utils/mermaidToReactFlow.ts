@@ -21,6 +21,7 @@ interface MermaidNode {
   label: string;
   shape: string;
   subgraph?: string;
+  parentSubgraph?: string;  // For nested subgraphs
 }
 
 interface MermaidEdge {
@@ -34,6 +35,8 @@ interface SubgraphInfo {
   id: string;
   title: string;
   nodes: string[];
+  parentId?: string;  // For nested subgraphs
+  childrenIds: string[];  // For nested subgraphs
 }
 
 interface SubgraphLayout {
@@ -43,10 +46,18 @@ interface SubgraphLayout {
   width: number;
   height: number;
   position?: { x: number; y: number };
+  parentId?: string;
 }
 
 const SUBGRAPH_HEADER_HEIGHT = 50;
 const SUBGRAPH_PADDING = 30;
+const DEBUG = true;  // Set to true to enable debug logging
+
+function debugLog(...args: any[]) {
+  if (DEBUG) {
+    console.log('[MermaidConverter]', ...args);
+  }
+}
 
 function cleanLabel(label: string): string {
   return label
@@ -64,11 +75,19 @@ function getNodeShape(nodeDefinition: string): string {
   return 'rect';
 }
 
-function parseMermaidCode(code: string): { nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: SubgraphInfo[] } {
+function parseMermaidCode(code: string): { 
+  nodes: MermaidNode[], 
+  edges: MermaidEdge[], 
+  subgraphs: SubgraphInfo[],
+  direction: string 
+} {
   const nodes: MermaidNode[] = [];
   const edges: MermaidEdge[] = [];
   const subgraphs: SubgraphInfo[] = [];
   const nodeMap = new Map<string, MermaidNode>();
+  
+  // Default direction is top-to-bottom
+  let direction = 'TB';
   
   // Remove comments and clean up the code
   const cleanCode = code
@@ -77,32 +96,70 @@ function parseMermaidCode(code: string): { nodes: MermaidNode[], edges: MermaidE
     .filter(line => line && !line.startsWith('%%'))
     .join('\n');
   
+  debugLog('Clean code:', cleanCode);
+  
+  // Parse graph direction
+  const directionMatch = cleanCode.match(/graph\s+(TB|BT|RL|LR)/i);
+  if (directionMatch) {
+    direction = directionMatch[1].toUpperCase();
+    debugLog('Detected graph direction:', direction);
+  }
+  
   const lines = cleanCode.split('\n');
-  let currentSubgraph: string | null = null;
+  const subgraphStack: string[] = [];  // Track nested subgraphs
   
   // Process each line
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
+    
+    debugLog(`Processing line ${i}: ${line}`);
     
     // Handle subgraph start
     const subgraphMatch = line.match(/^subgraph\s+([^\s]+)(?:\s*\[(.+)\])?/);
     if (subgraphMatch) {
       const [, subgraphId, subgraphTitle] = subgraphMatch;
-      currentSubgraph = subgraphId;
-      subgraphs.push({
+      
+      // Get parent from stack if this is a nested subgraph
+      const parentId = subgraphStack.length > 0 ? subgraphStack[subgraphStack.length - 1] : undefined;
+      
+      debugLog(`Found subgraph: ${subgraphId}, title: ${subgraphTitle || subgraphId}, parent: ${parentId || 'none'}`);
+      
+      subgraphStack.push(subgraphId);
+      
+      const newSubgraph: SubgraphInfo = {
         id: subgraphId,
         title: subgraphTitle || subgraphId,
-        nodes: []
-      });
+        nodes: [],
+        parentId,
+        childrenIds: []
+      };
+      
+      // Update parent's children list
+      if (parentId) {
+        const parentSubgraph = subgraphs.find(sg => sg.id === parentId);
+        if (parentSubgraph) {
+          parentSubgraph.childrenIds.push(subgraphId);
+        }
+      }
+      
+      subgraphs.push(newSubgraph);
       continue;
     }
     
     // Handle subgraph end
     if (line === 'end') {
-      currentSubgraph = null;
+      if (subgraphStack.length > 0) {
+        debugLog(`End of subgraph: ${subgraphStack[subgraphStack.length - 1]}`);
+        subgraphStack.pop();
+      } else {
+        debugLog('Warning: Found "end" without matching subgraph start');
+      }
       continue;
     }
+    
+    // Get current subgraph from the top of the stack
+    const currentSubgraph = subgraphStack.length > 0 ? subgraphStack[subgraphStack.length - 1] : undefined;
     
     // Parse edge connections with more patterns
     const edgePatterns = [
@@ -119,108 +176,191 @@ function parseMermaidCode(code: string): { nodes: MermaidNode[], edges: MermaidE
     }
     
     if (edgeMatch) {
-      const sourceId = edgeMatch[1];
-      const edgeType = edgeMatch[2];
-      const edgeLabel = edgeMatch[3] || '';
-      const targetId = edgeMatch[4] || edgeMatch[3];
-      
-      // Extract node definitions from the line
-      const fullLine = line;
-      
-      // Parse source node
-      const sourceNodeMatch = fullLine.match(new RegExp(`${sourceId}([\\[\\(\\{][^\\]\\)\\}]*[\\]\\)\\}])`));
-      if (sourceNodeMatch && !nodeMap.has(sourceId)) {
-        const fullDef = sourceNodeMatch[0];
-        const shape = getNodeShape(fullDef);
-        const labelMatch = fullDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-        const label = labelMatch ? cleanLabel(labelMatch[1]) : sourceId;
+      try {
+        const sourceId = edgeMatch[1];
+        const edgeType = edgeMatch[2];
+        const edgeLabel = edgeMatch[3] || '';
+        const targetId = edgeMatch[4] || edgeMatch[3];
         
-        const node: MermaidNode = { id: sourceId, label, shape, subgraph: currentSubgraph || undefined };
-        nodes.push(node);
-        nodeMap.set(sourceId, node);
+        debugLog(`Found edge: ${sourceId} ${edgeType} ${targetId} with label: "${edgeLabel}"`);
         
-        if (currentSubgraph) {
-          const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
-          if (subgraph) subgraph.nodes.push(sourceId);
-        }
-      } else if (!nodeMap.has(sourceId)) {
-        // Create simple node
-        const node: MermaidNode = { id: sourceId, label: sourceId, shape: 'rect', subgraph: currentSubgraph || undefined };
-        nodes.push(node);
-        nodeMap.set(sourceId, node);
+        // Extract node definitions from the line
+        const fullLine = line;
         
-        if (currentSubgraph) {
-          const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
-          if (subgraph) subgraph.nodes.push(sourceId);
-        }
-      }
-      
-      // Parse target node
-      const targetNodeMatch = fullLine.match(new RegExp(`${targetId}([\\[\\(\\{][^\\]\\)\\}]*[\\]\\)\\}])`));
-      if (targetNodeMatch && !nodeMap.has(targetId)) {
-        const fullDef = targetNodeMatch[0];
-        const shape = getNodeShape(fullDef);
-        const labelMatch = fullDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-        const label = labelMatch ? cleanLabel(labelMatch[1]) : targetId;
-        
-        const node: MermaidNode = { id: targetId, label, shape, subgraph: currentSubgraph || undefined };
-        nodes.push(node);
-        nodeMap.set(targetId, node);
-        
-        if (currentSubgraph) {
-          const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
-          if (subgraph) subgraph.nodes.push(targetId);
-        }
-      } else if (!nodeMap.has(targetId)) {
-        // Create simple node
-        const node: MermaidNode = { id: targetId, label: targetId, shape: 'rect', subgraph: currentSubgraph || undefined };
-        nodes.push(node);
-        nodeMap.set(targetId, node);
-        
-        if (currentSubgraph) {
-          const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
-          if (subgraph) subgraph.nodes.push(targetId);
-        }
-      }
-      
-      // Add edge
-      edges.push({
-        source: sourceId,
-        target: targetId,
-        label: edgeLabel,
-        type: edgeType
-      });
-    } else {
-      // Parse standalone node definitions
-      const nodePatterns = [
-        /^([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/,
-        /^([A-Za-z0-9_]+)$/
-      ];
-      
-      for (const pattern of nodePatterns) {
-        const nodeMatch = line.match(pattern);
-        if (nodeMatch && !nodeMap.has(nodeMatch[1])) {
-          const nodeId = nodeMatch[1];
-          const nodeDef = nodeMatch[2] || '[' + nodeId + ']';
-          const shape = getNodeShape(nodeDef);
-          const labelMatch = nodeDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-          const label = labelMatch ? cleanLabel(labelMatch[1]) : nodeId;
+        // Parse source node
+        const sourceNodeMatch = fullLine.match(new RegExp(`${sourceId}([\\[\\(\\{][^\\]\\)\\}]*[\\]\\)\\}])`));
+        if (sourceNodeMatch && !nodeMap.has(sourceId)) {
+          const fullDef = sourceNodeMatch[0];
+          const shape = getNodeShape(fullDef);
+          const labelMatch = fullDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
+          const label = labelMatch ? cleanLabel(labelMatch[1]) : sourceId;
           
-          const node: MermaidNode = { id: nodeId, label, shape, subgraph: currentSubgraph || undefined };
+          const node: MermaidNode = { 
+            id: sourceId, 
+            label, 
+            shape, 
+            subgraph: currentSubgraph,
+            parentSubgraph: subgraphStack.length > 1 ? subgraphStack[subgraphStack.length - 2] : undefined
+          };
+          
           nodes.push(node);
-          nodeMap.set(nodeId, node);
+          nodeMap.set(sourceId, node);
           
           if (currentSubgraph) {
             const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
-            if (subgraph) subgraph.nodes.push(nodeId);
+            if (subgraph) subgraph.nodes.push(sourceId);
           }
-          break;
+          
+          debugLog(`Created source node: ${sourceId}, label: "${label}", shape: ${shape}, subgraph: ${currentSubgraph || 'none'}`);
+        } else if (!nodeMap.has(sourceId)) {
+          // Create simple node
+          const node: MermaidNode = { 
+            id: sourceId, 
+            label: sourceId, 
+            shape: 'rect', 
+            subgraph: currentSubgraph,
+            parentSubgraph: subgraphStack.length > 1 ? subgraphStack[subgraphStack.length - 2] : undefined
+          };
+          
+          nodes.push(node);
+          nodeMap.set(sourceId, node);
+          
+          if (currentSubgraph) {
+            const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
+            if (subgraph) subgraph.nodes.push(sourceId);
+          }
+          
+          debugLog(`Created simple source node: ${sourceId}, subgraph: ${currentSubgraph || 'none'}`);
+        } else if (currentSubgraph && !nodeMap.get(sourceId)?.subgraph) {
+          // Node already exists but wasn't assigned to this subgraph
+          const node = nodeMap.get(sourceId)!;
+          node.subgraph = currentSubgraph;
+          
+          const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
+          if (subgraph && !subgraph.nodes.includes(sourceId)) {
+            subgraph.nodes.push(sourceId);
+          }
+          
+          debugLog(`Updated existing node ${sourceId} to be part of subgraph ${currentSubgraph}`);
         }
+        
+        // Parse target node
+        const targetNodeMatch = fullLine.match(new RegExp(`${targetId}([\\[\\(\\{][^\\]\\)\\}]*[\\]\\)\\}])`));
+        if (targetNodeMatch && !nodeMap.has(targetId)) {
+          const fullDef = targetNodeMatch[0];
+          const shape = getNodeShape(fullDef);
+          const labelMatch = fullDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
+          const label = labelMatch ? cleanLabel(labelMatch[1]) : targetId;
+          
+          const node: MermaidNode = { 
+            id: targetId, 
+            label, 
+            shape, 
+            subgraph: currentSubgraph,
+            parentSubgraph: subgraphStack.length > 1 ? subgraphStack[subgraphStack.length - 2] : undefined
+          };
+          
+          nodes.push(node);
+          nodeMap.set(targetId, node);
+          
+          if (currentSubgraph) {
+            const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
+            if (subgraph) subgraph.nodes.push(targetId);
+          }
+          
+          debugLog(`Created target node: ${targetId}, label: "${label}", shape: ${shape}, subgraph: ${currentSubgraph || 'none'}`);
+        } else if (!nodeMap.has(targetId)) {
+          // Create simple node
+          const node: MermaidNode = { 
+            id: targetId, 
+            label: targetId, 
+            shape: 'rect', 
+            subgraph: currentSubgraph,
+            parentSubgraph: subgraphStack.length > 1 ? subgraphStack[subgraphStack.length - 2] : undefined
+          };
+          
+          nodes.push(node);
+          nodeMap.set(targetId, node);
+          
+          if (currentSubgraph) {
+            const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
+            if (subgraph) subgraph.nodes.push(targetId);
+          }
+          
+          debugLog(`Created simple target node: ${targetId}, subgraph: ${currentSubgraph || 'none'}`);
+        } else if (currentSubgraph && !nodeMap.get(targetId)?.subgraph) {
+          // Node already exists but wasn't assigned to this subgraph
+          const node = nodeMap.get(targetId)!;
+          node.subgraph = currentSubgraph;
+          
+          const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
+          if (subgraph && !subgraph.nodes.includes(targetId)) {
+            subgraph.nodes.push(targetId);
+          }
+          
+          debugLog(`Updated existing node ${targetId} to be part of subgraph ${currentSubgraph}`);
+        }
+        
+        // Add edge
+        edges.push({
+          source: sourceId,
+          target: targetId,
+          label: edgeLabel,
+          type: edgeType
+        });
+      } catch (error) {
+        debugLog(`Error parsing edge: ${line}`, error);
+      }
+    } else {
+      // Parse standalone node definitions
+      try {
+        const nodePatterns = [
+          /^([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/,
+          /^([A-Za-z0-9_]+)$/
+        ];
+        
+        for (const pattern of nodePatterns) {
+          const nodeMatch = line.match(pattern);
+          if (nodeMatch && !nodeMap.has(nodeMatch[1])) {
+            const nodeId = nodeMatch[1];
+            const nodeDef = nodeMatch[2] || '[' + nodeId + ']';
+            const shape = getNodeShape(nodeDef);
+            const labelMatch = nodeDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
+            const label = labelMatch ? cleanLabel(labelMatch[1]) : nodeId;
+            
+            const node: MermaidNode = { 
+              id: nodeId, 
+              label, 
+              shape, 
+              subgraph: currentSubgraph,
+              parentSubgraph: subgraphStack.length > 1 ? subgraphStack[subgraphStack.length - 2] : undefined
+            };
+            
+            nodes.push(node);
+            nodeMap.set(nodeId, node);
+            
+            if (currentSubgraph) {
+              const subgraph = subgraphs.find(sg => sg.id === currentSubgraph);
+              if (subgraph) subgraph.nodes.push(nodeId);
+            }
+            
+            debugLog(`Created standalone node: ${nodeId}, label: "${label}", shape: ${shape}, subgraph: ${currentSubgraph || 'none'}`);
+            break;
+          }
+        }
+      } catch (error) {
+        debugLog(`Error parsing standalone node: ${line}`, error);
       }
     }
   }
   
-  return { nodes, edges, subgraphs };
+  // Verify subgraph hierarchy
+  debugLog('Subgraph hierarchy:');
+  subgraphs.forEach(sg => {
+    debugLog(`- ${sg.id} (parent: ${sg.parentId || 'none'}, children: ${sg.childrenIds.join(', ') || 'none'}, nodes: ${sg.nodes.length})`);
+  });
+  
+  return { nodes, edges, subgraphs, direction };
 }
 
 // Calculate dynamic node sizes based on label length
@@ -240,11 +380,58 @@ function calculateNodeSize(label: string, shape: string) {
   return { width, height };
 }
 
+// Process subgraphs in hierarchical order (parents before children)
+function processSubgraphsInHierarchicalOrder(subgraphs: SubgraphInfo[]): SubgraphInfo[] {
+  const result: SubgraphInfo[] = [];
+  const processed = new Set<string>();
+  
+  // First pass: add all subgraphs without parents
+  subgraphs.forEach(subgraph => {
+    if (!subgraph.parentId) {
+      result.push(subgraph);
+      processed.add(subgraph.id);
+    }
+  });
+  
+  // Process remaining subgraphs in hierarchical order
+  let lastProcessedCount = 0;
+  while (processed.size < subgraphs.length && lastProcessedCount !== processed.size) {
+    lastProcessedCount = processed.size;
+    
+    subgraphs.forEach(subgraph => {
+      if (!processed.has(subgraph.id) && subgraph.parentId && processed.has(subgraph.parentId)) {
+        result.push(subgraph);
+        processed.add(subgraph.id);
+      }
+    });
+  }
+  
+  // Add any remaining subgraphs (in case of circular references)
+  subgraphs.forEach(subgraph => {
+    if (!processed.has(subgraph.id)) {
+      debugLog(`Warning: Subgraph ${subgraph.id} has circular reference or missing parent. Adding it anyway.`);
+      result.push(subgraph);
+    }
+  });
+  
+  return result;
+}
+
 // Phase 1: Layout each subgraph independently
-function layoutSubgraphs(nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: SubgraphInfo[]): Map<string, SubgraphLayout> {
+function layoutSubgraphs(
+  nodes: MermaidNode[], 
+  edges: MermaidEdge[], 
+  subgraphs: SubgraphInfo[],
+  direction: string
+): Map<string, SubgraphLayout> {
   const subgraphLayouts = new Map<string, SubgraphLayout>();
   
-  subgraphs.forEach(subgraph => {
+  // Process subgraphs in hierarchical order
+  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
+  
+  debugLog(`Laying out ${orderedSubgraphs.length} subgraphs in hierarchical order`);
+  
+  orderedSubgraphs.forEach(subgraph => {
     const subgraphNodes = nodes.filter(n => n.subgraph === subgraph.id);
     const subgraphEdges = edges.filter(e => {
       const sourceNode = nodes.find(n => n.id === e.source);
@@ -252,12 +439,17 @@ function layoutSubgraphs(nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: 
       return sourceNode?.subgraph === subgraph.id && targetNode?.subgraph === subgraph.id;
     });
     
-    if (subgraphNodes.length === 0) return;
+    if (subgraphNodes.length === 0) {
+      debugLog(`Skipping empty subgraph: ${subgraph.id}`);
+      return;
+    }
+    
+    debugLog(`Laying out subgraph: ${subgraph.id} with ${subgraphNodes.length} nodes and ${subgraphEdges.length} edges`);
     
     // Create a new graph for this subgraph
     const g = new dagre.graphlib.Graph();
     g.setGraph({ 
-      rankdir: 'TB', 
+      rankdir: direction, 
       nodesep: 40, 
       ranksep: 60,
       marginx: SUBGRAPH_PADDING,
@@ -285,6 +477,11 @@ function layoutSubgraphs(nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: 
     
     subgraphNodes.forEach(node => {
       const nodeLayout = g.node(node.id);
+      if (!nodeLayout) {
+        debugLog(`Warning: No layout information for node ${node.id} in subgraph ${subgraph.id}`);
+        return;
+      }
+      
       const size = calculateNodeSize(node.label, node.shape);
       
       nodePositions.set(node.id, {
@@ -300,6 +497,12 @@ function layoutSubgraphs(nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: 
       maxY = Math.max(maxY, nodeLayout.y + size.height / 2);
     });
     
+    // If no nodes were successfully laid out, skip this subgraph
+    if (minX === Infinity || minY === Infinity) {
+      debugLog(`Warning: Could not calculate layout for subgraph ${subgraph.id}`);
+      return;
+    }
+    
     // Normalize positions to start from (0, 0) with header space
     const offsetX = -minX + SUBGRAPH_PADDING;
     const offsetY = -minY + SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT;
@@ -312,27 +515,67 @@ function layoutSubgraphs(nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: 
       });
     });
     
+    const width = (maxX - minX) + SUBGRAPH_PADDING * 2;
+    const height = (maxY - minY) + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT;
+    
     subgraphLayouts.set(subgraph.id, {
       id: subgraph.id,
       title: subgraph.title,
       nodes: nodePositions,
-      width: (maxX - minX) + SUBGRAPH_PADDING * 2,
-      height: (maxY - minY) + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT
+      width,
+      height,
+      parentId: subgraph.parentId
     });
+    
+    debugLog(`Subgraph ${subgraph.id} layout: width=${width}, height=${height}`);
   });
   
   return subgraphLayouts;
+}
+
+// Calculate connection weights between containers
+function calculateConnectionWeights(
+  nodes: MermaidNode[],
+  edges: MermaidEdge[]
+): Map<string, Map<string, number>> {
+  const weights = new Map<string, Map<string, number>>();
+  
+  edges.forEach(edge => {
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    
+    if (!sourceNode || !targetNode) return;
+    
+    // Get container IDs (either subgraph ID or node ID for standalone nodes)
+    const sourceContainer = sourceNode.subgraph || sourceNode.id;
+    const targetContainer = targetNode.subgraph || targetNode.id;
+    
+    // Skip self-connections within the same container
+    if (sourceContainer === targetContainer) return;
+    
+    // Initialize maps if needed
+    if (!weights.has(sourceContainer)) {
+      weights.set(sourceContainer, new Map<string, number>());
+    }
+    
+    const sourceWeights = weights.get(sourceContainer)!;
+    const currentWeight = sourceWeights.get(targetContainer) || 0;
+    sourceWeights.set(targetContainer, currentWeight + 1);
+  });
+  
+  return weights;
 }
 
 // Phase 2: Layout meta-graph (containers + standalone nodes)
 function layoutMetaGraph(
   nodes: MermaidNode[], 
   edges: MermaidEdge[], 
-  subgraphLayouts: Map<string, SubgraphLayout>
+  subgraphLayouts: Map<string, SubgraphLayout>,
+  direction: string
 ): { subgraphPositions: Map<string, { x: number; y: number }>, standalonePositions: Map<string, { x: number; y: number }> } {
   const g = new dagre.graphlib.Graph();
   g.setGraph({ 
-    rankdir: 'TB', 
+    rankdir: direction, 
     nodesep: 80, 
     ranksep: 100,
     marginx: 50,
@@ -340,9 +583,18 @@ function layoutMetaGraph(
   });
   g.setDefaultEdgeLabel(() => ({}));
   
+  debugLog('Laying out meta-graph');
+  
+  // Calculate connection weights between containers
+  const connectionWeights = calculateConnectionWeights(nodes, edges);
+  
   // Add subgraph containers as nodes
   subgraphLayouts.forEach((layout, id) => {
-    g.setNode(id, { width: layout.width, height: layout.height });
+    // Skip nested subgraphs - they'll be positioned relative to their parents
+    if (!layout.parentId) {
+      g.setNode(id, { width: layout.width, height: layout.height });
+      debugLog(`Added subgraph ${id} to meta-graph (width=${layout.width}, height=${layout.height})`);
+    }
   });
   
   // Add standalone nodes
@@ -350,23 +602,35 @@ function layoutMetaGraph(
   standaloneNodes.forEach(node => {
     const size = calculateNodeSize(node.label, node.shape);
     g.setNode(node.id, { width: size.width, height: size.height });
+    debugLog(`Added standalone node ${node.id} to meta-graph`);
   });
   
-  // Add edges between containers and standalone nodes
-  edges.forEach(edge => {
-    const sourceNode = nodes.find(n => n.id === edge.source);
-    const targetNode = nodes.find(n => n.id === edge.target);
-    
-    // Determine the meta-nodes for this edge
-    const sourceMetaNode = sourceNode?.subgraph || sourceNode?.id;
-    const targetMetaNode = targetNode?.subgraph || targetNode?.id;
-    
-    if (sourceMetaNode && targetMetaNode && sourceMetaNode !== targetMetaNode) {
-      // Don't add duplicate edges between same containers
-      if (!g.hasEdge(sourceMetaNode, targetMetaNode)) {
-        g.setEdge(sourceMetaNode, targetMetaNode);
+  // Add edges between containers and standalone nodes with weights
+  connectionWeights.forEach((targets, sourceId) => {
+    targets.forEach((weight, targetId) => {
+      // Skip edges between nested subgraphs and their parents
+      const sourceLayout = subgraphLayouts.get(sourceId);
+      const targetLayout = subgraphLayouts.get(targetId);
+      
+      if ((sourceLayout && sourceLayout.parentId === targetId) || 
+          (targetLayout && targetLayout.parentId === sourceId)) {
+        return;
       }
-    }
+      
+      // Only add edges between top-level containers or standalone nodes
+      const sourceIsTopLevel = !sourceLayout || !sourceLayout.parentId;
+      const targetIsTopLevel = !targetLayout || !targetLayout.parentId;
+      
+      if (sourceIsTopLevel && targetIsTopLevel) {
+        // Check if both nodes exist in the graph
+        if (g.hasNode(sourceId) && g.hasNode(targetId)) {
+          if (!g.hasEdge(sourceId, targetId)) {
+            g.setEdge(sourceId, targetId, { weight });
+            debugLog(`Added meta-edge from ${sourceId} to ${targetId} with weight ${weight}`);
+          }
+        }
+      }
+    });
   });
   
   // Layout the meta-graph
@@ -376,21 +640,67 @@ function layoutMetaGraph(
   const subgraphPositions = new Map<string, { x: number; y: number }>();
   const standalonePositions = new Map<string, { x: number; y: number }>();
   
+  // Position top-level subgraphs
   subgraphLayouts.forEach((layout, id) => {
-    const node = g.node(id);
-    subgraphPositions.set(id, {
-      x: node.x - layout.width / 2,
-      y: node.y - layout.height / 2
-    });
+    if (!layout.parentId) {
+      const node = g.node(id);
+      if (node) {
+        subgraphPositions.set(id, {
+          x: node.x - layout.width / 2,
+          y: node.y - layout.height / 2
+        });
+        debugLog(`Positioned subgraph ${id} at (${node.x - layout.width / 2}, ${node.y - layout.height / 2})`);
+      } else {
+        debugLog(`Warning: No position for subgraph ${id} in meta-graph`);
+      }
+    }
   });
   
+  // Position nested subgraphs relative to their parents
+  const processedSubgraphs = new Set<string>();
+  
+  // Position nested subgraphs relative to their parents
+  function positionNestedSubgraphs() {
+    let progress = false;
+    
+    subgraphLayouts.forEach((layout, id) => {
+      if (!processedSubgraphs.has(id) && layout.parentId) {
+        const parentPos = subgraphPositions.get(layout.parentId);
+        const parentLayout = subgraphLayouts.get(layout.parentId);
+        
+        if (parentPos && parentLayout) {
+          // Position inside parent with some padding
+          const x = parentPos.x + SUBGRAPH_PADDING;
+          const y = parentPos.y + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_PADDING;
+          
+          subgraphPositions.set(id, { x, y });
+          processedSubgraphs.add(id);
+          progress = true;
+          
+          debugLog(`Positioned nested subgraph ${id} at (${x}, ${y}) relative to parent ${layout.parentId}`);
+        }
+      }
+    });
+    
+    return progress;
+  }
+  
+  // Keep positioning nested subgraphs until no more progress is made
+  while (positionNestedSubgraphs()) {}
+  
+  // Position standalone nodes
   standaloneNodes.forEach(node => {
     const nodeLayout = g.node(node.id);
-    const size = calculateNodeSize(node.label, node.shape);
-    standalonePositions.set(node.id, {
-      x: nodeLayout.x - size.width / 2,
-      y: nodeLayout.y - size.height / 2
-    });
+    if (nodeLayout) {
+      const size = calculateNodeSize(node.label, node.shape);
+      standalonePositions.set(node.id, {
+        x: nodeLayout.x - size.width / 2,
+        y: nodeLayout.y - size.height / 2
+      });
+      debugLog(`Positioned standalone node ${node.id} at (${nodeLayout.x - size.width / 2}, ${nodeLayout.y - size.height / 2})`);
+    } else {
+      debugLog(`Warning: No position for standalone node ${node.id} in meta-graph`);
+    }
   });
   
   return { subgraphPositions, standalonePositions };
@@ -406,6 +716,8 @@ function createReactFlowElements(
   standalonePositions: Map<string, { x: number; y: number }>
 ): ReactFlowData {
   const reactFlowNodes: Node[] = [];
+  
+  debugLog('Creating React Flow elements');
   
   // Color schemes
   const getNodeColors = (shape: string, index: number) => {
@@ -437,8 +749,11 @@ function createReactFlowElements(
     return subgraphColors[index % subgraphColors.length];
   };
   
+  // Process subgraphs in hierarchical order to ensure parents are added before children
+  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
+  
   // Add subgraph containers
-  subgraphs.forEach((subgraph, index) => {
+  orderedSubgraphs.forEach((subgraph, index) => {
     const layout = subgraphLayouts.get(subgraph.id);
     const position = subgraphPositions.get(subgraph.id);
     
@@ -446,7 +761,7 @@ function createReactFlowElements(
       const colors = getSubgraphColors(index);
       
       reactFlowNodes.push({
-        id: subgraph.id,
+        id: `subgraph-${subgraph.id}`,
         type: 'group',
         position: position,
         data: { 
@@ -465,7 +780,13 @@ function createReactFlowElements(
         selectable: true,
         draggable: true,
         connectable: false,
+        parentNode: layout.parentId ? `subgraph-${layout.parentId}` : undefined,
+        extent: layout.parentId ? 'parent' : undefined,
       });
+      
+      debugLog(`Added subgraph container: ${subgraph.id} at position (${position.x}, ${position.y})`);
+    } else {
+      debugLog(`Warning: Missing layout or position for subgraph ${subgraph.id}`);
     }
   });
   
@@ -514,14 +835,23 @@ function createReactFlowElements(
           x: nodeLayout.x - nodeLayout.width / 2,
           y: nodeLayout.y - nodeLayout.height / 2
         };
-        parentNode = node.subgraph;
+        parentNode = `subgraph-${node.subgraph}`;
+        
+        debugLog(`Positioned node ${node.id} inside subgraph ${node.subgraph} at relative position (${position.x}, ${position.y})`);
       } else {
         position = { x: 0, y: 0 };
+        debugLog(`Warning: Missing layout information for node ${node.id} in subgraph ${node.subgraph}`);
       }
     } else {
       // Standalone node
       const standalonePos = standalonePositions.get(node.id);
-      position = standalonePos || { x: 0, y: 0 };
+      if (standalonePos) {
+        position = standalonePos;
+        debugLog(`Positioned standalone node ${node.id} at (${position.x}, ${position.y})`);
+      } else {
+        position = { x: 0, y: 0 };
+        debugLog(`Warning: Missing position for standalone node ${node.id}`);
+      }
     }
     
     reactFlowNodes.push({
@@ -545,7 +875,7 @@ function createReactFlowElements(
     });
   });
   
-  // Create edges with prettier styling
+  // Create edges with prettier styling and better routing for cross-subgraph edges
   const reactFlowEdges: Edge[] = edges.map((edge, index) => {
     const edgeColors = ['#1976D2', '#388E3C', '#F57C00', '#7B1FA2', '#C2185B'];
     const edgeColor = edgeColors[index % edgeColors.length];
@@ -578,6 +908,18 @@ function createReactFlowElements(
         break;
     }
     
+    // Determine if this is a cross-subgraph edge
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    const isCrossSubgraph = sourceNode?.subgraph !== targetNode?.subgraph;
+    
+    if (isCrossSubgraph) {
+      // Use smart edge routing for cross-subgraph connections
+      edgeType = 'smoothstep';
+      
+      debugLog(`Created cross-subgraph edge from ${edge.source} (${sourceNode?.subgraph || 'none'}) to ${edge.target} (${targetNode?.subgraph || 'none'})`);
+    }
+    
     return {
       id: `edge-${edge.source}-${edge.target}-${index}`,
       source: edge.source,
@@ -605,16 +947,26 @@ function createReactFlowElements(
     };
   });
   
+  debugLog(`Created ${reactFlowNodes.length} nodes and ${reactFlowEdges.length} edges`);
+  
   return { nodes: reactFlowNodes, edges: reactFlowEdges };
 }
 
 // Main layout function using the three-phase approach
-function layoutGraph(nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: SubgraphInfo[]): { nodes: Node[], edges: Edge[] } {
+function layoutGraph(
+  nodes: MermaidNode[], 
+  edges: MermaidEdge[], 
+  subgraphs: SubgraphInfo[],
+  direction: string
+): { nodes: Node[], edges: Edge[] } {
+  debugLog('Starting graph layout with direction:', direction);
+  debugLog(`Input: ${nodes.length} nodes, ${edges.length} edges, ${subgraphs.length} subgraphs`);
+  
   // Phase 1: Layout each subgraph independently
-  const subgraphLayouts = layoutSubgraphs(nodes, edges, subgraphs);
+  const subgraphLayouts = layoutSubgraphs(nodes, edges, subgraphs, direction);
   
   // Phase 2: Layout meta-graph (containers + standalone nodes)
-  const { subgraphPositions, standalonePositions } = layoutMetaGraph(nodes, edges, subgraphLayouts);
+  const { subgraphPositions, standalonePositions } = layoutMetaGraph(nodes, edges, subgraphLayouts, direction);
   
   // Phase 3: Combine layouts and create React Flow elements
   return createReactFlowElements(nodes, edges, subgraphs, subgraphLayouts, subgraphPositions, standalonePositions);
@@ -622,16 +974,21 @@ function layoutGraph(nodes: MermaidNode[], edges: MermaidEdge[], subgraphs: Subg
 
 export async function convertMermaidToReactFlow(mermaidCode: string): Promise<ReactFlowData> {
   try {
+    debugLog('Starting Mermaid to React Flow conversion');
+    debugLog('Mermaid code:', mermaidCode);
+    
     // Parse the Mermaid code
-    const { nodes, edges, subgraphs } = parseMermaidCode(mermaidCode);
+    const { nodes, edges, subgraphs, direction } = parseMermaidCode(mermaidCode);
     
     if (nodes.length === 0) {
-      console.warn('No nodes found in Mermaid diagram');
+      debugLog('No nodes found in Mermaid diagram');
       return { nodes: [], edges: [] };
     }
     
+    debugLog(`Parsed ${nodes.length} nodes, ${edges.length} edges, ${subgraphs.length} subgraphs`);
+    
     // Layout the graph and return
-    return layoutGraph(nodes, edges, subgraphs);
+    return layoutGraph(nodes, edges, subgraphs, direction);
   } catch (error) {
     console.error('Error converting Mermaid to React Flow:', error);
     return { nodes: [], edges: [] };
