@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 
-export function CustomNode({ data, isConnectable }: NodeProps) {
+export function CustomNode({ data, isConnectable, selected }: NodeProps) {
   const handleClick = () => {
     if (data.githubUrl) {
       window.open(data.githubUrl, '_blank');
@@ -21,6 +22,7 @@ export function CustomNode({ data, isConnectable }: NodeProps) {
     let className = `custom-node shape-${data.shape || 'rect'}`;
     if (data.githubUrl) className += ' has-link';
     if (data.shape === 'diamond') className += ' diamond-node';
+    if (selected) className += ' selected';
     return className;
   };
   
@@ -33,16 +35,9 @@ export function CustomNode({ data, isConnectable }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        isConnectable={true} // Always allow connections
+        isConnectable={isConnectable}
         id="top"
-        style={{
-          background: '#555',
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          border: '2px solid white',
-          zIndex: 10, // Make sure handles are above other elements
-        }}
+        className="handle-top"
       />
       
       <div className="node-content">
@@ -67,47 +62,26 @@ export function CustomNode({ data, isConnectable }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        isConnectable={true} // Always allow connections
+        isConnectable={isConnectable}
         id="bottom"
-        style={{
-          background: '#555',
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          border: '2px solid white',
-          zIndex: 10, // Make sure handles are above other elements
-        }}
+        className="handle-bottom"
       />
       
-      {/* Add additional handles for more connection points (optional) */}
+      {/* Additional handles for more connection points */}
       <Handle
         type="source"
         position={Position.Left}
         id="left"
-        style={{
-          background: '#555',
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          border: '2px solid white',
-          zIndex: 10,
-        }}
-        isConnectable={true}
+        isConnectable={isConnectable}
+        className="handle-left"
       />
       
       <Handle
         type="target"
         position={Position.Right}
         id="right"
-        style={{
-          background: '#555',
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          border: '2px solid white',
-          zIndex: 10,
-        }}
-        isConnectable={true}
+        isConnectable={isConnectable}
+        className="handle-right"
       />
     </div>
   );

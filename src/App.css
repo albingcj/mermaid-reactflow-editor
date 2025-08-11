@@ -615,3 +615,76 @@ textarea {
   font-size: 12px !important;
   font-weight: 500 !important;
 }
+
+/* Base styles for all node handles - hide by default */
+.react-flow__handle {
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  transform: scale(0.8);
+}
+
+/* Show handles on hover or when selected - applies to all nodes */
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Special styling for custom nodes */
+.custom-node .react-flow__handle {
+  background-color: #555;
+  border: 2px solid white;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+/* Differentiate handle types by color */
+.custom-node .react-flow__handle.react-flow__handle-top,
+.custom-node .react-flow__handle.react-flow__handle-right {
+  background-color: #3498db; /* Blue for target handles */
+}
+
+.custom-node .react-flow__handle.react-flow__handle-bottom,
+.custom-node .react-flow__handle.react-flow__handle-left {
+  background-color: #2ecc71; /* Green for source handles */
+}
+
+/* Shape-specific handle styling */
+.shape-diamond .react-flow__handle {
+  background-color: #f39c12;
+}
+
+.shape-circle .react-flow__handle {
+  background-color: #9b59b6;
+}
+
+/* Handle size variations */
+.react-flow__handle-top,
+.react-flow__handle-bottom {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.react-flow__handle-left,
+.react-flow__handle-right {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+/* Active state for handles when being connected */
+.react-flow__handle.connecting {
+  opacity: 1 !important;
+  transform: scale(1.2) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 0 4px rgba(52, 152, 219, 0.5);
+}
+
+/* Improve visibility during connection */
+.react-flow__node:has(.react-flow__handle.connecting) {
+  z-index: 10;
+}
+
+/* Subgraph node specific styles - override colors */
+.subgraph-node .react-flow__handle {
+  background-color: #ff6b6b;
+  border: 2px solid white;
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+}
