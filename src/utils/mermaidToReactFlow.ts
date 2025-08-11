@@ -1051,77 +1051,77 @@ function createReactFlowElements(
   });
 
   // Create edges with consistent styling
-  const reactFlowEdges: Edge[] = edges.map((edge, index) => {
-    const edgeColors = ["#1976D2", "#388E3C", "#F57C00", "#7B1FA2", "#C2185B"];
-    const edgeColor = edgeColors[index % edgeColors.length];
+const reactFlowEdges: Edge[] = edges.map((edge, index) => {
+  const edgeColors = ["#1976D2", "#388E3C", "#F57C00", "#7B1FA2", "#C2185B"];
+  const edgeColor = edgeColors[index % edgeColors.length];
 
-    let edgeStyle = {
-      stroke: edgeColor,
-      strokeWidth: 2,
-    };
+  // Default edge style - make all edges consistent
+  let edgeStyle = {
+    stroke: edgeColor,
+    strokeWidth: 2.5, // Increased default width
+  };
 
-    // Always use smoothstep for consistency
-    const edgeType = "smoothstep";
-    let animated = false;
+  // Always use smoothstep for consistency
+  const edgeType = "smoothstep";
+  let animated = true; // Default to animated for all edges
 
-    // Style edges based on type
-    switch (edge.type) {
-      case "-->":
-      case "->":
-        animated = true;
-        edgeStyle.strokeWidth = 2.5;
-        break;
-      case "---":
-        edgeStyle.strokeDasharray = "8,4";
-        break;
-      case "-.-":
-        edgeStyle.strokeDasharray = "4,4";
-        break;
-      case "==>":
-      case "===>":
-        edgeStyle.strokeWidth = 4;
-        animated = true;
-        break;
-    }
+  // Style edges based on type, but keep animation consistent
+  switch (edge.type) {
+    case "-->":
+    case "->":
+      // Already has default animation and width
+      break;
+    case "---":
+      edgeStyle.strokeDasharray = "8,4";
+      break;
+    case "-.-":
+      edgeStyle.strokeDasharray = "4,4";
+      break;
+    case "==>":
+    case "===>":
+      edgeStyle.strokeWidth = 4;
+      break;
+  }
 
-    // Adjust source and target IDs if they refer to subgraphs
-    const sourceId = edge.isSourceSubgraph
-      ? `subgraph-${edge.source}`
-      : edge.source;
-    const targetId = edge.isTargetSubgraph
-      ? `subgraph-${edge.target}`
-      : edge.target;
+  // Adjust source and target IDs if they refer to subgraphs
+  const sourceId = edge.isSourceSubgraph
+    ? `subgraph-${edge.source}`
+    : edge.source;
+  const targetId = edge.isTargetSubgraph
+    ? `subgraph-${edge.target}`
+    : edge.target;
 
-    // Create edge with explicit properties
-    return {
-      id: `edge-${edge.source}-${edge.target}-${index}`,
-      source: sourceId,
-      target: targetId,
-      label: edge.label,
-      type: edgeType,
-      animated,
-      style: edgeStyle,
-      labelStyle: {
-        fontSize: "12px",
-        fontWeight: "500",
-        color: edgeColor,
-        backgroundColor: "white",
-        padding: "2px 6px",
-        borderRadius: "4px",
-        border: `1px solid ${edgeColor}`,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 20,
-        height: 20,
-        color: edgeColor,
-      },
-      // These ensure consistent connections
-      sourceHandle: edge.isSourceSubgraph ? "subgraph-bottom" : null,
-      targetHandle: edge.isTargetSubgraph ? "subgraph-top" : null,
-      zIndex: 0,
-    };
-  });
+  // Create edge with explicit properties - ensure consistent styling
+  return {
+    id: `edge-${edge.source}-${edge.target}-${index}`,
+    source: sourceId,
+    target: targetId,
+    label: edge.label,
+    type: edgeType,
+    animated, // Apply animation to ALL edges
+    style: edgeStyle,
+    labelStyle: {
+      fontSize: "12px",
+      fontWeight: "500",
+      color: edgeColor,
+      backgroundColor: "white",
+      padding: "2px 6px",
+      borderRadius: "4px",
+      border: `1px solid ${edgeColor}`,
+    },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      width: 20,
+      height: 20,
+      color: edgeColor,
+    },
+    // These ensure consistent connections
+    sourceHandle: edge.isSourceSubgraph ? "subgraph-bottom" : null,
+    targetHandle: edge.isTargetSubgraph ? "subgraph-top" : null,
+    zIndex: 0,
+  };
+});
+
 
   return { nodes: reactFlowNodes, edges: reactFlowEdges };
 }
