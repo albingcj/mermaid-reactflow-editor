@@ -1056,7 +1056,7 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
   const edgeColor = edgeColors[index % edgeColors.length];
 
   // Default edge style - make all edges consistent
-  let edgeStyle = {
+  let edgeStyle: any = {
     stroke: edgeColor,
     strokeWidth: 2.5, // Increased default width
   };

@@ -1,0 +1,11 @@
+/* Highlight selected edge */
+.react-flow__edge.selected path {
+  stroke: #ff9800 !important;
+  stroke-width: 2px !important;
+  filter: drop-shadow(0 0 2px #ff9800aa);
+}
+
+.react-flow__edge.selected .react-flow__edge-text {
+  fill: #ff9800 !important;
+  font-weight: bold !important;
+}

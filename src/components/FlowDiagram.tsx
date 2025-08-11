@@ -18,6 +18,7 @@ import ReactFlow, {
   MarkerType,
   ConnectionLineType,
 } from 'reactflow';
+import '../selected-edge.css';
 import 'reactflow/dist/style.css';
 import { CustomNode } from './CustomNode';
 import { NodeEditor } from './NodeEditor';
@@ -39,6 +40,7 @@ export function FlowDiagram({
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [showNodeEditor, setShowNodeEditor] = useState(false);
 
   useEffect(() => {
@@ -68,9 +70,20 @@ export function FlowDiagram({
       const newEdges = applyEdgeChanges(changes, edges);
       setEdges(newEdges);
       onEdgesChangeCallback?.(newEdges);
+      // Deselect edge if it was removed
+      if (selectedEdgeId && !newEdges.some(e => e.id === selectedEdgeId)) {
+        setSelectedEdgeId(null);
+      }
     },
-    [edges, onEdgesChangeCallback]
+    [edges, onEdgesChangeCallback, selectedEdgeId]
   );
+
+  // Edge click handler
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.stopPropagation();
+    setSelectedEdgeId(edge.id);
+    setSelectedNode(null); // Deselect node if any
+  }, []);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -148,12 +161,24 @@ export function FlowDiagram({
     [nodes]
   );
 
+  // Add selected class to selected edge
+  const edgesWithSelection = useMemo(() =>
+    edges.map(edge => ({
+      ...edge,
+      className: edge.id === selectedEdgeId ? 'selected' : undefined
+    })), [edges, selectedEdgeId]);
+
+  // Deselect edge when clicking on background
+  const onPaneClick = useCallback(() => {
+    setSelectedEdgeId(null);
+  }, []);
+
   return (
     <>
       <div style={{ width: '100%', height: '100%' }}>
         <ReactFlow
           nodes={nodesWithEditCallback}
-          edges={edges}
+          edges={edgesWithSelection}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -173,6 +198,8 @@ export function FlowDiagram({
             }
           }}
           connectionLineType={ConnectionLineType.SmoothStep}
+          onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClick}
         >
           <Controls />
           <MiniMap />
