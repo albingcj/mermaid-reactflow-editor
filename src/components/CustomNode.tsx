@@ -31,12 +31,19 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
       className={getNodeClassName()}
       onDoubleClick={data.onEdit}
     >
-      {/* Top handle for incoming connections */}
+      {/* Top handles */}
       <Handle
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
-        id="top"
+        id="top-target"
+        className="handle-top"
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        isConnectable={isConnectable}
+        id="top-source"
         className="handle-top"
       />
       
@@ -58,29 +65,51 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
         )}
       </div>
       
-      {/* Bottom handle for outgoing connections */}
+      {/* Bottom handles */}
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        isConnectable={isConnectable}
+        id="bottom-target"
+        className="handle-bottom"
+      />
       <Handle
         type="source"
         position={Position.Bottom}
         isConnectable={isConnectable}
-        id="bottom"
+        id="bottom-source"
         className="handle-bottom"
       />
       
-      {/* Additional handles for more connection points */}
+      {/* Left handles */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={isConnectable}
+        id="left-target"
+        className="handle-left"
+      />
       <Handle
         type="source"
         position={Position.Left}
-        id="left"
         isConnectable={isConnectable}
+        id="left-source"
         className="handle-left"
       />
-      
+
+      {/* Right handles */}
       <Handle
         type="target"
         position={Position.Right}
-        id="right"
         isConnectable={isConnectable}
+        id="right-target"
+        className="handle-right"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        isConnectable={isConnectable}
+        id="right-source"
         className="handle-right"
       />
     </div>

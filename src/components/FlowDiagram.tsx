@@ -17,6 +17,7 @@ import ReactFlow, {
   NodeDragHandler,
   MarkerType,
   ConnectionLineType,
+  ConnectionMode,
 } from 'reactflow';
 import '../selected-edge.css';
 import 'reactflow/dist/style.css';
@@ -200,6 +201,22 @@ export function FlowDiagram({
           connectionLineType={ConnectionLineType.SmoothStep}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
+          edgesUpdatable={true}
+          connectionMode={ConnectionMode.Loose}
+          onEdgeUpdate={(oldEdge, newConnection) => {
+            // Ensure source and target are always strings (not null)
+            if (!newConnection.source || !newConnection.target) return;
+            setEdges((eds) => eds.map(e =>
+              e.id === oldEdge.id
+                ? { ...e, ...newConnection, source: newConnection.source!, target: newConnection.target! }
+                : e
+            ));
+            onEdgesChangeCallback?.(edges.map(e =>
+              e.id === oldEdge.id
+                ? { ...e, ...newConnection, source: newConnection.source!, target: newConnection.target! }
+                : e
+            ));
+          }}
         >
           <Controls />
           <MiniMap />
