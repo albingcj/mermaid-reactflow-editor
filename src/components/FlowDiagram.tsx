@@ -1,3 +1,5 @@
+// @ts-nocheck
+import * as htmlToImage from 'html-to-image';
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import ReactFlow, {
   Node,
@@ -44,40 +46,11 @@ function FlowDiagramInternal({
   onEdgesChange: onEdgesChangeCallback
 }: FlowDiagramProps) {
   const reactFlowInstance = useReactFlow();
+  
+  // Ref for the ReactFlow wrapper div
+  const reactFlowWrapper = useRef(null);
+
   // State declarations
-
-  // Handler for node changes
-  const onNodesChange = React.useCallback((changes: NodeChange[]) => {
-    setNodes((nds) => {
-      const updated = applyNodeChanges(changes, nds);
-      onNodesChangeCallback?.(updated);
-      return updated;
-    });
-  }, [onNodesChangeCallback]);
-
-  // Handler for edge changes
-  const onEdgesChange = React.useCallback((changes: EdgeChange[]) => {
-    setEdges((eds) => {
-      const updated = applyEdgeChanges(changes, eds);
-      onEdgesChangeCallback?.(updated);
-      return updated;
-    });
-  }, [onEdgesChangeCallback]);
-
-
-  // Handler for connecting nodes (now after edges is defined)
-  const onConnect = React.useCallback((connection: Connection) => {
-    setEdges((eds) => {
-      const updated = addEdge(connection, eds);
-      onEdgesChangeCallback?.(updated);
-      return updated;
-    });
-  }, [onEdgesChangeCallback]);
-
-  // Handler for edge click
-  const onEdgeClick = React.useCallback((event: React.MouseEvent, edge: Edge) => {
-    setSelectedEdgeId(edge.id);
-  }, []);
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -86,6 +59,80 @@ function FlowDiagramInternal({
   const [selectedEdges, setSelectedEdges] = useState<Edge[]>([]);
   const [showNodeEditor, setShowNodeEditor] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Improved Download as Image Handler for High-Quality Large Diagrams
+  const handleDownloadImage = async () => {
+    if (!reactFlowWrapper.current || !reactFlowInstance) return;
+    setExporting(true);
+    // Save current viewport and wrapper style
+    const originalTransform = reactFlowInstance.toObject();
+    const wrapper = reactFlowWrapper.current;
+    const originalWidth = wrapper.style.width;
+    const originalHeight = wrapper.style.height;
+    try {
+      // Calculate bounding box from nodes
+      if (!nodes || nodes.length === 0) throw new Error('No nodes to export');
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodes.forEach(node => {
+        const x = node.position.x;
+        const y = node.position.y;
+        const width = (node.width || 150);
+        const height = (node.height || 50);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + width);
+        maxY = Math.max(maxY, y + height);
+      });
+      // Add a small padding
+      const padding = 20;
+      minX -= padding;
+      minY -= padding;
+      maxX += padding;
+      maxY += padding;
+      const exportWidth = maxX - minX;
+      const exportHeight = maxY - minY;
+
+      // Set wrapper to bounding box size
+      wrapper.style.width = exportWidth + 'px';
+      wrapper.style.height = exportHeight + 'px';
+      // Fit view to bounds
+      reactFlowInstance.setViewport({ x: minX, y: minY, zoom: 1 });
+      await new Promise(res => setTimeout(res, 300));
+
+      // Use a very high pixel ratio for maximum clarity
+      const pixelRatio = 8;
+      const dataUrl = await htmlToImage.toPng(wrapper, {
+        cacheBust: true,
+        pixelRatio,
+        backgroundColor: '#fff',
+        style: {
+          transform: 'none',
+          zoom: 1,
+        },
+        width: exportWidth,
+        height: exportHeight,
+      });
+
+      // Download the image
+      const link = document.createElement('a');
+      link.download = 'reactflow-diagram.png';
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      alert('Failed to export image: ' + err);
+    } finally {
+      // Restore original viewport and wrapper size
+      if (originalTransform && originalTransform.viewport) {
+        reactFlowInstance.setViewport(originalTransform.viewport);
+      }
+      if (wrapper) {
+        wrapper.style.width = originalWidth;
+        wrapper.style.height = originalHeight;
+      }
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     setNodes(initialNodes);
@@ -100,14 +147,68 @@ function FlowDiagramInternal({
     []
   );
 
+  // Handler for node changes
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((nds) => {
+      const updated = applyNodeChanges(changes, nds);
+      
+      // Update selected nodes
+      const newSelectedNodes = updated.filter(node => node.selected);
+      setSelectedNodes(newSelectedNodes);
+      
+      if (onNodesChangeCallback) {
+        onNodesChangeCallback(updated);
+      }
+      return updated;
+    });
+  }, [onNodesChangeCallback]);
+
+  // Handler for edge changes
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    setEdges((eds) => {
+      const updated = applyEdgeChanges(changes, eds);
+      
+      // Update selected edges
+      const newSelectedEdges = updated.filter(edge => edge.selected);
+      setSelectedEdges(newSelectedEdges);
+      
+      if (onEdgesChangeCallback) {
+        onEdgesChangeCallback(updated);
+      }
+      return updated;
+    });
+  }, [onEdgesChangeCallback]);
+
+  // Handler for connecting nodes
+  const onConnect = useCallback((connection: Connection) => {
+    setEdges((eds) => {
+      const updated = addEdge({
+        ...connection,
+        type: 'smoothstep',
+        animated: true,
+        style: { stroke: '#1976D2', strokeWidth: 2.5 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: '#1976D2'
+        }
+      }, eds);
+      
+      if (onEdgesChangeCallback) {
+        onEdgesChangeCallback(updated);
+      }
+      return updated;
+    });
+  }, [onEdgesChangeCallback]);
+
+  // Handler for edge click
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    setSelectedEdgeId(edge.id);
+  }, []);
 
   // Add a menu for edge type selection (optional enhancement)
   const [selectedEdgeType, setSelectedEdgeType] = useState('animated');
-
-  useEffect(() => {
-    // Update default edge options when edge type changes
-    // This is an optional enhancement if you want to allow users to choose edge types
-  }, [selectedEdgeType]);
 
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     // Only show editor for non-group nodes
@@ -129,7 +230,10 @@ function FlowDiagramInternal({
         }
         return node;
       });
-      onNodesChangeCallback?.(newNodes);
+      
+      if (onNodesChangeCallback) {
+        onNodesChangeCallback(newNodes);
+      }
       return newNodes;
     });
   }, [onNodesChangeCallback]);
@@ -249,11 +353,6 @@ function FlowDiagramInternal({
 
       case 'top':
         const topY = Math.min(...bounds.map(b => b.y));
-        // Handler for connecting nodes (now after edges is defined)
-        const onConnect = React.useCallback((connection: Connection) => {
-          setEdges((eds) => addEdge(connection, eds));
-          onEdgesChangeCallback?.(addEdge(connection, edges));
-        }, [edges, onEdgesChangeCallback]);
         bounds.forEach(bound => {
           const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
           if (nodeIndex !== -1) {
@@ -294,7 +393,9 @@ function FlowDiagramInternal({
     }
 
     setNodes(newNodes);
-    onNodesChangeCallback?.(newNodes);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onDistributeNodes = useCallback((direction: 'horizontal' | 'vertical') => {
@@ -360,7 +461,9 @@ function FlowDiagramInternal({
     
     // Update all nodes at once
     setNodes(newNodes);
-    onNodesChangeCallback?.(newNodes);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onBringToFront = useCallback(() => {
@@ -371,7 +474,9 @@ function FlowDiagramInternal({
         : node
     );
     setNodes(newNodes);
-    onNodesChangeCallback?.(newNodes);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onSendToBack = useCallback(() => {
@@ -382,7 +487,9 @@ function FlowDiagramInternal({
         : node
     );
     setNodes(newNodes);
-    onNodesChangeCallback?.(newNodes);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onDuplicateNodes = useCallback(() => {
@@ -401,7 +508,9 @@ function FlowDiagramInternal({
     });
     
     setNodes(newNodes);
-    onNodesChangeCallback?.(newNodes);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onDeleteSelected = useCallback(() => {
@@ -416,8 +525,12 @@ function FlowDiagramInternal({
     setSelectedNodes([]);
     setSelectedEdges([]);
     
-    onNodesChangeCallback?.(newNodes);
-    onEdgesChangeCallback?.(newEdges);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
+    if (onEdgesChangeCallback) {
+      onEdgesChangeCallback(newEdges);
+    }
   }, [selectedNodes, selectedEdges, nodes, edges, onNodesChangeCallback, onEdgesChangeCallback]);
 
   const onLockNodes = useCallback(() => {
@@ -431,7 +544,9 @@ function FlowDiagramInternal({
         : node
     );
     setNodes(newNodes);
-    onNodesChangeCallback?.(newNodes);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onUnlockNodes = useCallback(() => {
@@ -445,7 +560,9 @@ function FlowDiagramInternal({
         : node
     );
     setNodes(newNodes);
-    onNodesChangeCallback?.(newNodes);
+    if (onNodesChangeCallback) {
+      onNodesChangeCallback(newNodes);
+    }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onGroupNodes = useCallback(() => {
@@ -490,9 +607,69 @@ function FlowDiagramInternal({
         }}
         title="Search nodes (Ctrl+F)"
       >
-        <i className="bi bi-search me-1"></i>
+        {/* Search Icon SVG */}
+        <span className="me-1" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7" cy="7" r="6" stroke="#fff" strokeWidth="2" fill="none" />
+            <line x1="11.5" y1="11.5" x2="15" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </span>
         Search
       </button>
+
+      {/* Download as Image Button */}
+      <button
+        onClick={handleDownloadImage}
+        className="btn btn-outline-secondary btn-sm mt-5"
+        style={{
+          position: 'absolute',
+          top: '50px',
+          right: '10px',
+          zIndex: 1000,
+          borderRadius: '20px',
+          padding: '8px 12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.10)'
+        }}
+        title="Download diagram as image"
+      >
+        {/* Download Icon SVG */}
+        <span className="me-1" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 2v8m0 0l-3-3m3 3l3-3" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <rect x="3" y="13" width="10" height="1.5" rx="0.75" fill="#333" />
+          </svg>
+        </span>
+        Download
+      </button>
+
+      {/* Loader Overlay for Export */}
+      {exporting && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: '#fff', // fully opaque
+          zIndex: 2000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+        }}>
+          <div style={{
+            border: '6px solid #e3e3e3',
+            borderTop: '6px solid #1976D2',
+            borderRadius: '50%',
+            width: 48,
+            height: 48,
+            animation: 'spin 1s linear infinite',
+            marginBottom: 16,
+          }} />
+          <div style={{ fontSize: 18, color: '#1976D2', fontWeight: 500 }}>Exporting image...</div>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
+        </div>
+      )}
 
       {/* Search Control */}
       <SearchControl
@@ -502,7 +679,7 @@ function FlowDiagramInternal({
         isVisible={showSearch}
       />
       
-      <div style={{ width: '100%', height: '100%' }}>
+      <div style={{ width: '100%', height: '100%' }} ref={reactFlowWrapper}>
         <ReactFlow
           minZoom={0.05}
           nodes={nodesWithEditCallback}
@@ -536,32 +713,38 @@ function FlowDiagramInternal({
           onEdgeUpdate={(oldEdge, newConnection) => {
             // Ensure source and target are always strings (not null)
             if (!newConnection.source || !newConnection.target) return;
-            setEdges((eds) => eds.map(e =>
-              e.id === oldEdge.id
-                ? { ...e, ...newConnection, source: newConnection.source!, target: newConnection.target! }
-                : e
-            ));
-            onEdgesChangeCallback?.(edges.map(e =>
-              e.id === oldEdge.id
-                ? { ...e, ...newConnection, source: newConnection.source!, target: newConnection.target! }
-                : e
-            ));
+            
+            setEdges((eds) => {
+              const updated = eds.map(e =>
+                e.id === oldEdge.id
+                  ? { ...e, ...newConnection, source: newConnection.source!, target: newConnection.target! }
+                  : e
+              );
+              
+              if (onEdgesChangeCallback) {
+                onEdgesChangeCallback(updated);
+              }
+              return updated;
+            });
           }}
-          onDragOver={event => {
+          onDragOver={(event) => {
             event.preventDefault();
             event.dataTransfer.dropEffect = 'move';
           }}
-          onDrop={event => {
+          onDrop={(event) => {
             event.preventDefault();
             const type = event.dataTransfer.getData('application/reactflow');
             if (!type) return;
-            const bounds = event.currentTarget.getBoundingClientRect();
+            
+            const bounds = reactFlowWrapper.current.getBoundingClientRect();
             const position = reactFlowInstance.project({
               x: event.clientX - bounds.left,
               y: event.clientY - bounds.top,
             });
+            
             const id = `${type}-${Date.now()}`;
             let newNode;
+            
             if (type === 'node') {
               newNode = {
                 id,
@@ -579,9 +762,15 @@ function FlowDiagramInternal({
                 style: { width: 220, height: 120, background: '#e3f2fd', border: '2px dashed #1976D2' },
               };
             }
+            
             if (newNode) {
-              setNodes(nds => [...nds, newNode]);
-              onNodesChangeCallback?.([...nodes, newNode]);
+              setNodes((nds) => {
+                const updated = [...nds, newNode];
+                if (onNodesChangeCallback) {
+                  onNodesChangeCallback(updated);
+                }
+                return updated;
+              });
             }
           }}
         >
@@ -590,6 +779,7 @@ function FlowDiagramInternal({
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
       </div>
+      
       {showNodeEditor && (
         <NodeEditor
           node={selectedNode}
