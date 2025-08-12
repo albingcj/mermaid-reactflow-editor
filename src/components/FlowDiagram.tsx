@@ -547,6 +547,43 @@ function FlowDiagramInternal({
                 : e
             ));
           }}
+          onDragOver={event => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={event => {
+            event.preventDefault();
+            const type = event.dataTransfer.getData('application/reactflow');
+            if (!type) return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            const position = reactFlowInstance.project({
+              x: event.clientX - bounds.left,
+              y: event.clientY - bounds.top,
+            });
+            const id = `${type}-${Date.now()}`;
+            let newNode;
+            if (type === 'node') {
+              newNode = {
+                id,
+                type: 'custom',
+                position,
+                data: { label: 'New Node' },
+                style: { width: 150, height: 50 },
+              };
+            } else if (type === 'subgraph') {
+              newNode = {
+                id,
+                type: 'group',
+                position,
+                data: { label: 'New Subgraph' },
+                style: { width: 220, height: 120, background: '#e3f2fd', border: '2px dashed #1976D2' },
+              };
+            }
+            if (newNode) {
+              setNodes(nds => [...nds, newNode]);
+              onNodesChangeCallback?.([...nodes, newNode]);
+            }
+          }}
         >
           <Controls />
           <MiniMap />

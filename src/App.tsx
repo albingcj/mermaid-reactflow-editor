@@ -31,9 +31,16 @@ function App() {
   const [currentDiagramId, setCurrentDiagramId] = useState<string | null>(null);
   const [editingDiagramId, setEditingDiagramId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [activeAccordion, setActiveAccordion] = useState("input");
 
   // UI State
-  const [activeAccordion, setActiveAccordion] = useState<string>("input");
+  const [accordionOpen, setAccordionOpen] = useState({
+    input: true,
+    palette: false,
+    diagrams: false,
+    actions: false,
+    saved: false,
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCodePreview, setShowCodePreview] = useState(false);
   const [showLivePreview, setShowLivePreview] = useState(false);
@@ -210,7 +217,11 @@ function App() {
   };
 
   const toggleAccordion = (section: string) => {
-    setActiveAccordion(activeAccordion === section ? "" : section);
+    setAccordionOpen(prev => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+    setActiveAccordion(section);
   };
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
@@ -269,6 +280,63 @@ function App() {
           </div>
 
           <div className="p-0">
+            {/* Node Palette Section */}
+            <div className="border-bottom">
+              <button
+                className={`w-100 btn btn-link text-start px-3 py-2 fw-normal border-0 ${
+                  activeAccordion === "palette"
+                    ? "text-primary bg-primary bg-opacity-10"
+                    : "text-dark"
+                }`}
+                onClick={() => toggleAccordion("palette")}
+                style={{ borderRadius: 0 }}
+              >
+                <div className="d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center">
+                    <i className="bi bi-box-arrow-in-down me-2"></i>
+                    <span className="fs-7">Node Palette</span>
+                  </div>
+                  <i
+                    className={`bi bi-chevron-${
+                      accordionOpen.palette ? "up" : "down"
+                    } fs-7`}
+                  ></i>
+                </div>
+              </button>
+              <div className={`collapse ${accordionOpen.palette ? "show" : ""}`}>
+                <div className="px-3 py-2 bg-white">
+                  <div className="d-flex flex-column gap-2">
+                    <div
+                      className="card card-body p-2 d-flex flex-row align-items-center gap-2 draggable-palette-item"
+                      draggable
+                      onDragStart={e => {
+                        e.dataTransfer.setData('application/reactflow', 'node');
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      style={{ cursor: 'grab', userSelect: 'none' }}
+                    >
+                      <i className="bi bi-circle-fill text-primary" style={{ fontSize: '18px' }}></i>
+                      <span className="fw-medium">Node</span>
+                    </div>
+                    <div
+                      className="card card-body p-2 d-flex flex-row align-items-center gap-2 draggable-palette-item"
+                      draggable
+                      onDragStart={e => {
+                        e.dataTransfer.setData('application/reactflow', 'subgraph');
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      style={{ cursor: 'grab', userSelect: 'none' }}
+                    >
+                      <i className="bi bi-collection-fill text-info" style={{ fontSize: '18px' }}></i>
+                      <span className="fw-medium">Subgraph</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-muted small">
+                    Drag to canvas to add
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Input Section */}
             <div className="border-bottom">
               <button
@@ -287,7 +355,7 @@ function App() {
                   </div>
                   <i
                     className={`bi bi-chevron-${
-                      activeAccordion === "input" ? "up" : "down"
+                      accordionOpen.input ? "up" : "down"
                     } fs-7`}
                   ></i>
                 </div>
@@ -295,7 +363,7 @@ function App() {
 
               <div
                 className={`collapse ${
-                  activeAccordion === "input" ? "show" : ""
+                  accordionOpen.input ? "show" : ""
                 }`}
               >
                 <div className="px-3 py-2 bg-white">
@@ -378,7 +446,7 @@ function App() {
                     </div>
                     <i
                       className={`bi bi-chevron-${
-                        activeAccordion === "diagrams" ? "up" : "down"
+                        accordionOpen.diagrams ? "up" : "down"
                       } fs-7`}
                     ></i>
                   </div>
@@ -386,7 +454,7 @@ function App() {
 
                 <div
                   className={`collapse ${
-                    activeAccordion === "diagrams" ? "show" : ""
+                    accordionOpen.diagrams ? "show" : ""
                   }`}
                 >
                   <div className="px-3 py-2 bg-white">
@@ -541,7 +609,7 @@ function App() {
                   </div>
                   <i
                     className={`bi bi-chevron-${
-                      activeAccordion === "actions" ? "up" : "down"
+                      accordionOpen.actions ? "up" : "down"
                     } fs-7`}
                   ></i>
                 </div>
@@ -549,7 +617,7 @@ function App() {
 
               <div
                 className={`collapse ${
-                  activeAccordion === "actions" ? "show" : ""
+                  accordionOpen.actions ? "show" : ""
                 }`}
               >
                 <div className="px-3 py-2 bg-white">
@@ -634,7 +702,7 @@ function App() {
                   </div>
                   <i
                     className={`bi bi-chevron-${
-                      activeAccordion === "saved" ? "up" : "down"
+                      accordionOpen.saved ? "up" : "down"
                     } fs-7`}
                   ></i>
                 </div>
@@ -642,7 +710,7 @@ function App() {
 
               <div
                 className={`collapse ${
-                  activeAccordion === "saved" ? "show" : ""
+                  accordionOpen.saved ? "show" : ""
                 }`}
               >
                 <div
