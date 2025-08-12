@@ -478,7 +478,7 @@ function FlowDiagramInternal({
       {/* Search Button */}
       <button
         onClick={() => setShowSearch(true)}
-        className="btn btn-primary btn-sm"
+        className="btn btn-primary btn-sm mt-5"
         style={{
           position: 'absolute',
           top: '10px',
