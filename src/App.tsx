@@ -5,6 +5,7 @@ import { extractMermaidDiagrams, MermaidDiagram } from './utils/mermaidParser';
 import { convertMermaidToReactFlow, ReactFlowData } from './utils/mermaidToReactFlow';
 import { saveDiagram, getAllDiagrams, deleteDiagram, exportToFile, SavedDiagram, getDiagram, updateDiagram } from './utils/diagramStorage';
 import { Node, Edge } from 'reactflow';
+import './App.css';
 
 function App() {
   const [markdownContent, setMarkdownContent] = useState('');
