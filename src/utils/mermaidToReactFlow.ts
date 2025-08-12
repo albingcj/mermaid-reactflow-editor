@@ -96,7 +96,7 @@ function parseMermaidCode(code: string): {
   const nodeMap = new Map<string, MermaidNode>();
   const subgraphMap = new Map<string, SubgraphInfo>();
   
-  // NEW: Track all node definitions found in the code
+  // Track all node definitions found in the code
   const nodeDefinitions = new Map<string, { label: string; shape: string; fullDef: string }>();
 
   // Default direction is top-to-bottom
@@ -111,23 +111,42 @@ function parseMermaidCode(code: string): {
 
   debugLog("Clean code:", cleanCode);
 
-  // Parse graph direction
-  const directionMatch = cleanCode.match(/graph\s+(TB|BT|RL|LR)/i);
+  // Parse graph direction - Updated to handle both flowchart and graph
+  const directionMatch = cleanCode.match(/(?:flowchart|graph)\s+(TB|TD|BT|RL|LR)/i);
   if (directionMatch) {
     direction = directionMatch[1].toUpperCase();
+    // Normalize TD to TB
+    if (direction === "TD") direction = "TB";
     debugLog("Detected graph direction:", direction);
   }
 
   const lines = cleanCode.split("\n");
   const subgraphStack: string[] = [];
 
-  // NEW: Pre-scan to find all node definitions
+  // Enhanced cleanLabel function to handle unicode and special characters
+  function enhancedCleanLabel(label: string): string {
+    return label
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\\u([0-9a-fA-F]{4})/g, (match, code) => {
+        try {
+          return String.fromCharCode(parseInt(code, 16));
+        } catch (e) {
+          debugLog(`Warning: Could not parse unicode character: ${match}`);
+          return match;
+        }
+      })
+      .replace(/\\n/g, "\n")
+      .trim();
+  }
+
+  // Pre-scan to find all node definitions
   debugLog("Pre-scanning for node definitions...");
   lines.forEach((line, lineIndex) => {
     const trimmedLine = line.trim();
-    if (!trimmedLine || trimmedLine.startsWith("subgraph") || trimmedLine === "end") return;
+    if (!trimmedLine || trimmedLine.startsWith("subgraph") || trimmedLine === "end" || trimmedLine.startsWith("%%")) return;
 
-    // Look for node definitions in the line (both in edges and standalone)
+    // Enhanced node definition pattern to capture more variations
     const nodeDefPattern = /([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/g;
     let match;
     
@@ -137,7 +156,8 @@ function parseMermaidCode(code: string): {
       if (!nodeDefinitions.has(nodeId)) {
         const shape = getNodeShape(fullDef);
         const labelMatch = shapeDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-        const label = labelMatch ? cleanLabel(labelMatch[1]) : nodeId;
+        const rawLabel = labelMatch ? labelMatch[1] : nodeId;
+        const label = enhancedCleanLabel(rawLabel);
         
         nodeDefinitions.set(nodeId, { label, shape, fullDef });
         debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
@@ -145,13 +165,14 @@ function parseMermaidCode(code: string): {
     }
   });
 
-  // First pass: identify all subgraphs to reference them later
+  // First pass: identify all subgraphs
+  debugLog("First pass: identifying subgraphs...");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Handle subgraph start
-    const subgraphMatch = line.match(/^subgraph\s+([^\s]+)(?:\s*\[(.+)\])?/);
+    // Handle subgraph start - Enhanced pattern to handle subgraph titles with spaces
+    const subgraphMatch = line.match(/^subgraph\s+([^\s\[]+)(?:\s*\[(.+)\])?/);
     if (subgraphMatch) {
       const [, subgraphId, subgraphTitle] = subgraphMatch;
 
@@ -161,17 +182,17 @@ function parseMermaidCode(code: string): {
           ? subgraphStack[subgraphStack.length - 1]
           : undefined;
 
+      const cleanTitle = subgraphTitle ? enhancedCleanLabel(subgraphTitle) : subgraphId;
+
       debugLog(
-        `Found subgraph: ${subgraphId}, title: ${
-          subgraphTitle || subgraphId
-        }, parent: ${parentId || "none"}`
+        `Found subgraph: ${subgraphId}, title: "${cleanTitle}", parent: ${parentId || "none"}`
       );
 
       subgraphStack.push(subgraphId);
 
       const newSubgraph: SubgraphInfo = {
         id: subgraphId,
-        title: subgraphTitle || subgraphId,
+        title: cleanTitle,
         nodes: [],
         parentId,
         childrenIds: [],
@@ -195,7 +216,7 @@ function parseMermaidCode(code: string): {
   // Reset for second pass
   subgraphStack.length = 0;
 
-  // UPDATED: Helper function to create or get existing node
+  // Helper function to create or get existing node
   const createOrGetNode = (nodeId: string, currentSubgraph?: string): MermaidNode => {
     // Check if node already exists
     if (nodeMap.has(nodeId)) {
@@ -254,12 +275,13 @@ function parseMermaidCode(code: string): {
   };
 
   // Second pass: process nodes and edges
+  debugLog("Second pass: processing nodes and edges...");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
     // Handle subgraph start
-    const subgraphMatch = line.match(/^subgraph\s+([^\s]+)(?:\s*\[(.+)\])?/);
+    const subgraphMatch = line.match(/^subgraph\s+([^\s\[]+)(?:\s*\[(.+)\])?/);
     if (subgraphMatch) {
       const [, subgraphId] = subgraphMatch;
       subgraphStack.push(subgraphId);
@@ -279,15 +301,12 @@ function parseMermaidCode(code: string): {
       continue;
     }
 
-    // Skip direction lines inside subgraphs
-    if (line.startsWith("direction ")) {
-      debugLog(`Skipping direction line inside subgraph: ${line}`);
-      continue;
-    }
-
-    // Skip flowchart declaration lines
-    if (line.startsWith("flowchart ") || line.startsWith("graph ")) {
-      debugLog(`Skipping flowchart declaration: ${line}`);
+    // Skip various non-edge lines
+    if (line.startsWith("direction ") || 
+        line.startsWith("flowchart ") || 
+        line.startsWith("graph ") ||
+        line.startsWith("%%")) {
+      debugLog(`Skipping line: ${line}`);
       continue;
     }
 
@@ -299,12 +318,12 @@ function parseMermaidCode(code: string): {
 
     debugLog(`Processing line: "${line}" in subgraph: ${currentSubgraph || "none"}`);
 
-    // UPDATED: Parse edge connections with improved patterns that handle ---> properly
+    // Enhanced edge patterns to handle all Mermaid edge types including dotted edges
     const edgePatterns = [
       // Pattern 1: A[Label] -->|EdgeLabel| B{Label} (with optional edge labels)
-      /([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===)\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?/,
-      // Pattern 2: Simpler pattern A --> B (handles ---> as well)
-      /([A-Za-z0-9_]+)\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===)\s*([A-Za-z0-9_]+)/,
+      /([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===|-\.->)\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?/,
+      // Pattern 2: Simpler pattern A --> B (handles all edge types)
+      /([A-Za-z0-9_]+)\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===|-\.->)\s*([A-Za-z0-9_]+)/,
     ];
 
     let edgeMatch = null;
@@ -321,7 +340,7 @@ function parseMermaidCode(code: string): {
     }
 
     if (!edgeMatch) {
-      debugLog(`Line "${line}" did not match any edge pattern`);
+      debugLog(`Line "${line}" did not match any edge pattern - checking for standalone nodes`);
     }
 
     if (edgeMatch) {
@@ -354,19 +373,14 @@ function parseMermaidCode(code: string): {
         const isTargetSubgraph = subgraphMap.has(targetId);
 
         debugLog(
-          `Source "${sourceId}" is ${
-            isSourceSubgraph ? "a subgraph" : "a node"
-          }`
+          `Source "${sourceId}" is ${isSourceSubgraph ? "a subgraph" : "a node"}`
         );
         debugLog(
-          `Target "${targetId}" is ${
-            isTargetSubgraph ? "a subgraph" : "a node"
-          }`
+          `Target "${targetId}" is ${isTargetSubgraph ? "a subgraph" : "a node"}`
         );
 
-        // UPDATED: Handle node creation more carefully
+        // Handle source node creation
         if (!isSourceSubgraph) {
-          // For source nodes, only assign to current subgraph if they don't already exist elsewhere
           const existingSource = nodeMap.get(sourceId);
           if (existingSource) {
             debugLog(`Source ${sourceId} already exists in subgraph: ${existingSource.subgraph || "none"}`);
@@ -375,40 +389,18 @@ function parseMermaidCode(code: string): {
           }
         }
 
+        // Handle target node creation
         if (!isTargetSubgraph) {
-          // For target nodes, we need to be more careful about subgraph assignment
           const existingTarget = nodeMap.get(targetId);
           
           if (existingTarget) {
             debugLog(`Target ${targetId} already exists in subgraph: ${existingTarget.subgraph || "none"}`);
-            
-            // If the target exists but has no subgraph and we're in a subgraph context, 
-            // and this is not a cross-subgraph edge, assign it
-            if (!existingTarget.subgraph && currentSubgraph) {
-              // Check if this might be a cross-subgraph reference
-              // If source is outside any subgraph, don't assign target to current subgraph
-              const sourceNode = nodeMap.get(sourceId);
-              const sourceInSubgraph = sourceNode?.subgraph || isSourceSubgraph;
-              
-              if (sourceInSubgraph) {
-                existingTarget.subgraph = currentSubgraph;
-                const subgraph = subgraphMap.get(currentSubgraph);
-                if (subgraph && !subgraph.nodes.includes(targetId)) {
-                  subgraph.nodes.push(targetId);
-                }
-                debugLog(`Assigned existing target ${targetId} to current subgraph ${currentSubgraph}`);
-              } else {
-                debugLog(`Not assigning target ${targetId} to subgraph ${currentSubgraph} because source ${sourceId} is external`);
-              }
-            }
           } else {
-            // Target doesn't exist yet
-            // Only assign to current subgraph if this is not a cross-subgraph edge
+            // Target doesn't exist yet - determine subgraph assignment
             const sourceNode = nodeMap.get(sourceId);
             const sourceInSubgraph = sourceNode?.subgraph || isSourceSubgraph;
             
-            // If we're processing inside a subgraph and source is also in a subgraph, assign target to current subgraph
-            // If source is external (no subgraph), don't assign target to current subgraph
+            // Assign to current subgraph only if source is also in a subgraph context
             const targetSubgraph = (currentSubgraph && sourceInSubgraph) ? currentSubgraph : undefined;
             
             debugLog(`Creating target ${targetId} with subgraph assignment: ${targetSubgraph || "none"} (source in subgraph: ${sourceInSubgraph})`);
@@ -420,7 +412,7 @@ function parseMermaidCode(code: string): {
         edges.push({
           source: sourceId,
           target: targetId,
-          label: edgeLabel,
+          label: enhancedCleanLabel(edgeLabel),
           type: edgeType,
           isSourceSubgraph: isSourceSubgraph,
           isTargetSubgraph: isTargetSubgraph,
@@ -428,16 +420,11 @@ function parseMermaidCode(code: string): {
 
         debugLog(`Added edge: ${sourceId} -> ${targetId} (source subgraph: ${isSourceSubgraph}, target subgraph: ${isTargetSubgraph})`);
 
-        if (isSourceSubgraph || isTargetSubgraph) {
-          debugLog(
-            `Edge involves subgraph: ${sourceId} ${edgeType} ${targetId}`
-          );
-        }
       } catch (error) {
         debugLog(`Error parsing edge: ${line}`, error);
       }
     } else {
-      // Parse standalone node definitions - UPDATED to use helper function
+      // Parse standalone node definitions
       try {
         const nodePatterns = [
           /^([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/,
@@ -452,9 +439,7 @@ function parseMermaidCode(code: string): {
 
             // Skip if this is a subgraph ID
             if (subgraphMap.has(nodeId)) {
-              debugLog(
-                `Skipping node creation for ${nodeId} as it's a subgraph`
-              );
+              debugLog(`Skipping node creation for ${nodeId} as it's a subgraph`);
               break;
             }
 
@@ -474,20 +459,16 @@ function parseMermaidCode(code: string): {
     }
   }
 
-  // Verify subgraph hierarchy
+  // Final verification and cleanup
+  debugLog("=== FINAL VERIFICATION ===");
   debugLog("Subgraph hierarchy:");
   subgraphs.forEach((sg) => {
-    debugLog(
-      `- ${sg.id} (parent: ${sg.parentId || "none"}, children: ${
-        sg.childrenIds.join(", ") || "none"
-      }, nodes: ${sg.nodes.length})`
-    );
+    debugLog(`- ${sg.id}: "${sg.title}" (parent: ${sg.parentId || "none"}, children: ${sg.childrenIds.join(", ") || "none"}, nodes: ${sg.nodes.length})`);
   });
 
-  // UPDATED: Final verification - ensure all nodes are properly assigned
   debugLog("Final node assignments:");
   nodes.forEach((node) => {
-    debugLog(`- ${node.id}: "${node.label}" in subgraph ${node.subgraph || "none"}`);
+    debugLog(`- ${node.id}: "${node.label}" in subgraph ${node.subgraph || "none"} (shape: ${node.shape})`);
   });
 
   debugLog("Final edges:");
@@ -497,6 +478,7 @@ function parseMermaidCode(code: string): {
 
   return { nodes, edges, subgraphs, direction };
 }
+
 
 
 
@@ -692,13 +674,10 @@ function layoutSubgraphs(
     // Calculate base size from actual content
     const baseWidth = maxX - minX + SUBGRAPH_PADDING * 2;
     const baseHeight = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT;
-    
-    // Add generous additional space based on content size (instead of static minimums)
-    const additionalWidth = Math.max(100, baseWidth * 0.5); // Add 50% more width, minimum 100px
-    const additionalHeight = Math.max(80, baseHeight * 0.4); // Add 40% more height, minimum 80px
-    
-    const width = baseWidth + additionalWidth; // Content-based size + generous addition
-    const height = baseHeight + additionalHeight; // Content-based size + generous addition
+
+    // Use only a small fixed buffer for width/height (no multipliers)
+    const width = baseWidth + 10; // Small buffer
+    const height = baseHeight + 10;
 
     subgraphLayouts.set(subgraph.id, {
       id: subgraph.id,
@@ -710,7 +689,7 @@ function layoutSubgraphs(
     });
 
     debugLog(
-      `Subgraph ${subgraph.id} sizing: base(${baseWidth.toFixed(1)}x${baseHeight.toFixed(1)}) + additional(${additionalWidth.toFixed(1)}x${additionalHeight.toFixed(1)}) = final(${width.toFixed(1)}x${height.toFixed(1)})`
+      `Subgraph ${subgraph.id} sizing: base(${baseWidth.toFixed(1)}x${baseHeight.toFixed(1)}) = final(${width.toFixed(1)}x${height.toFixed(1)})`
     );
   });
 

@@ -38,8 +38,8 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
       {/* Add NodeResizer for manual resizing */}
       <NodeResizer
         isVisible={selected}
-        minWidth={200}
-        minHeight={150}
+        minWidth={40}
+        minHeight={30}
         handleStyle={{
           backgroundColor: '#1976D2',
           border: '2px solid white',

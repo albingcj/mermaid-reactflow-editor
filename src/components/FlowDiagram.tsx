@@ -420,6 +420,7 @@ export function FlowDiagram({
       />
       <div style={{ width: '100%', height: '100%' }}>
         <ReactFlow
+          minZoom={0.05}
           nodes={nodesWithEditCallback}
           edges={edgesWithSelection}
           onNodesChange={onNodesChange}
