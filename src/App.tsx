@@ -516,27 +516,6 @@ function App() {
                               </div>
                             </div>
                           )}
-
-                          {/* Live Preview */}
-                          {showLivePreview && (
-                            <div className="mt-2">
-                              <div
-                                className="border rounded p-2 bg-light"
-                                style={{ minHeight: "100px" }}
-                              >
-                                <MermaidRenderer
-                                  code={diagrams[selectedDiagram].code}
-                                  style={{
-                                    background: "transparent",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    minHeight: "80px",
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
                   </div>
@@ -852,6 +831,17 @@ function App() {
             </div>
 
             <div className="d-flex align-items-center gap-1">
+              {showLivePreview && (
+                <button
+                  onClick={() => setShowLivePreview(false)}
+                  className="btn btn-sm btn-outline-secondary"
+                  title="Hide Preview"
+                  style={{ fontSize: "11px" }}
+                >
+                  <i className="bi bi-eye-slash me-1"></i>
+                  Hide Preview
+                </button>
+              )}
               {flowData.nodes.length > 0 && (
                 <>
                   <button
@@ -905,6 +895,34 @@ function App() {
                   <span className="visually-hidden">Loading...</span>
                 </div>
                 <p className="text-muted small">Converting diagram...</p>
+              </div>
+            </div>
+          ) : showLivePreview &&
+            diagrams.length > 0 &&
+            selectedDiagram < diagrams.length ? (
+            <div className="d-flex h-100">
+              <div className="w-50 border-end p-2 overflow-auto">
+                <h6 className="text-muted small mb-2">
+                  <i className="bi bi-eye me-1"></i>
+                  Live Preview
+                </h6>
+                <div className="d-flex justify-content-center align-items-center h-100">
+                  <MermaidRenderer code={diagrams[selectedDiagram].code} />
+                </div>
+              </div>
+              <div className="w-50 position-relative">
+                {flowData.nodes.length > 0 ? (
+                  <FlowDiagram
+                    nodes={flowData.nodes}
+                    edges={flowData.edges}
+                    onNodesChange={handleNodesChange}
+                    onEdgesChange={handleEdgesChange}
+                  />
+                ) : (
+                  <div className="d-flex align-items-center justify-content-center h-100 text-center">
+                    <p className="text-muted">No diagram to display.</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : flowData.nodes.length > 0 ? (
