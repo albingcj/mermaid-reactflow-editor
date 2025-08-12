@@ -54,9 +54,9 @@ interface SubgraphLayout {
 const SUBGRAPH_HEADER_HEIGHT = 10;
 const SUBGRAPH_PADDING = 10; // Increased from 30 to 40 for more breathing room
 const DEBUG = true; // Set to true to enable debug logging
-
+ 
 function debugLog(...args: any[]) {
-  if (DEBUG) {
+  if (DEBUG){
     console.log("[MermaidConverter]", ...args);
   }
 }
@@ -1201,8 +1201,8 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
       color: edgeColor,
     },
     // These ensure consistent connections
-    sourceHandle: edge.isSourceSubgraph ? "subgraph-bottom-source" : "bottom-source",
-    targetHandle: edge.isTargetSubgraph ? "subgraph-bottom-target" : "top-target",
+    sourceHandle: edge.isSourceSubgraph ? "bottom-source" : "bottom-source",
+    targetHandle: edge.isTargetSubgraph ? "top-target" : "top-target",
     zIndex: 0,
   };
 });

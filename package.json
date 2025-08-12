@@ -19,7 +19,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "bootstrap": "^5.3.7",
     "dagre": "^0.8.5",
-    "mermaid": "^11.7.0",
+    "mermaid": "^11.9.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "reactflow": "^11.11.4",

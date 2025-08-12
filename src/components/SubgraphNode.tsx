@@ -4,6 +4,37 @@ import { NodeProps, Handle, Position, NodeResizer } from "reactflow";
 export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
   return (
     <div className={`subgraph-node ${selected ? "selected" : ""}`}>
+      {/* Top handles */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top-target"
+        style={{
+          background: "#555",
+          width: 12,
+          height: 12,
+          borderRadius: "50%",
+          border: "2px solid white",
+          top: -20,
+          zIndex: 10,
+        }}
+        isConnectable={isConnectable}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top-source"
+        style={{
+          background: "#1976D2",
+          width: 12,
+          height: 12,
+          borderRadius: "50%",
+          border: "2px solid white",
+          top: -20,
+          zIndex: 11,
+        }}
+        isConnectable={isConnectable}
+      />
       {/* Add NodeResizer for manual resizing */}
       <NodeResizer
         isVisible={selected}
@@ -25,7 +56,7 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
       <Handle
         type="target"
         position={Position.Bottom}
-        id="subgraph-bottom-target"
+        id="bottom-target"
         style={{
           background: "#555",
           width: 12,
@@ -40,7 +71,7 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        id="subgraph-bottom-source"
+        id="bottom-source"
         style={{
           background: "#1976D2",
           width: 12,
@@ -67,7 +98,7 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
       <Handle
         type="target"
         position={Position.Left}
-        id="subgraph-left-target"
+        id="left-target"
         style={{
           background: "#555",
           width: 12,
@@ -82,7 +113,7 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
       <Handle
         type="source"
         position={Position.Left}
-        id="subgraph-left-source"
+        id="left-source"
         style={{
           background: "#1976D2",
           width: 12,
@@ -96,44 +127,11 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
       />
       
 
-      {/* Left handles */}
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="subgraph-left-source"
-        style={{
-          background: "#1976D2",
-          width: 12,
-          height: 12,
-          borderRadius: "50%",
-          border: "2px solid white",
-          left: -20,
-          zIndex: 10,
-        }}
-        isConnectable={isConnectable}
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="subgraph-left-target"
-        style={{
-          background: "#555",
-          width: 12,
-          height: 12,
-          borderRadius: "50%",
-          border: "2px solid white",
-          left: -20,
-          zIndex: 10,
-        }}
-        isConnectable={isConnectable}
-      />
-      
-
       {/* Right handles */}
       <Handle
         type="target"
         position={Position.Right}
-        id="subgraph-right-target"
+        id="right-target"
         style={{
           background: "#555",
           width: 12,
@@ -148,7 +146,7 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        id="subgraph-right-source"
+        id="right-source"
         style={{
           background: "#1976D2",
           width: 12,
@@ -156,7 +154,7 @@ export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {
           borderRadius: "50%",
           border: "2px solid white",
           right: -20,
-          zIndex: 10,
+          zIndex: 11,
         }}
         isConnectable={isConnectable}
       />

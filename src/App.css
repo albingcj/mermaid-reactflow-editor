@@ -4,6 +4,17 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
+/* Placeholder styling for textarea */
+.placeholder-light::placeholder {
+  color: #6c757d !important;
+  opacity: 0.6 !important;
+  font-style: italic;
+}
+
+.placeholder-light:focus::placeholder {
+  opacity: 0.4;
+}
+
 .sidebar {
   width: 350px;
   background-color: #f5f5f5;
@@ -835,4 +846,148 @@ textarea {
   background-color: #ff6b6b;
   border: 2px solid white;
   box-shadow: 0 0 6px rgba(0,0,0,0.3);
+}
+
+.transition-all {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-shadow:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.min-width-0 {
+  min-width: 0;
+}
+
+/* Sidebar Animations */
+.collapsed-sidebar {
+  transform: translateX(-100%);
+}
+
+.expanded-sidebar {
+  transform: translateX(0);
+}
+
+/* Custom Scrollbar */
+.overflow-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+
+/* Loading Spinner */
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .expanded-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1050;
+    width: 100vw !important;
+  }
+  
+  .collapsed-sidebar {
+    width: 0 !important;
+  }
+}
+
+.fs-7 {
+  font-size: 0.875rem !important;
+}
+
+/* Compact Buttons */
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+/* Minimal Cards */
+.card-body {
+  padding: 0.5rem;
+}
+
+/* Compact Form Controls */
+.form-control-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+/* Minimal Badges */
+.badge {
+  font-size: 0.6em;
+  padding: 0.25em 0.5em;
+}
+
+/* Clean Accordion Buttons */
+.btn-link {
+  text-decoration: none;
+}
+
+.btn-link:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Compact Toolbar */
+.position-absolute.top-0 {
+  height: 50px;
+}
+
+/* Minimal Scrollbar */
+.overflow-auto::-webkit-scrollbar {
+  width: 4px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Button Groups */
+.btn-group .btn {
+  border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+  border-top-left-radius: 0.375rem;
+  border-bottom-left-radius: 0.375rem;
+}
+
+.btn-group .btn:last-child {
+  border-top-right-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
 }
