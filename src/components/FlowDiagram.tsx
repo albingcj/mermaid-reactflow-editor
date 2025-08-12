@@ -1,5 +1,5 @@
 // @ts-nocheck
-import * as htmlToImage from 'html-to-image';
+import { exportReactFlowImage } from '../utils/exportImage';
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import ReactFlow, {
   Node,
@@ -64,74 +64,15 @@ function FlowDiagramInternal({
   // Improved Download as Image Handler for High-Quality Large Diagrams
   const handleDownloadImage = async () => {
     if (!reactFlowWrapper.current || !reactFlowInstance) return;
-    setExporting(true);
-    // Save current viewport and wrapper style
-    const originalTransform = reactFlowInstance.toObject();
-    const wrapper = reactFlowWrapper.current;
-    const originalWidth = wrapper.style.width;
-    const originalHeight = wrapper.style.height;
-    try {
-      // Calculate bounding box from nodes
-      if (!nodes || nodes.length === 0) throw new Error('No nodes to export');
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      nodes.forEach(node => {
-        const x = node.position.x;
-        const y = node.position.y;
-        const width = (node.width || 150);
-        const height = (node.height || 50);
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + width);
-        maxY = Math.max(maxY, y + height);
-      });
-      // Add a small padding
-      const padding = 20;
-      minX -= padding;
-      minY -= padding;
-      maxX += padding;
-      maxY += padding;
-      const exportWidth = maxX - minX;
-      const exportHeight = maxY - minY;
-
-      // Set wrapper to bounding box size
-      wrapper.style.width = exportWidth + 'px';
-      wrapper.style.height = exportHeight + 'px';
-      // Fit view to bounds
-      reactFlowInstance.setViewport({ x: minX, y: minY, zoom: 1 });
-      await new Promise(res => setTimeout(res, 300));
-
-      // Use a very high pixel ratio for maximum clarity
-      const pixelRatio = 8;
-      const dataUrl = await htmlToImage.toPng(wrapper, {
-        cacheBust: true,
-        pixelRatio,
-        backgroundColor: '#fff',
-        style: {
-          transform: 'none',
-          zoom: 1,
-        },
-        width: exportWidth,
-        height: exportHeight,
-      });
-
-      // Download the image
-      const link = document.createElement('a');
-      link.download = 'reactflow-diagram.png';
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      alert('Failed to export image: ' + err);
-    } finally {
-      // Restore original viewport and wrapper size
-      if (originalTransform && originalTransform.viewport) {
-        reactFlowInstance.setViewport(originalTransform.viewport);
-      }
-      if (wrapper) {
-        wrapper.style.width = originalWidth;
-        wrapper.style.height = originalHeight;
-      }
-      setExporting(false);
-    }
+    await exportReactFlowImage({
+      wrapper: reactFlowWrapper.current,
+      nodes,
+      reactFlowInstance,
+      setExporting,
+      onError: (err) => alert('Failed to export image: ' + err),
+      fileName: 'reactflow-diagram.png',
+      pixelRatio: 8,
+    });
   };
 
   useEffect(() => {
