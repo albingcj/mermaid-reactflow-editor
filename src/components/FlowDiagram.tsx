@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -18,6 +18,8 @@ import ReactFlow, {
   MarkerType,
   ConnectionLineType,
   ConnectionMode,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import '../selected-edge.css';
 import 'reactflow/dist/style.css';
@@ -25,6 +27,7 @@ import { CustomNode } from './CustomNode';
 import { NodeEditor } from './NodeEditor';
 import { SubgraphNode } from './SubgraphNode';
 import { EditingToolbar } from './EditingToolbar';
+import { SearchControl } from './SearchControl';
 
 interface FlowDiagramProps {
   nodes: Node[];
@@ -33,12 +36,14 @@ interface FlowDiagramProps {
   onEdgesChange?: (edges: Edge[]) => void;
 }
 
-export function FlowDiagram({
+// Internal component that uses useReactFlow hook
+function FlowDiagramInternal({
   nodes: initialNodes, 
   edges: initialEdges,
   onNodesChange: onNodesChangeCallback,
   onEdgesChange: onEdgesChangeCallback
 }: FlowDiagramProps) {
+  const reactFlowInstance = useReactFlow();
   // State declarations
 
   // Handler for node changes
@@ -80,6 +85,7 @@ export function FlowDiagram({
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
   const [selectedEdges, setSelectedEdges] = useState<Edge[]>([]);
   const [showNodeEditor, setShowNodeEditor] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     setNodes(initialNodes);
@@ -127,6 +133,56 @@ export function FlowDiagram({
       return newNodes;
     });
   }, [onNodesChangeCallback]);
+
+  // Focus on a specific node
+  const handleFocusNode = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node && reactFlowInstance) {
+      reactFlowInstance.fitView({
+        nodes: [{ id: nodeId }],
+        duration: 800,
+        padding: 0.3,
+      });
+      
+      // Highlight the node briefly
+      setNodes(prevNodes => 
+        prevNodes.map(n => ({
+          ...n,
+          style: n.id === nodeId 
+            ? { ...n.style, border: '3px solid #ff6b6b', boxShadow: '0 0 20px rgba(255, 107, 107, 0.5)' }
+            : n.style
+        }))
+      );
+      
+      // Remove highlight after 2 seconds
+      setTimeout(() => {
+        setNodes(prevNodes => 
+          prevNodes.map(n => ({
+            ...n,
+            style: n.id === nodeId 
+              ? { ...n.style, border: undefined, boxShadow: undefined }
+              : n.style
+          }))
+        );
+      }, 2000);
+    }
+  }, [nodes, reactFlowInstance]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+      if (e.key === 'Escape') {
+        setShowSearch(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Add onEdit callback to node data
   const nodesWithEditCallback = useMemo(
@@ -418,6 +474,34 @@ export function FlowDiagram({
         onLockNodes={onLockNodes}
         onUnlockNodes={onUnlockNodes}
       />
+      
+      {/* Search Button */}
+      <button
+        onClick={() => setShowSearch(true)}
+        className="btn btn-primary btn-sm"
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          zIndex: 1000,
+          borderRadius: '20px',
+          padding: '8px 12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        }}
+        title="Search nodes (Ctrl+F)"
+      >
+        <i className="bi bi-search me-1"></i>
+        Search
+      </button>
+
+      {/* Search Control */}
+      <SearchControl
+        nodes={nodes}
+        onFocusNode={handleFocusNode}
+        onClose={() => setShowSearch(false)}
+        isVisible={showSearch}
+      />
+      
       <div style={{ width: '100%', height: '100%' }}>
         <ReactFlow
           minZoom={0.05}
@@ -480,5 +564,14 @@ export function FlowDiagram({
         />
       )}
     </>
+  );
+}
+
+// Main component wrapper with ReactFlowProvider
+export function FlowDiagram(props: FlowDiagramProps) {
+  return (
+    <ReactFlowProvider>
+      <FlowDiagramInternal {...props} />
+    </ReactFlowProvider>
   );
 }
