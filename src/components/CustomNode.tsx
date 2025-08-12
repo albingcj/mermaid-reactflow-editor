@@ -32,7 +32,7 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
       className={getNodeClassName()}
       onDoubleClick={data.onEdit}
     >
-      {/* Clean, professional node resizer with flexible sizing */}
+      {/* User-friendly node resizer with clear visual feedback */}
       <NodeResizer 
         isVisible={selected}
         minWidth={40}
@@ -40,6 +40,17 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
         maxWidth={500}
         maxHeight={400}
         keepAspectRatio={data.shape === 'circle'}
+        handleStyle={{
+          backgroundColor: '#2563eb',
+          border: '2px solid white',
+          width: 10,
+          height: 10,
+          borderRadius: '2px',
+        }}
+        lineStyle={{
+          borderColor: '#2563eb',
+          borderWidth: 2,
+        }}
       />
       
       {/* Top handles */}
