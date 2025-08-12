@@ -83,6 +83,7 @@ function getNodeShape(nodeDefinition: string): string {
 }
 
 // Update the parseMermaidCode function to handle subgraph connections
+
 function parseMermaidCode(code: string): {
   nodes: MermaidNode[];
   edges: MermaidEdge[];
@@ -94,6 +95,9 @@ function parseMermaidCode(code: string): {
   const subgraphs: SubgraphInfo[] = [];
   const nodeMap = new Map<string, MermaidNode>();
   const subgraphMap = new Map<string, SubgraphInfo>();
+  
+  // NEW: Track all node definitions found in the code
+  const nodeDefinitions = new Map<string, { label: string; shape: string; fullDef: string }>();
 
   // Default direction is top-to-bottom
   let direction = "TB";
@@ -115,7 +119,31 @@ function parseMermaidCode(code: string): {
   }
 
   const lines = cleanCode.split("\n");
-  const subgraphStack: string[] = []; // Track nested subgraphs
+  const subgraphStack: string[] = [];
+
+  // NEW: Pre-scan to find all node definitions
+  debugLog("Pre-scanning for node definitions...");
+  lines.forEach((line, lineIndex) => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith("subgraph") || trimmedLine === "end") return;
+
+    // Look for node definitions in the line (both in edges and standalone)
+    const nodeDefPattern = /([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/g;
+    let match;
+    
+    while ((match = nodeDefPattern.exec(trimmedLine)) !== null) {
+      const [fullDef, nodeId, shapeDef] = match;
+      
+      if (!nodeDefinitions.has(nodeId)) {
+        const shape = getNodeShape(fullDef);
+        const labelMatch = shapeDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
+        const label = labelMatch ? cleanLabel(labelMatch[1]) : nodeId;
+        
+        nodeDefinitions.set(nodeId, { label, shape, fullDef });
+        debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
+      }
+    }
+  });
 
   // First pass: identify all subgraphs to reference them later
   for (let i = 0; i < lines.length; i++) {
@@ -149,10 +177,8 @@ function parseMermaidCode(code: string): {
         childrenIds: [],
       };
 
-      // Store in the subgraph map for quick lookup
       subgraphMap.set(subgraphId, newSubgraph);
 
-      // Update parent's children list
       if (parentId) {
         const parentSubgraph = subgraphMap.get(parentId);
         if (parentSubgraph) {
@@ -169,6 +195,64 @@ function parseMermaidCode(code: string): {
   // Reset for second pass
   subgraphStack.length = 0;
 
+  // UPDATED: Helper function to create or get existing node
+  const createOrGetNode = (nodeId: string, currentSubgraph?: string): MermaidNode => {
+    // Check if node already exists
+    if (nodeMap.has(nodeId)) {
+      const existingNode = nodeMap.get(nodeId)!;
+      
+      // Update subgraph if the node is being referenced in a new context
+      if (currentSubgraph && !existingNode.subgraph) {
+        existingNode.subgraph = currentSubgraph;
+        const subgraph = subgraphMap.get(currentSubgraph);
+        if (subgraph && !subgraph.nodes.includes(nodeId)) {
+          subgraph.nodes.push(nodeId);
+        }
+        debugLog(`Updated existing node ${nodeId} to be part of subgraph ${currentSubgraph}`);
+      }
+      
+      return existingNode;
+    }
+
+    // Create new node using pre-scanned definition if available
+    const nodeDef = nodeDefinitions.get(nodeId);
+    let label: string;
+    let shape: string;
+
+    if (nodeDef) {
+      // Use the pre-scanned definition
+      label = nodeDef.label;
+      shape = nodeDef.shape;
+      debugLog(`Creating node ${nodeId} using pre-scanned definition: "${label}" (${shape})`);
+    } else {
+      // Fallback to simple node
+      label = nodeId;
+      shape = "rect";
+      debugLog(`Creating simple fallback node: ${nodeId}`);
+    }
+
+    const node: MermaidNode = {
+      id: nodeId,
+      label,
+      shape,
+      subgraph: currentSubgraph,
+      parentSubgraph:
+        subgraphStack.length > 1
+          ? subgraphStack[subgraphStack.length - 2]
+          : undefined,
+    };
+
+    nodes.push(node);
+    nodeMap.set(nodeId, node);
+
+    if (currentSubgraph) {
+      const subgraph = subgraphMap.get(currentSubgraph);
+      if (subgraph) subgraph.nodes.push(nodeId);
+    }
+
+    return node;
+  };
+
   // Second pass: process nodes and edges
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -179,17 +263,31 @@ function parseMermaidCode(code: string): {
     if (subgraphMatch) {
       const [, subgraphId] = subgraphMatch;
       subgraphStack.push(subgraphId);
+      debugLog(`Entering subgraph: ${subgraphId}, stack: [${subgraphStack.join(', ')}]`);
       continue;
     }
 
     // Handle subgraph end
     if (line === "end") {
       if (subgraphStack.length > 0) {
-        debugLog(`End of subgraph: ${subgraphStack[subgraphStack.length - 1]}`);
+        const exitingSubgraph = subgraphStack[subgraphStack.length - 1];
         subgraphStack.pop();
+        debugLog(`Exiting subgraph: ${exitingSubgraph}, stack: [${subgraphStack.join(', ')}]`);
       } else {
         debugLog('Warning: Found "end" without matching subgraph start');
       }
+      continue;
+    }
+
+    // Skip direction lines inside subgraphs
+    if (line.startsWith("direction ")) {
+      debugLog(`Skipping direction line inside subgraph: ${line}`);
+      continue;
+    }
+
+    // Skip flowchart declaration lines
+    if (line.startsWith("flowchart ") || line.startsWith("graph ")) {
+      debugLog(`Skipping flowchart declaration: ${line}`);
       continue;
     }
 
@@ -199,35 +297,60 @@ function parseMermaidCode(code: string): {
         ? subgraphStack[subgraphStack.length - 1]
         : undefined;
 
-    // Parse edge connections with more patterns
+    debugLog(`Processing line: "${line}" in subgraph: ${currentSubgraph || "none"}`);
+
+    // UPDATED: Parse edge connections with improved patterns that handle ---> properly
     const edgePatterns = [
-      // A[Label] -->|EdgeLabel| B{Label}
-      /([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?\s*(-->|->|---|===>|==>|-\.-|:-:|::|~|\.\.\.|===)\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?/,
-      // Simpler pattern: A --> B
-      /([A-Za-z0-9_]+)\s*(-->|->|---|===>|==>|-\.-|:-:|::|~|\.\.\.|===)\s*([A-Za-z0-9_]+)/,
+      // Pattern 1: A[Label] -->|EdgeLabel| B{Label} (with optional edge labels)
+      /([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===)\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?/,
+      // Pattern 2: Simpler pattern A --> B (handles ---> as well)
+      /([A-Za-z0-9_]+)\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===)\s*([A-Za-z0-9_]+)/,
     ];
 
     let edgeMatch = null;
-    for (const pattern of edgePatterns) {
+    let patternUsed = -1;
+    
+    for (let p = 0; p < edgePatterns.length; p++) {
+      const pattern = edgePatterns[p];
       edgeMatch = line.match(pattern);
-      if (edgeMatch) break;
+      if (edgeMatch) {
+        patternUsed = p;
+        debugLog(`Line "${line}" matched edge pattern ${p}: [${edgeMatch.join(', ')}]`);
+        break;
+      }
+    }
+
+    if (!edgeMatch) {
+      debugLog(`Line "${line}" did not match any edge pattern`);
     }
 
     if (edgeMatch) {
       try {
-        const sourceId = edgeMatch[1];
-        const edgeType = edgeMatch[2];
-        const edgeLabel = edgeMatch[3] || "";
-        const targetId = edgeMatch[4] || edgeMatch[3];
+        let sourceId: string;
+        let edgeType: string;
+        let edgeLabel: string;
+        let targetId: string;
+
+        if (patternUsed === 0) {
+          // Pattern 1: A[Label] -->|EdgeLabel| B{Label}
+          sourceId = edgeMatch[1];
+          edgeType = edgeMatch[2];
+          edgeLabel = edgeMatch[3] || "";
+          targetId = edgeMatch[4];
+        } else {
+          // Pattern 2: A --> B
+          sourceId = edgeMatch[1];
+          edgeType = edgeMatch[2];
+          targetId = edgeMatch[3];
+          edgeLabel = "";
+        }
 
         debugLog(
-          `Found edge: ${sourceId} ${edgeType} ${targetId} with label: "${edgeLabel}"`
+          `Found edge: ${sourceId} ${edgeType} ${targetId} with label: "${edgeLabel}" in context: ${currentSubgraph || "global"}`
         );
 
-        // Check if source is a subgraph
+        // Check if source/target are subgraphs
         const isSourceSubgraph = subgraphMap.has(sourceId);
-
-        // Check if target is a subgraph
         const isTargetSubgraph = subgraphMap.has(targetId);
 
         debugLog(
@@ -241,197 +364,87 @@ function parseMermaidCode(code: string): {
           }`
         );
 
-        // Extract node definitions from the line
-        const fullLine = line;
-
-        // Process source node if it's not a subgraph
-        if (!isSourceSubgraph && !nodeMap.has(sourceId)) {
-          const sourceNodeMatch = fullLine.match(
-            new RegExp(`${sourceId}([\\[\\(\\{][^\\]\\)\\}]*[\\]\\)\\}])`)
-          );
-          if (sourceNodeMatch) {
-            const fullDef = sourceNodeMatch[0];
-            const shape = getNodeShape(fullDef);
-            const labelMatch = fullDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-            const label = labelMatch ? cleanLabel(labelMatch[1]) : sourceId;
-
-            const node: MermaidNode = {
-              id: sourceId,
-              label,
-              shape,
-              subgraph: currentSubgraph,
-              parentSubgraph:
-                subgraphStack.length > 1
-                  ? subgraphStack[subgraphStack.length - 2]
-                  : undefined,
-            };
-
-            nodes.push(node);
-            nodeMap.set(sourceId, node);
-
-            if (currentSubgraph) {
-              const subgraph = subgraphMap.get(currentSubgraph);
-              if (subgraph) subgraph.nodes.push(sourceId);
-            }
-
-            debugLog(
-              `Created source node: ${sourceId}, label: "${label}", shape: ${shape}, subgraph: ${
-                currentSubgraph || "none"
-              }`
-            );
+        // UPDATED: Handle node creation more carefully
+        if (!isSourceSubgraph) {
+          // For source nodes, only assign to current subgraph if they don't already exist elsewhere
+          const existingSource = nodeMap.get(sourceId);
+          if (existingSource) {
+            debugLog(`Source ${sourceId} already exists in subgraph: ${existingSource.subgraph || "none"}`);
           } else {
-            // Create simple node
-            const node: MermaidNode = {
-              id: sourceId,
-              label: sourceId,
-              shape: "rect",
-              subgraph: currentSubgraph,
-              parentSubgraph:
-                subgraphStack.length > 1
-                  ? subgraphStack[subgraphStack.length - 2]
-                  : undefined,
-            };
-
-            nodes.push(node);
-            nodeMap.set(sourceId, node);
-
-            if (currentSubgraph) {
-              const subgraph = subgraphMap.get(currentSubgraph);
-              if (subgraph) subgraph.nodes.push(sourceId);
-            }
-
-            debugLog(
-              `Created simple source node: ${sourceId}, subgraph: ${
-                currentSubgraph || "none"
-              }`
-            );
+            createOrGetNode(sourceId, currentSubgraph);
           }
-        } else if (
-          !isSourceSubgraph &&
-          currentSubgraph &&
-          !nodeMap.get(sourceId)?.subgraph
-        ) {
-          // Node already exists but wasn't assigned to this subgraph
-          const node = nodeMap.get(sourceId)!;
-          node.subgraph = currentSubgraph;
-
-          const subgraph = subgraphMap.get(currentSubgraph);
-          if (subgraph && !subgraph.nodes.includes(sourceId)) {
-            subgraph.nodes.push(sourceId);
-          }
-
-          debugLog(
-            `Updated existing node ${sourceId} to be part of subgraph ${currentSubgraph}`
-          );
         }
 
-        // Process target node if it's not a subgraph
-        if (!isTargetSubgraph && !nodeMap.has(targetId)) {
-          const targetNodeMatch = fullLine.match(
-            new RegExp(`${targetId}([\\[\\(\\{][^\\]\\)\\}]*[\\]\\)\\}])`)
-          );
-          if (targetNodeMatch) {
-            const fullDef = targetNodeMatch[0];
-            const shape = getNodeShape(fullDef);
-            const labelMatch = fullDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-            const label = labelMatch ? cleanLabel(labelMatch[1]) : targetId;
-
-            const node: MermaidNode = {
-              id: targetId,
-              label,
-              shape,
-              subgraph: currentSubgraph,
-              parentSubgraph:
-                subgraphStack.length > 1
-                  ? subgraphStack[subgraphStack.length - 2]
-                  : undefined,
-            };
-
-            nodes.push(node);
-            nodeMap.set(targetId, node);
-
-            if (currentSubgraph) {
-              const subgraph = subgraphMap.get(currentSubgraph);
-              if (subgraph) subgraph.nodes.push(targetId);
+        if (!isTargetSubgraph) {
+          // For target nodes, we need to be more careful about subgraph assignment
+          const existingTarget = nodeMap.get(targetId);
+          
+          if (existingTarget) {
+            debugLog(`Target ${targetId} already exists in subgraph: ${existingTarget.subgraph || "none"}`);
+            
+            // If the target exists but has no subgraph and we're in a subgraph context, 
+            // and this is not a cross-subgraph edge, assign it
+            if (!existingTarget.subgraph && currentSubgraph) {
+              // Check if this might be a cross-subgraph reference
+              // If source is outside any subgraph, don't assign target to current subgraph
+              const sourceNode = nodeMap.get(sourceId);
+              const sourceInSubgraph = sourceNode?.subgraph || isSourceSubgraph;
+              
+              if (sourceInSubgraph) {
+                existingTarget.subgraph = currentSubgraph;
+                const subgraph = subgraphMap.get(currentSubgraph);
+                if (subgraph && !subgraph.nodes.includes(targetId)) {
+                  subgraph.nodes.push(targetId);
+                }
+                debugLog(`Assigned existing target ${targetId} to current subgraph ${currentSubgraph}`);
+              } else {
+                debugLog(`Not assigning target ${targetId} to subgraph ${currentSubgraph} because source ${sourceId} is external`);
+              }
             }
-
-            debugLog(
-              `Created target node: ${targetId}, label: "${label}", shape: ${shape}, subgraph: ${
-                currentSubgraph || "none"
-              }`
-            );
           } else {
-            // Create simple node
-            const node: MermaidNode = {
-              id: targetId,
-              label: targetId,
-              shape: "rect",
-              subgraph: currentSubgraph,
-              parentSubgraph:
-                subgraphStack.length > 1
-                  ? subgraphStack[subgraphStack.length - 2]
-                  : undefined,
-            };
-
-            nodes.push(node);
-            nodeMap.set(targetId, node);
-
-            if (currentSubgraph) {
-              const subgraph = subgraphMap.get(currentSubgraph);
-              if (subgraph) subgraph.nodes.push(targetId);
-            }
-
-            debugLog(
-              `Created simple target node: ${targetId}, subgraph: ${
-                currentSubgraph || "none"
-              }`
-            );
+            // Target doesn't exist yet
+            // Only assign to current subgraph if this is not a cross-subgraph edge
+            const sourceNode = nodeMap.get(sourceId);
+            const sourceInSubgraph = sourceNode?.subgraph || isSourceSubgraph;
+            
+            // If we're processing inside a subgraph and source is also in a subgraph, assign target to current subgraph
+            // If source is external (no subgraph), don't assign target to current subgraph
+            const targetSubgraph = (currentSubgraph && sourceInSubgraph) ? currentSubgraph : undefined;
+            
+            debugLog(`Creating target ${targetId} with subgraph assignment: ${targetSubgraph || "none"} (source in subgraph: ${sourceInSubgraph})`);
+            createOrGetNode(targetId, targetSubgraph);
           }
-        } else if (
-          !isTargetSubgraph &&
-          currentSubgraph &&
-          !nodeMap.get(targetId)?.subgraph
-        ) {
-          // Node already exists but wasn't assigned to this subgraph
-          const node = nodeMap.get(targetId)!;
-          node.subgraph = currentSubgraph;
-
-          const subgraph = subgraphMap.get(currentSubgraph);
-          if (subgraph && !subgraph.nodes.includes(targetId)) {
-            subgraph.nodes.push(targetId);
-          }
-
-          debugLog(
-            `Updated existing node ${targetId} to be part of subgraph ${currentSubgraph}`
-          );
         }
 
-        // Add edge with special handling for subgraph connections
+        // Add edge
         edges.push({
           source: sourceId,
           target: targetId,
           label: edgeLabel,
           type: edgeType,
-          isSourceSubgraph: isSourceSubgraph, // Add this flag
-          isTargetSubgraph: isTargetSubgraph, // Add this flag
+          isSourceSubgraph: isSourceSubgraph,
+          isTargetSubgraph: isTargetSubgraph,
         });
+
+        debugLog(`Added edge: ${sourceId} -> ${targetId} (source subgraph: ${isSourceSubgraph}, target subgraph: ${isTargetSubgraph})`);
 
         if (isSourceSubgraph || isTargetSubgraph) {
           debugLog(
-            `Added edge with subgraph: ${sourceId} ${edgeType} ${targetId}`
+            `Edge involves subgraph: ${sourceId} ${edgeType} ${targetId}`
           );
         }
       } catch (error) {
         debugLog(`Error parsing edge: ${line}`, error);
       }
     } else {
-      // Parse standalone node definitions
+      // Parse standalone node definitions - UPDATED to use helper function
       try {
         const nodePatterns = [
           /^([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/,
           /^([A-Za-z0-9_]+)$/,
         ];
 
+        let foundStandaloneNode = false;
         for (const pattern of nodePatterns) {
           const nodeMatch = line.match(pattern);
           if (nodeMatch && !nodeMap.has(nodeMatch[1])) {
@@ -445,37 +458,15 @@ function parseMermaidCode(code: string): {
               break;
             }
 
-            const nodeDef = nodeMatch[2] || "[" + nodeId + "]";
-            const shape = getNodeShape(nodeDef);
-            const labelMatch = nodeDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-            const label = labelMatch ? cleanLabel(labelMatch[1]) : nodeId;
-
-            const node: MermaidNode = {
-              id: nodeId,
-              label,
-              shape,
-              subgraph: currentSubgraph,
-              parentSubgraph:
-                subgraphStack.length > 1
-                  ? subgraphStack[subgraphStack.length - 2]
-                  : undefined,
-            };
-
-            nodes.push(node);
-            nodeMap.set(nodeId, node);
-
-            if (currentSubgraph) {
-              const subgraph = subgraphMap.get(currentSubgraph);
-              if (subgraph) subgraph.nodes.push(nodeId);
-            }
-
-            debugLog(
-              `Created standalone node: ${nodeId}, label: "${label}", shape: ${shape}, subgraph: ${
-                currentSubgraph || "none"
-              }`
-            );
+            debugLog(`Found standalone node definition: ${nodeId} in context: ${currentSubgraph || "global"}`);
+            createOrGetNode(nodeId, currentSubgraph);
+            foundStandaloneNode = true;
             break;
           }
+        }
+
+        if (!foundStandaloneNode) {
+          debugLog(`Line "${line}" did not match any pattern (edge or standalone node)`);
         }
       } catch (error) {
         debugLog(`Error parsing standalone node: ${line}`, error);
@@ -493,8 +484,21 @@ function parseMermaidCode(code: string): {
     );
   });
 
+  // UPDATED: Final verification - ensure all nodes are properly assigned
+  debugLog("Final node assignments:");
+  nodes.forEach((node) => {
+    debugLog(`- ${node.id}: "${node.label}" in subgraph ${node.subgraph || "none"}`);
+  });
+
+  debugLog("Final edges:");
+  edges.forEach((edge, index) => {
+    debugLog(`- Edge ${index}: ${edge.source} -> ${edge.target} (label: "${edge.label}", type: "${edge.type}")`);
+  });
+
   return { nodes, edges, subgraphs, direction };
 }
+
+
 
 // Calculate dynamic node sizes based on label length
 function calculateNodeSize(label: string, shape: string) {

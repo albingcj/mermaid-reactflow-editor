@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 
 export function CustomNode({ data, isConnectable, selected }: NodeProps) {
   const handleClick = () => {
@@ -32,6 +32,16 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
       className={getNodeClassName()}
       onDoubleClick={data.onEdit}
     >
+      {/* Clean, professional node resizer with flexible sizing */}
+      <NodeResizer 
+        isVisible={selected}
+        minWidth={40}
+        minHeight={30}
+        maxWidth={500}
+        maxHeight={400}
+        keepAspectRatio={data.shape === 'circle'}
+      />
+      
       {/* Top handles */}
       <Handle
         type="target"
