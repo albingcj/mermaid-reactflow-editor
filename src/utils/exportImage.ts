@@ -44,8 +44,11 @@ export async function exportReactFlowImage({
     const exportHeight = maxY - minY;
     wrapper.style.width = exportWidth + 'px';
     wrapper.style.height = exportHeight + 'px';
-    reactFlowInstance.setViewport({ x: minX, y: minY, zoom: 1 });
-    await new Promise(res => setTimeout(res, 300));
+    // Set viewport so that the top-left of the bounding box is at (0,0)
+    if (reactFlowInstance.setViewport) {
+      reactFlowInstance.setViewport({ x: -minX, y: -minY, zoom: 1 });
+      await new Promise(res => setTimeout(res, 300));
+    }
     const dataUrl = await htmlToImage.toPng(wrapper, {
       cacheBust: true,
       pixelRatio,
