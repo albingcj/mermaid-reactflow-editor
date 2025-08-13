@@ -305,4 +305,4 @@ graph TD
 
 This project started from [james-prysm/mermaid-to-reactflow](https://github.com/james-prysm/mermaid-to-reactflow) — thanks to James for the starter! Many additional features and improvements have been added since then.
 
-This project is licensed under the ISC License.
+This project is licensed under the MIT License (c) 2025.
