@@ -479,7 +479,12 @@ function parseMermaidCode(code: string): {
 
 
 // Calculate dynamic node sizes based on label length
-function calculateNodeSize(label: string, shape: string) {
+function calculateNodeSize(label: string, shape: string, isImageNode: boolean = false) {
+  // Fixed size for image nodes
+  if (isImageNode) {
+    return { width: 80, height: 80 };
+  }
+
   const lines = label.split("\n");
   const maxLineLength = Math.max(...lines.map((line) => line.length));
   
@@ -502,6 +507,21 @@ function calculateNodeSize(label: string, shape: string) {
     return { width: size, height: size };
   }
   return { width, height };
+}
+
+// Helper function to detect and extract image URLs from labels
+function extractImageUrl(label: string): { imageUrl: string | null; cleanLabel: string } {
+  // Match common image URL patterns
+  const imageUrlPattern = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|svg|webp)(\?[^\s]*)?/i;
+  const match = label.match(imageUrlPattern);
+  
+  if (match) {
+    const imageUrl = match[0];
+    const cleanLabel = label.replace(imageUrl, '').trim();
+    return { imageUrl, cleanLabel };
+  }
+  
+  return { imageUrl: null, cleanLabel: label };
 }
 
 // Process subgraphs in hierarchical order (parents before children)
@@ -596,7 +616,8 @@ function layoutSubgraphs(
 
     // Add nodes
     subgraphNodes.forEach((node) => {
-      const size = calculateNodeSize(node.label, node.shape);
+      const { imageUrl } = extractImageUrl(node.label);
+      const size = calculateNodeSize(node.label, node.shape, !!imageUrl);
       g.setNode(node.id, { width: size.width, height: size.height });
     });
 
@@ -835,7 +856,8 @@ function layoutMetaGraph(
   // Add standalone nodes
   const standaloneNodes = nodes.filter((n) => !n.subgraph);
   standaloneNodes.forEach((node) => {
-    const size = calculateNodeSize(node.label, node.shape);
+    const { imageUrl } = extractImageUrl(node.label);
+    const size = calculateNodeSize(node.label, node.shape, !!imageUrl);
     g.setNode(node.id, { width: size.width, height: size.height });
     debugLog(`Added standalone node ${node.id} to meta-graph`);
   });
@@ -1042,8 +1064,9 @@ function createReactFlowElements(
   // Add nodes
   nodes.forEach((node) => {
     const colors = getNodeColors(node.shape);
+    const { imageUrl, cleanLabel } = extractImageUrl(node.label);
 
-    let nodeStyle = {
+    let nodeStyle: any = {
       backgroundColor: colors.backgroundColor,
       borderColor: colors.borderColor,
       borderWidth: "2px",
@@ -1051,6 +1074,17 @@ function createReactFlowElements(
       borderRadius: "8px",
       boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
     };
+
+    // Special handling for image nodes - remove borders and background completely
+    if (imageUrl) {
+      nodeStyle = {
+        backgroundColor: "transparent",
+        background: "transparent",
+        border: "none",
+        borderRadius: "8px",
+        boxShadow: "none",
+      };
+    }
 
     // Adjust style based on shape
     switch (node.shape) {
@@ -1099,8 +1133,9 @@ function createReactFlowElements(
       type: "custom",
       position: position,
       data: {
-        label: node.label,
-        githubUrl: "",
+        label: imageUrl ? cleanLabel : node.label,
+        imageUrl: imageUrl || "",
+        // githubUrl: "",
         description: "",
         shape: node.shape,
         colors,

@@ -9,7 +9,8 @@ interface NodeEditorProps {
 
 export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   const [label, setLabel] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
+  // const [githubUrl, setGithubUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [description, setDescription] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [borderColor, setBorderColor] = useState('#222222');
@@ -17,7 +18,8 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   useEffect(() => {
     if (node) {
       setLabel(node.data.label || '');
-      setGithubUrl(node.data.githubUrl || '');
+      // setGithubUrl(node.data.githubUrl || '');
+      setImageUrl(node.data.imageUrl || '');
       setDescription(node.data.description || '');
       setBackgroundColor(node.style?.backgroundColor || '#ffffff');
       setBorderColor(node.style?.borderColor || '#222222');
@@ -29,7 +31,8 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   const handleSave = () => {
     onUpdate(node.id, {
       label,
-      githubUrl,
+      // githubUrl,
+      imageUrl,
       description,
       style: {
         ...node.style,
@@ -51,9 +54,14 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
               <label className="form-label">Label</label>
               <input type="text" className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" />
             </div>
-            <div className="mb-3">
+            {/* <div className="mb-3">
               <label className="form-label">GitHub URL</label>
               <input type="url" className="form-control" value={githubUrl} onChange={e => setGithubUrl(e.target.value)} placeholder="https://github.com/..." />
+            </div> */}
+            <div className="mb-3">
+              <label className="form-label">Image URL</label>
+              <input type="url" className="form-control" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
+              <div className="form-text">Use an image URL to display an image as the node content</div>
             </div>
             <div className="mb-3">
               <label className="form-label">Description</label>
