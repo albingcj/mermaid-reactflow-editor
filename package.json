@@ -19,6 +19,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "bootstrap": "^5.3.7",
     "dagre": "^0.8.5",
+    "html-to-image": "^1.11.13",
     "mermaid": "^11.9.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
