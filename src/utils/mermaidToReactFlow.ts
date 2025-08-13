@@ -396,14 +396,10 @@ function parseMermaidCode(code: string): {
           if (existingTarget) {
             debugLog(`Target ${targetId} already exists in subgraph: ${existingTarget.subgraph || "none"}`);
           } else {
-            // Target doesn't exist yet - determine subgraph assignment
-            const sourceNode = nodeMap.get(sourceId);
-            const sourceInSubgraph = sourceNode?.subgraph || isSourceSubgraph;
+            // Target doesn't exist yet - assign to current subgraph if we're inside one
+            const targetSubgraph = currentSubgraph;
             
-            // Assign to current subgraph only if source is also in a subgraph context
-            const targetSubgraph = (currentSubgraph && sourceInSubgraph) ? currentSubgraph : undefined;
-            
-            debugLog(`Creating target ${targetId} with subgraph assignment: ${targetSubgraph || "none"} (source in subgraph: ${sourceInSubgraph})`);
+            debugLog(`Creating target ${targetId} with subgraph assignment: ${targetSubgraph || "none"} (current subgraph: ${currentSubgraph || "none"})`);
             createOrGetNode(targetId, targetSubgraph);
           }
         }
@@ -583,11 +579,6 @@ function layoutSubgraphs(
       );
     });
 
-    if (subgraphNodes.length === 0) {
-      debugLog(`Skipping empty subgraph: ${subgraph.id}`);
-      return;
-    }
-
     debugLog(
       `Laying out subgraph: ${subgraph.id} with ${subgraphNodes.length} nodes and ${subgraphEdges.length} edges`
     );
@@ -651,12 +642,18 @@ function layoutSubgraphs(
       maxY = Math.max(maxY, nodeLayout.y + size.height / 2);
     });
 
-    // If no nodes were successfully laid out, skip this subgraph
-    if (minX === Infinity || minY === Infinity) {
+    // Handle empty subgraphs by providing minimum dimensions
+    if (subgraphNodes.length === 0 || minX === Infinity || minY === Infinity) {
+      // Set default size for empty subgraph
+      const defaultWidth = 200;
+      const defaultHeight = 100;
+      minX = 0;
+      minY = 0;
+      maxX = defaultWidth;
+      maxY = defaultHeight;
       debugLog(
-        `Warning: Could not calculate layout for subgraph ${subgraph.id}`
+        `Using default dimensions for subgraph ${subgraph.id}: ${defaultWidth}x${defaultHeight}`
       );
-      return;
     }
 
     // Normalize positions to start from (0, 0) with header space
