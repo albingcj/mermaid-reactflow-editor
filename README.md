@@ -294,7 +294,7 @@ graph TD
 ```
 
 ### Example Output
-![Example Diagram](examples\image.png)
+![Example Diagram](https://github.com/albingcj/mermaid-reactflow-editor/blob/master/examples/image.png)
 
 ---
 
