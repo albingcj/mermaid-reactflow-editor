@@ -398,27 +398,19 @@ textarea {
   color: white;
 }
 
-/* Custom node lock styling: visual-only indicator (no extra DOM elements) */
-.custom-node.locked {
-  opacity: 0.75; /* subtle dim */
-  filter: grayscale(0.15);
-  cursor: not-allowed;
-  transition: box-shadow 0.12s ease, transform 0.12s ease;
-}
 
-.custom-node.locked .node-content {
-  pointer-events: none; /* prevent interactions to indicate locked state */
-}
-
+/* Show a muted visual only when hovering or when the node is selected */
 .custom-node.locked:hover,
 .custom-node.locked.selected {
   box-shadow: 0 6px 18px rgba(0,0,0,0.12);
   transform: translateY(-2px);
   border-color: rgba(0,0,0,0.12);
+  filter: grayscale(0.06);
 }
 
-/* Tweak handles appearance when locked to be slightly muted */
-.custom-node.locked .react-flow__handle {
+/* Tweak handles appearance when locked only on hover/selected */
+.custom-node.locked:hover .react-flow__handle,
+.custom-node.locked.selected .react-flow__handle {
   opacity: 0.6;
 }
 
@@ -868,21 +860,17 @@ textarea {
   box-shadow: 0 0 0 2px #1976D2 !important;
 }
 
-/* Remove general React Flow selection to avoid conflicts with custom nodes */
-
-/* Clean locked node indicator */
-.custom-node.locked {
+.custom-node.locked:hover {
   border-style: dashed;
   border-color: #f59e0b;
 }
 
-.custom-node.locked::before {
+/* Style for the lock icon that appears on hover */
+.custom-node.locked:hover::before {
   content: "🔒";
   position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ff9800;
-  color: white;
+  top: -4px;
+  right: -4px;
   border-radius: 50%;
   width: 20px;
   height: 20px;
@@ -893,6 +881,7 @@ textarea {
   z-index: 10;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
+
 
 /* Edge label styling */
 .react-flow__edge-text {
@@ -916,9 +905,16 @@ textarea {
 
 /* Special styling for custom nodes */
 .custom-node .react-flow__handle {
+  /* Ensure handles are positioned relative to the node and visually centered
+    on each side. React Flow usually applies positioning via its own CSS,
+    but custom node padding/borders and transforms can shift them. Force
+    absolute positioning and explicit offsets here for consistent placement. */
+  position: absolute !important;
   background-color: #555;
   border: 2px solid white;
   box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  z-index: 12;
+  pointer-events: auto;
 }
 
 /* Differentiate handle types by color */
@@ -952,6 +948,42 @@ textarea {
 .react-flow__handle-right {
   width: 8px !important;
   height: 8px !important;
+}
+
+/* Explicitly center handles on each side of the node. These rules
+   override any layout/padding shifts caused by the node's internal
+   padding or border. Uses transform to keep handle center aligned. */
+.custom-node .react-flow__handle.react-flow__handle-top {
+  top: 0 !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+.custom-node .react-flow__handle.react-flow__handle-bottom {
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translate(-50%, 50%) !important;
+}
+.custom-node .react-flow__handle.react-flow__handle-left {
+  left: 0 !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+.custom-node .react-flow__handle.react-flow__handle-right {
+  right: 0 !important;
+  top: 50% !important;
+  transform: translate(50%, -50%) !important;
+}
+
+/* Diamond nodes: because the node container is rotated to create the diamond
+   shape, handles will also rotate and won't sit at the visual midpoints of
+   the diamond sides. To correctly position handles for diamond-shaped nodes
+   you should avoid rotating the entire .custom-node container. Instead,
+   rotate only an inner background or use SVG/clip-path so handles remain
+   unrotated. The below is a pragmatic adjustment that may help in some
+   situations but is not a full replacement for the structural change. */
+.custom-node.shape-diamond .react-flow__handle {
+  /* keep them visible and usable; fine-tune if necessary */
+  transform: none !important;
 }
 
 /* Active state for handles when being connected */
