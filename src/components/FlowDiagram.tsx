@@ -69,6 +69,13 @@ function FlowDiagramInternal({
   const [selectedEdges, setSelectedEdges] = useState<Edge[]>([]);
   const [showNodeEditor, setShowNodeEditor] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  // Inline edge label editor state
+  const [edgeLabelEditor, setEdgeLabelEditor] = useState<{
+    edgeId: string;
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [exporting, setExporting] = useState(false);
 
   // Improved Download as Image Handler for High-Quality Large Diagrams
@@ -156,6 +163,18 @@ function FlowDiagramInternal({
   // Handler for edge click
   const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
     setSelectedEdgeId(edge.id);
+  }, []);
+
+  // Handler for edge double-click: open inline label editor
+  const onEdgeDoubleClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    try {
+      const wrapperRect = reactFlowWrapper.current?.getBoundingClientRect();
+      const x = wrapperRect ? event.clientX - wrapperRect.left : 0;
+      const y = wrapperRect ? event.clientY - wrapperRect.top : 0;
+      setEdgeLabelEditor({ edgeId: edge.id, text: (edge.label as string) || '', x, y });
+    } catch (err) {
+      console.error('Failed to open edge label editor', err);
+    }
   }, []);
 
   // Add a menu for edge type selection (optional enhancement)
@@ -346,6 +365,20 @@ function FlowDiagramInternal({
     console.log('Ungroup nodes:', selectedNodes.map(n => n.id));
   }, [selectedNodes]);
 
+  // Edge label editor save/cancel
+  const saveEdgeLabel = useCallback((edgeId: string, text: string) => {
+    setEdges((eds) => {
+      const updated = eds.map(e => e.id === edgeId ? { ...e, label: text } : e);
+      if (onEdgesChangeCallback) onEdgesChangeCallback(updated);
+      return updated;
+    });
+    setEdgeLabelEditor(null);
+  }, [onEdgesChangeCallback]);
+
+  const cancelEdgeLabelEdit = useCallback(() => {
+    setEdgeLabelEditor(null);
+  }, []);
+
   return (
     <>
       <EditingToolbar
@@ -494,6 +527,7 @@ function FlowDiagramInternal({
               return updated;
             });
           }}
+      onEdgeDoubleClick={onEdgeDoubleClick}
           onDragOver={(event) => {
             event.preventDefault();
             event.dataTransfer.dropEffect = 'move';
@@ -546,6 +580,28 @@ function FlowDiagramInternal({
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
       </div>
+
+        {/* Inline Edge Label Editor */}
+        {edgeLabelEditor && (
+          <div
+            className="edge-label-editor"
+            style={{ left: edgeLabelEditor.x, top: edgeLabelEditor.y }}
+          >
+            <input
+              autoFocus
+              value={edgeLabelEditor.text}
+              onChange={(e) => setEdgeLabelEditor({ ...edgeLabelEditor, text: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveEdgeLabel(edgeLabelEditor.edgeId, edgeLabelEditor.text);
+                if (e.key === 'Escape') cancelEdgeLabelEdit();
+              }}
+            />
+            <div className="edge-label-editor-actions">
+              <button onClick={() => saveEdgeLabel(edgeLabelEditor.edgeId, edgeLabelEditor.text)}>Save</button>
+              <button onClick={cancelEdgeLabelEdit}>Cancel</button>
+            </div>
+          </div>
+        )}
       
       {showNodeEditor && (
         <NodeEditor

@@ -484,6 +484,47 @@ textarea {
   border-radius: 999px;
 }
 
+/* Inline edge label editor */
+.edge-label-editor {
+  position: absolute;
+  z-index: 2000;
+  transform: translate(-50%, -120%);
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid rgba(16,24,40,0.08);
+  box-shadow: 0 6px 18px rgba(16,24,40,0.12);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.edge-label-editor input {
+  flex: 1;
+  border: 1px solid #e6e9ee;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.edge-label-editor-actions button {
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.edge-label-editor-actions button:first-child {
+  color: #0b6ef6;
+}
+
+.edge-label-editor-actions button:last-child {
+  color: #6b7280;
+}
+
 
 /* Show a muted visual only when hovering or when the node is selected */
 .custom-node.locked:hover,
