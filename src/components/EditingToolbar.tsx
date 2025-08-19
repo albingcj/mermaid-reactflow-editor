@@ -6,10 +6,7 @@ interface EditingToolbarProps {
   selectedEdges: Edge[];
   onAlignNodes: (alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical') => void;
   onDistributeNodes: (direction: 'horizontal' | 'vertical') => void;
-  onGroupNodes: () => void;
-  onUngroupNodes: () => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
+  // Grouping removed; toolbar no longer supports group/ungroup/bring/send
   onDuplicateNodes: () => void;
   onDeleteSelected: () => void;
   onLockNodes: () => void;
@@ -21,17 +18,14 @@ export function EditingToolbar({
   selectedEdges,
   onAlignNodes,
   onDistributeNodes,
-  onGroupNodes,
-  onUngroupNodes,
-  onBringToFront,
-  onSendToBack,
+  // ...existing code...
   onDuplicateNodes,
   onDeleteSelected,
   onLockNodes,
   onUnlockNodes,
 }: EditingToolbarProps) {
   const hasSelectedNodes = selectedNodes.length > 0;
-  const hasMultipleNodes = selectedNodes.length > 1;
+  // const hasMultipleNodes intentionally removed (grouping not supported)
   const hasSelectedElements = selectedNodes.length > 0 || selectedEdges.length > 0;
   if (!hasSelectedElements) return null;
 
@@ -97,23 +91,7 @@ export function EditingToolbar({
                 <span className="ms-2">Distribute V</span>
               </button>
 
-              <button className="btn btn-outline-secondary btn-sm" title="Group Selected" onClick={onGroupNodes} disabled={!hasMultipleNodes}>
-                <GroupIcon />
-                <span className="ms-2">Group</span>
-              </button>
-              <button className="btn btn-outline-secondary btn-sm" title="Ungroup Selected" onClick={onUngroupNodes} disabled={!hasMultipleNodes}>
-                <UngroupIcon />
-                <span className="ms-2">Ungroup</span>
-              </button>
-
-              <button className="btn btn-outline-secondary btn-sm" title="Bring to Front" onClick={onBringToFront} disabled={!hasSelectedNodes}>
-                <BringToFrontIcon />
-                <span className="ms-2">Front</span>
-              </button>
-              <button className="btn btn-outline-secondary btn-sm" title="Send to Back" onClick={onSendToBack} disabled={!hasSelectedNodes}>
-                <SendToBackIcon />
-                <span className="ms-2">Back</span>
-              </button>
+              {/* Group/Ungroup and Front/Back controls removed per UX decision */}
 
               <button className="btn btn-outline-secondary btn-sm" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
                 <DuplicateIcon />
@@ -204,22 +182,6 @@ function DistributeVerticalIcon() {
   );
 }
 
-function BringToFrontIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M6 2h8v8h-2V4H6V2zM2 6h8v8H2V6zm1 1v6h6V7H3z"/>
-    </svg>
-  );
-}
-
-function SendToBackIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 2h8v2H4v6H2V2zm4 4h8v8H6V6zm1 1v6h6V7H7z"/>
-    </svg>
-  );
-}
-
 function DuplicateIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -244,21 +206,7 @@ function UnlockIcon() {
   );
 }
 
-function GroupIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 4h4v1H3v3H2V4zm8 0h4v4h-1V5h-3V4zM2 10v4h4v-1H3v-3H2zm10 3v1h4v-4h-1v3h-3z"/>
-    </svg>
-  );
-}
-
-function UngroupIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M6 2h4v1H6V2zM2 6h1v4H2V6zm11 0h1v4h-1V6zM6 13h4v1H6v-1z"/>
-    </svg>
-  );
-}
+// Group/Ungroup icons removed
 
 function DeleteIcon() {
   return (

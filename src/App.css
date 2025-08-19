@@ -398,6 +398,30 @@ textarea {
   color: white;
 }
 
+/* Custom node lock styling: visual-only indicator (no extra DOM elements) */
+.custom-node.locked {
+  opacity: 0.75; /* subtle dim */
+  filter: grayscale(0.15);
+  cursor: not-allowed;
+  transition: box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.custom-node.locked .node-content {
+  pointer-events: none; /* prevent interactions to indicate locked state */
+}
+
+.custom-node.locked:hover,
+.custom-node.locked.selected {
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+  border-color: rgba(0,0,0,0.12);
+}
+
+/* Tweak handles appearance when locked to be slightly muted */
+.custom-node.locked .react-flow__handle {
+  opacity: 0.6;
+}
+
 .save-btn:hover {
   background-color: #45a049;
 }

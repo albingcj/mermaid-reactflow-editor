@@ -149,6 +149,8 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
           </>
         )}
       </div>
+
+  {/* Locked styling is applied via the .locked class and CSS in App.css to avoid extra DOM elements that would appear in exported images */}
       
       {/* Bottom handles */}
       <Handle

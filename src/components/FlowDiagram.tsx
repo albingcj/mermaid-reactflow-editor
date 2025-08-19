@@ -353,10 +353,6 @@ function FlowDiagramInternal({
         selectedEdges={selectedEdges}
         onAlignNodes={onAlignNodes}
         onDistributeNodes={onDistributeNodes}
-        onGroupNodes={onGroupNodes}
-        onUngroupNodes={onUngroupNodes}
-        onBringToFront={onBringToFront}
-        onSendToBack={onSendToBack}
         onDuplicateNodes={onDuplicateNodes}
         onDeleteSelected={onDeleteSelected}
         onLockNodes={onLockNodes}
