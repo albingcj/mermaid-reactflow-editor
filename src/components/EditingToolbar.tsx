@@ -30,88 +30,68 @@ export function EditingToolbar({
   if (!hasSelectedElements) return null;
 
   return (
-    <div className="editing-toolbar p-2 bg-white border rounded shadow-sm">
-      <div className="d-flex align-items-center justify-content-between mb-2">
-        <div className="small text-muted">Selection: <strong className="text-dark">{selectedNodes.length}</strong> nodes, <strong className="text-dark">{selectedEdges.length}</strong> edges</div>
-        <div className="small text-muted">Tools</div>
+    <div className="editing-toolbar editing-toolbar--floating" role="toolbar" aria-label="Editing tools">
+      {/* Selection badge */}
+      <div className="toolbar-chip" title={`Selected: ${selectedNodes.length} nodes, ${selectedEdges.length} edges`}>
+        {selectedNodes.length}
       </div>
 
-      <div className="row g-2">
-        {/* Alignment */}
-        <div className="col-12 col-md-6">
-          <div className="card card-body p-2 h-100">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <div className="fw-medium">Align</div>
-              <small className="text-muted">Axis</small>
-            </div>
+      {/* Align (H) */}
+      <div className="toolbar-group" aria-label="Align horizontally">
+        <button className="toolbar-btn" title="Align Left" onClick={() => onAlignNodes('left')}>
+          <AlignLeftIcon />
+        </button>
+        <button className="toolbar-btn" title="Align Center (Horizontal)" onClick={() => onAlignNodes('center-horizontal')}>
+          <AlignCenterHorizontalIcon />
+        </button>
+        <button className="toolbar-btn" title="Align Right" onClick={() => onAlignNodes('right')}>
+          <AlignRightIcon />
+        </button>
+      </div>
 
-            <div className="d-flex flex-column gap-2">
-              <div className="d-flex gap-2">
-                <button className="btn btn-light btn-sm border" title="Align Left" onClick={() => onAlignNodes('left')}>
-                  <AlignLeftIcon />
-                </button>
-                <button className="btn btn-light btn-sm border" title="Align Center Horizontal" onClick={() => onAlignNodes('center-horizontal')}>
-                  <AlignCenterHorizontalIcon />
-                </button>
-                <button className="btn btn-light btn-sm border" title="Align Right" onClick={() => onAlignNodes('right')}>
-                  <AlignRightIcon />
-                </button>
-              </div>
+      <div className="toolbar-divider" />
 
-              <div className="d-flex gap-2">
-                <button className="btn btn-light btn-sm border" title="Align Top" onClick={() => onAlignNodes('top')}>
-                  <AlignTopIcon />
-                </button>
-                <button className="btn btn-light btn-sm border" title="Align Center Vertical" onClick={() => onAlignNodes('center-vertical')}>
-                  <AlignCenterVerticalIcon />
-                </button>
-                <button className="btn btn-light btn-sm border" title="Align Bottom" onClick={() => onAlignNodes('bottom')}>
-                  <AlignBottomIcon />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Align (V) */}
+      <div className="toolbar-group" aria-label="Align vertically">
+        <button className="toolbar-btn" title="Align Top" onClick={() => onAlignNodes('top')}>
+          <AlignTopIcon />
+        </button>
+        <button className="toolbar-btn" title="Align Middle (Vertical)" onClick={() => onAlignNodes('center-vertical')}>
+          <AlignCenterVerticalIcon />
+        </button>
+        <button className="toolbar-btn" title="Align Bottom" onClick={() => onAlignNodes('bottom')}>
+          <AlignBottomIcon />
+        </button>
+      </div>
 
-        {/* Distribute & Group */}
-        <div className="col-12 col-md-6">
-          <div className="card card-body p-2 h-100">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <div className="fw-medium">Arrange</div>
-              <small className="text-muted">Distribute / Group</small>
-            </div>
+      <div className="toolbar-divider" />
 
-            <div className="d-flex flex-wrap gap-2">
-              <button className="btn btn-outline-secondary btn-sm" title="Distribute Horizontally" onClick={() => onDistributeNodes('horizontal')}>
-                <DistributeHorizontalIcon />
-                <span className="ms-2">Distribute H</span>
-              </button>
-              <button className="btn btn-outline-secondary btn-sm" title="Distribute Vertically" onClick={() => onDistributeNodes('vertical')}>
-                <DistributeVerticalIcon />
-                <span className="ms-2">Distribute V</span>
-              </button>
+      {/* Distribute */}
+      <div className="toolbar-group" aria-label="Distribute">
+        <button className="toolbar-btn" title="Distribute Horizontally" onClick={() => onDistributeNodes('horizontal')}>
+          <DistributeHorizontalIcon />
+        </button>
+        <button className="toolbar-btn" title="Distribute Vertically" onClick={() => onDistributeNodes('vertical')}>
+          <DistributeVerticalIcon />
+        </button>
+      </div>
 
-              {/* Group/Ungroup and Front/Back controls removed per UX decision */}
+      <div className="toolbar-divider" />
 
-              <button className="btn btn-outline-secondary btn-sm" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
-                <DuplicateIcon />
-                <span className="ms-2">Duplicate</span>
-              </button>
-
-              <button className="btn btn-outline-danger btn-sm ms-auto" title="Delete Selected" onClick={onDeleteSelected} disabled={!hasSelectedElements}>
-                <DeleteIcon />
-                <span className="ms-2">Delete</span>
-              </button>
-
-              <button className="btn btn-outline-secondary btn-sm" title="Lock Position" onClick={onLockNodes} disabled={!hasSelectedNodes}>
-                <LockIcon />
-              </button>
-              <button className="btn btn-outline-secondary btn-sm" title="Unlock Position" onClick={onUnlockNodes} disabled={!hasSelectedNodes}>
-                <UnlockIcon />
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Actions */}
+      <div className="toolbar-group" aria-label="Actions">
+        <button className="toolbar-btn" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
+          <DuplicateIcon />
+        </button>
+        <button className="toolbar-btn" title="Lock" onClick={onLockNodes} disabled={!hasSelectedNodes}>
+          <LockIcon />
+        </button>
+        <button className="toolbar-btn" title="Unlock" onClick={onUnlockNodes} disabled={!hasSelectedNodes}>
+          <UnlockIcon />
+        </button>
+        <button className="toolbar-btn toolbar-btn--danger" title="Delete" onClick={onDeleteSelected} disabled={!hasSelectedElements}>
+          <DeleteIcon />
+        </button>
       </div>
     </div>
   );

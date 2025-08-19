@@ -398,6 +398,92 @@ textarea {
   color: white;
 }
 
+/* Floating Editing Toolbar */
+.editing-toolbar--floating {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: saturate(120%) blur(6px);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.12);
+  border-radius: 999px;
+  padding: 6px 8px;
+}
+
+.editing-toolbar--floating .toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editing-toolbar--floating .toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(0,0,0,0.08);
+  margin: 0 2px;
+}
+
+.editing-toolbar--floating .toolbar-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  color: #344054;
+  transition: all 120ms ease;
+}
+
+.editing-toolbar--floating .toolbar-btn:hover:not(:disabled) {
+  background: #F2F4F7;
+  border-color: #E4E7EC;
+}
+
+.editing-toolbar--floating .toolbar-btn:active:not(:disabled) {
+  background: #EAECF0;
+  border-color: #D0D5DD;
+}
+
+.editing-toolbar--floating .toolbar-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editing-toolbar--floating .toolbar-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.editing-toolbar--floating .toolbar-btn--danger {
+  color: #B42318;
+}
+
+.editing-toolbar--floating .toolbar-btn--danger:hover:not(:disabled) {
+  background: #FEF3F2;
+  border-color: #FEE4E2;
+}
+
+.editing-toolbar--floating .toolbar-chip {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+  color: #175CD3;
+  background: #EFF8FF;
+  border: 1px solid #B2DDFF;
+  border-radius: 999px;
+}
+
 
 /* Show a muted visual only when hovering or when the node is selected */
 .custom-node.locked:hover,

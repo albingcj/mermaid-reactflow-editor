@@ -53,6 +53,7 @@ interface SubgraphLayout {
 
 const SUBGRAPH_HEADER_HEIGHT = 10;
 const SUBGRAPH_PADDING = 10; // Increased from 30 to 40 for more breathing room
+const DAGRE_RANKER: 'network-simplex' | 'tight-tree' | 'longest-path' = 'tight-tree';
 const DEBUG = true; // Set to true to enable debug logging
  
 function debugLog(...args: any[]) {
@@ -610,11 +611,29 @@ function calculateNodeSize(label: string, shape: string, isImageNode: boolean = 
   }
 
   const lines = label.split("\n");
-  const maxLineLength = Math.max(...lines.map((line) => line.length));
-  
-  // Base size from content, with reasonable minimums and generous padding
-  const baseWidth = maxLineLength * 8 + 30; // Content-based width
-  const baseHeight = lines.length * 20 + 20; // Content-based height
+
+  // Measure text width more accurately using canvas when available
+  function measureLineWidth(text: string): number {
+    try {
+      if (typeof document !== 'undefined') {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Match CSS used in nodes
+          ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          return ctx.measureText(text).width;
+        }
+      }
+    } catch {}
+    // Fallback heuristic
+    return text.length * 8;
+  }
+
+  const maxLineWidth = Math.max(...lines.map((line) => Math.ceil(measureLineWidth(line))));
+
+  // Base size from content, with reasonable minimums and padding
+  const baseWidth = maxLineWidth + 30; // text width + padding
+  const baseHeight = lines.length * 18 + 20; // line-height 18 + padding
   
   // Add some additional space based on content (not rigid minimums)
   const width = Math.max(80, baseWidth + 30); // Content + 30px extra, min 80px for readability
@@ -622,8 +641,9 @@ function calculateNodeSize(label: string, shape: string, isImageNode: boolean = 
 
   if (shape === "diamond") {
     return {
-      width: Math.max(80, width * 0.9), // Slightly smaller for diamond visual balance
-      height: Math.max(80, height * 0.9),
+      // Slightly increase to account for diagonal bounding box
+      width: Math.max(90, Math.ceil(width * 1.05)),
+      height: Math.max(90, Math.ceil(height * 1.05)),
     };
   }
   if (shape === "circle") {
@@ -735,6 +755,7 @@ function layoutSubgraphs(
       ranksep: 60,
       marginx: SUBGRAPH_PADDING,
       marginy: SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT,
+      ranker: DAGRE_RANKER,
     });
     g.setDefaultEdgeLabel(() => ({}));
 
@@ -958,6 +979,7 @@ function layoutMetaGraph(
     ranksep: 100,
     marginx: 50,
     marginy: 50,
+    ranker: DAGRE_RANKER,
   });
   g.setDefaultEdgeLabel(() => ({}));
 
@@ -1110,7 +1132,8 @@ function createReactFlowElements(
   subgraphs: SubgraphInfo[],
   subgraphLayouts: Map<string, SubgraphLayout>,
   subgraphPositions: Map<string, { x: number; y: number }>,
-  standalonePositions: Map<string, { x: number; y: number }>
+  standalonePositions: Map<string, { x: number; y: number }>,
+  direction: string
 ): ReactFlowData {
   const reactFlowNodes: Node[] = [];
 
@@ -1252,7 +1275,12 @@ function createReactFlowElements(
       position = standalonePos || { x: 0, y: 0 };
     }
 
-    reactFlowNodes.push({
+  // Source/Target handle preference by layout direction
+  const isHorizontal = direction === 'LR' || direction === 'RL';
+  const sourcePos = isHorizontal ? Position.Right : Position.Bottom;
+  const targetPos = isHorizontal ? Position.Left : Position.Top;
+
+  reactFlowNodes.push({
       id: node.id,
       type: "custom",
       position: position,
@@ -1265,8 +1293,8 @@ function createReactFlowElements(
         colors,
       },
       style: nodeStyle,
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
+  sourcePosition: sourcePos,
+  targetPosition: targetPos,
       parentNode: parentNode,
       extent: parentNode ? "parent" : undefined,
       draggable: true,
@@ -1339,9 +1367,9 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
       height: 20,
       color: edgeColor,
     },
-    // These ensure consistent connections
-    sourceHandle: edge.isSourceSubgraph ? "bottom-source" : "bottom-source",
-    targetHandle: edge.isTargetSubgraph ? "top-target" : "top-target",
+  // Attach to side based on layout direction for better alignment
+  sourceHandle: (direction === 'LR' || direction === 'RL') ? 'right-source' : 'bottom-source',
+  targetHandle: (direction === 'LR' || direction === 'RL') ? 'left-target' : 'top-target',
     zIndex: 0,
   };
 });
@@ -1380,7 +1408,8 @@ function layoutGraph(
     subgraphs,
     subgraphLayouts,
     subgraphPositions,
-    standalonePositions
+    standalonePositions,
+    direction
   );
 }
 
