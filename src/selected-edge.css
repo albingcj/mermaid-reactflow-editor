@@ -9,3 +9,14 @@
   fill: #ff9800 !important;
   font-weight: bold !important;
 }
+
+/* During drag, pause animations and hide heavy UI for smoother performance */
+.dragging .react-flow__edge.animated path {
+  animation: none !important;
+  stroke-dasharray: none !important;
+}
+
+.dragging .react-flow__node-resizer,
+.dragging .react-flow__handle {
+  visibility: hidden !important;
+}

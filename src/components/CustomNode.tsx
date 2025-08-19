@@ -2,7 +2,7 @@
 import React from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 
-export function CustomNode({ data, isConnectable, selected }: NodeProps) {
+function CustomNodeInner({ data, isConnectable, selected }: NodeProps) {
   // const handleClick = () => {
   //   if (data.githubUrl) {
   //     window.open(data.githubUrl, '_blank');
@@ -55,43 +55,49 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
       } : { width: '100%', height: '100%', position: 'relative' }}
     >
       {/* User-friendly node resizer with clear visual feedback */}
-      <NodeResizer 
-        isVisible={selected}
-        minWidth={isImageNode ? 60 : 40}
-        minHeight={isImageNode ? 60 : 30}
-        maxWidth={500}
-        maxHeight={400}
-        keepAspectRatio={data.shape === 'circle' || isImageNode}
-        handleStyle={{
-          backgroundColor: '#2563eb',
-          border: '2px solid white',
-          width: 10,
-          height: 10,
-          borderRadius: '2px',
-        }}
-        lineStyle={{
-          borderColor: '#2563eb',
-          borderWidth: 2,
-        }}
-      />
+      {!data.isDragging && (
+        <NodeResizer 
+          isVisible={selected}
+          minWidth={isImageNode ? 60 : 40}
+          minHeight={isImageNode ? 60 : 30}
+          maxWidth={500}
+          maxHeight={400}
+          keepAspectRatio={data.shape === 'circle' || isImageNode}
+          handleStyle={{
+            backgroundColor: '#2563eb',
+            border: '2px solid white',
+            width: 10,
+            height: 10,
+            borderRadius: '2px',
+          }}
+          lineStyle={{
+            borderColor: '#2563eb',
+            borderWidth: 2,
+          }}
+        />
+      )}
       
       {/* Top handles */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        isConnectable={isConnectable}
-        id="top-target"
-        className="handle-top"
-        style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Top}
-        isConnectable={isConnectable}
-        id="top-source"
-        className="handle-top"
-        style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
-      />
+      {!data.isDragging && (
+        <>
+          <Handle
+            type="target"
+            position={Position.Top}
+            isConnectable={isConnectable}
+            id="top-target"
+            className="handle-top"
+            style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Top}
+            isConnectable={isConnectable}
+            id="top-source"
+            className="handle-top"
+            style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
+          />
+        </>
+      )}
       
       <div className="node-content">
         {isImageNode ? (
@@ -147,58 +153,72 @@ export function CustomNode({ data, isConnectable, selected }: NodeProps) {
   {/* Locked styling is applied via the .locked class and CSS in App.css to avoid extra DOM elements that would appear in exported images */}
       
       {/* Bottom handles */}
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        isConnectable={isConnectable}
-        id="bottom-target"
-        className="handle-bottom"
-        style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        isConnectable={isConnectable}
-        id="bottom-source"
-        className="handle-bottom"
-        style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
-      />
+      {!data.isDragging && (
+        <>
+          <Handle
+            type="target"
+            position={Position.Bottom}
+            isConnectable={isConnectable}
+            id="bottom-target"
+            className="handle-bottom"
+            style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            isConnectable={isConnectable}
+            id="bottom-source"
+            className="handle-bottom"
+            style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
+          />
+        </>
+      )}
       
       {/* Left handles */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        isConnectable={isConnectable}
-        id="left-target"
-        className="handle-left"
-        style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Left}
-        isConnectable={isConnectable}
-        id="left-source"
-        className="handle-left"
-        style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
-      />
+      {!data.isDragging && (
+        <>
+          <Handle
+            type="target"
+            position={Position.Left}
+            isConnectable={isConnectable}
+            id="left-target"
+            className="handle-left"
+            style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Left}
+            isConnectable={isConnectable}
+            id="left-source"
+            className="handle-left"
+            style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
+          />
+        </>
+      )}
 
       {/* Right handles */}
-      <Handle
-        type="target"
-        position={Position.Right}
-        isConnectable={isConnectable}
-        id="right-target"
-        className="handle-right"
-        style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        isConnectable={isConnectable}
-        id="right-source"
-        className="handle-right"
-        style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
-      />
+      {!data.isDragging && (
+        <>
+          <Handle
+            type="target"
+            position={Position.Right}
+            isConnectable={isConnectable}
+            id="right-target"
+            className="handle-right"
+            style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Right}
+            isConnectable={isConnectable}
+            id="right-source"
+            className="handle-right"
+            style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
+          />
+        </>
+      )}
     </div>
   );
 }
+
+export const CustomNode = React.memo(CustomNodeInner);
