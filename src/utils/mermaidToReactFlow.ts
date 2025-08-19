@@ -154,22 +154,46 @@ function parseMermaidCode(code: string): {
     const trimmedLine = line.trim();
     if (!trimmedLine || trimmedLine.startsWith("subgraph") || trimmedLine === "end" || trimmedLine.startsWith("%%")) return;
 
-    // Enhanced node definition pattern to capture more variations
-    const nodeDefPattern = /([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/g;
+    // Safer node definition scanner: find identifier + opening bracket, then
+    // locate the corresponding closing bracket using indexOf. This avoids
+    // premature matches when labels contain other bracket characters (e.g.
+    // parentheses inside square-bracket labels).
+    const nodeIdOpenPattern = /([A-Za-z0-9_]+)([\[\(\{])/g;
     let match;
-    
-    while ((match = nodeDefPattern.exec(trimmedLine)) !== null) {
-      const [fullDef, nodeId, shapeDef] = match;
-      
-      if (!nodeDefinitions.has(nodeId)) {
-        const shape = getNodeShape(fullDef);
-        const labelMatch = shapeDef.match(/[\[\(\{]([^\]\)\}]*)[\]\)\}]/);
-        const rawLabel = labelMatch ? labelMatch[1] : nodeId;
-        const label = enhancedCleanLabel(rawLabel);
-        
-        nodeDefinitions.set(nodeId, { label, shape, fullDef });
-        debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
+    while ((match = nodeIdOpenPattern.exec(trimmedLine)) !== null) {
+      const nodeId = match[1];
+      if (nodeDefinitions.has(nodeId)) continue;
+
+      const openChar = match[2];
+      const openIndex = match.index + nodeId.length; // position of opening bracket
+      const closeChar = openChar === '[' ? ']' : openChar === '(' ? ')' : '}';
+
+      // Find the first closing char after the opening bracket
+      const closeIndex = trimmedLine.indexOf(closeChar, openIndex + 1);
+
+      let fullDef = nodeId;
+      let shapeDef = '';
+      if (closeIndex !== -1) {
+        fullDef = trimmedLine.slice(match.index, closeIndex + 1);
+        shapeDef = trimmedLine.slice(openIndex, closeIndex + 1);
+      } else {
+        // Fallback to older regex if we couldn't find a matching close
+        const fallback = trimmedLine.slice(match.index).match(/([\[\(\{][^\]\)\}]*[\]\)\}])/);
+        if (fallback) {
+          fullDef = nodeId + fallback[0];
+          shapeDef = fallback[0];
+        }
       }
+
+      const shape = getNodeShape(fullDef);
+
+      let rawLabel = nodeId;
+      const labelContentMatch = shapeDef.match(/^[\[\(\{](.*)[\]\)\}]$/);
+      if (labelContentMatch) rawLabel = labelContentMatch[1];
+
+      const label = enhancedCleanLabel(rawLabel);
+      nodeDefinitions.set(nodeId, { label, shape, fullDef });
+      debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
     }
   });
 
@@ -383,55 +407,90 @@ function parseMermaidCode(code: string): {
 
     debugLog(`Processing line: "${line}" in subgraph: ${currentSubgraph || "none"}`);
 
-    // Enhanced edge patterns to handle all Mermaid edge types including dotted edges
-    const edgePatterns = [
-      // Pattern 1: A[Label] -->|EdgeLabel| B{Label} (with optional edge labels)
-      /([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===|-\.->)\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?/,
-      // Pattern 2: Simpler pattern A --> B (handles all edge types)
-      /([A-Za-z0-9_]+)\s*(-{2,3}>|->|---|={2,3}>|==>|-\.-|:-:|::|~|\.\.\.|===|-\.->)\s*([A-Za-z0-9_]+)/,
-    ];
+    // Manual edge parser to avoid brittle regex that stops at the first
+    // closing bracket of any type. This scanner finds bracketed sections
+    // by locating the matching closing bracket for the opening bracket
+    // (same bracket type) and supports optional edge labels like |label|.
+    function extractToken(str: string, startIndex: number) {
+      // Match identifier
+      const idMatch = str.slice(startIndex).match(/^\s*([A-Za-z0-9_]+)/);
+      if (!idMatch) return null;
+      const id = idMatch[1];
+      let idx = startIndex + idMatch[0].length; // position after id (includes leading spaces)
 
-    let edgeMatch = null;
-    let patternUsed = -1;
-    
-    for (let p = 0; p < edgePatterns.length; p++) {
-      const pattern = edgePatterns[p];
-      edgeMatch = line.match(pattern);
-      if (edgeMatch) {
-        patternUsed = p;
-        debugLog(`Line "${line}" matched edge pattern ${p}: [${edgeMatch.join(', ')}]`);
-        break;
+      // if next non-space char is an opening bracket, find its matching close
+      const rest = str.slice(idx);
+      const openCharMatch = rest.match(/^[\s]*([\[\(\{])/);
+      if (openCharMatch) {
+        const openChar = openCharMatch[1];
+        const openPos = idx + rest.indexOf(openChar);
+        const closeChar = openChar === '[' ? ']' : openChar === '(' ? ')' : '}';
+        const closePos = str.indexOf(closeChar, openPos + 1);
+        if (closePos !== -1) {
+          const full = str.slice(startIndex + idMatch[0].search(/\S/), closePos + 1).trim();
+          return { id, full, endIndex: closePos + 1 };
+        }
+      }
+
+      // Otherwise return just the id token
+      return { id, full: id, endIndex: idx };
+    }
+
+    function parseEdge(str: string) {
+      try {
+        let i = 0;
+        // source token
+        const src = extractToken(str, i);
+        if (!src) return null;
+        i = src.endIndex;
+
+        // consume whitespace
+        while (i < str.length && /\s/.test(str[i])) i++;
+
+        // find operator (try longest first)
+        const operators = ['-->', '---', '==>', '=>', '->', '-.-', ':-:', '::', '~', '...', '===', '-.->', '->>','-<>','<->','<-'];
+        let op = null;
+        for (const o of operators.sort((a,b)=>b.length-a.length)) {
+          if (str.startsWith(o, i)) { op = o; i += o.length; break; }
+        }
+        if (!op) {
+          // fallback: match common arrow symbols
+          const m = str.slice(i).match(/^\s*(-{1,3}>|->|={1,3}>|-\.-|:-:|::|~|\.\.\.|===|-\.->)/);
+          if (m) { op = m[1]; i += m[0].length; }
+        }
+        if (!op) return null;
+
+        // optional edge label |label|
+        while (i < str.length && /\s/.test(str[i])) i++;
+        let edgeLabel = '';
+        if (str[i] === '|') {
+          const next = str.indexOf('|', i + 1);
+          if (next !== -1) {
+            edgeLabel = str.slice(i + 1, next);
+            i = next + 1;
+          }
+        }
+
+        // skip whitespace then parse target
+        while (i < str.length && /\s/.test(str[i])) i++;
+        const tgt = extractToken(str, i);
+        if (!tgt) return null;
+
+        return { sourceId: src.id, sourceFull: src.full, targetId: tgt.id, targetFull: tgt.full, edgeType: op, edgeLabel };
+      } catch (e) {
+        return null;
       }
     }
 
-    if (!edgeMatch) {
-      debugLog(`Line "${line}" did not match any edge pattern - checking for standalone nodes`);
+    const parsedEdge = parseEdge(line);
+    if (!parsedEdge) {
+      debugLog(`Line "${line}" did not match edge pattern - checking for standalone nodes`);
     }
 
-    if (edgeMatch) {
+    if (parsedEdge) {
       try {
-        let sourceId: string;
-        let edgeType: string;
-        let edgeLabel: string;
-        let targetId: string;
-
-        if (patternUsed === 0) {
-          // Pattern 1: A[Label] -->|EdgeLabel| B{Label}
-          sourceId = edgeMatch[1];
-          edgeType = edgeMatch[2];
-          edgeLabel = edgeMatch[3] || "";
-          targetId = edgeMatch[4];
-        } else {
-          // Pattern 2: A --> B
-          sourceId = edgeMatch[1];
-          edgeType = edgeMatch[2];
-          targetId = edgeMatch[3];
-          edgeLabel = "";
-        }
-
-        debugLog(
-          `Found edge: ${sourceId} ${edgeType} ${targetId} with label: "${edgeLabel}" in context: ${currentSubgraph || "global"}`
-        );
+        const { sourceId, targetId, edgeType, edgeLabel } = parsedEdge;
+        debugLog(`Found edge: ${sourceId} ${edgeType} ${targetId} with label: "${edgeLabel}" in context: ${currentSubgraph || "global"}`);
 
         // Check if source/target are subgraphs
         const isSourceSubgraph = subgraphMap.has(sourceId);
