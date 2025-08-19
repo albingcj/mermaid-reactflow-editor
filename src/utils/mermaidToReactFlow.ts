@@ -170,44 +170,74 @@ function parseMermaidCode(code: string): {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
+    // Handle subgraph start - more robust parsing to support:
+    // - subgraph id [Title]
+    // - subgraph id "Title with spaces"
+    // - subgraph "Title with spaces" (no id)
+    if (line.startsWith('subgraph')) {
+      const rest = line.slice('subgraph'.length).trim();
 
-    // Handle subgraph start - Enhanced pattern to handle subgraph titles with spaces
-    const subgraphMatch = line.match(/^subgraph\s+([^\s\[]+)(?:\s*\[(.+)\])?/);
-    if (subgraphMatch) {
-      const [, subgraphId, subgraphTitle] = subgraphMatch;
+      let subgraphId: string | undefined;
+      let subgraphTitle: string | undefined;
 
-      // Get parent from stack if this is a nested subgraph
-      const parentId =
-        subgraphStack.length > 0
-          ? subgraphStack[subgraphStack.length - 1]
-          : undefined;
+      // If rest starts with a quote, treat entire quoted string as title and generate an id
+      const quoteMatch = rest.match(/^(["'])(.*?)\1/);
+      if (quoteMatch) {
+        subgraphTitle = quoteMatch[2];
+        // create a slug id from title
+        subgraphId = subgraphTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || `sg-${i}`;
+      } else {
+        // Otherwise, split on whitespace to get possible id, and look for bracket/title or trailing quoted title
+        const bracketMatch = rest.match(/^([^\s\[]+)(?:\s*\[(.+?)\])?/);
+        if (bracketMatch) {
+          subgraphId = bracketMatch[1];
+          if (bracketMatch[2]) subgraphTitle = bracketMatch[2];
+        }
 
-      const cleanTitle = subgraphTitle ? enhancedCleanLabel(subgraphTitle) : subgraphId;
-
-      debugLog(
-        `Found subgraph: ${subgraphId}, title: "${cleanTitle}", parent: ${parentId || "none"}`
-      );
-
-      subgraphStack.push(subgraphId);
-
-      const newSubgraph: SubgraphInfo = {
-        id: subgraphId,
-        title: cleanTitle,
-        nodes: [],
-        parentId,
-        childrenIds: [],
-      };
-
-      subgraphMap.set(subgraphId, newSubgraph);
-
-      if (parentId) {
-        const parentSubgraph = subgraphMap.get(parentId);
-        if (parentSubgraph) {
-          parentSubgraph.childrenIds.push(subgraphId);
+        // Also check for an explicit quoted title after the id: e.g. subgraph id "Title"
+        if (!subgraphTitle) {
+          const altQuote = rest.match(/^[^\s]+\s+(["'])(.*?)\1/);
+          if (altQuote) subgraphTitle = altQuote[2];
         }
       }
 
-      subgraphs.push(newSubgraph);
+      if (subgraphId) {
+        // Get parent from stack if this is a nested subgraph
+        const parentId =
+          subgraphStack.length > 0
+            ? subgraphStack[subgraphStack.length - 1]
+            : undefined;
+
+        const cleanTitle = subgraphTitle ? enhancedCleanLabel(subgraphTitle) : subgraphId;
+
+        debugLog(
+          `Found subgraph: ${subgraphId}, title: "${cleanTitle}", parent: ${parentId || "none"}`
+        );
+
+        subgraphStack.push(subgraphId);
+
+        const newSubgraph: SubgraphInfo = {
+          id: subgraphId,
+          title: cleanTitle,
+          nodes: [],
+          parentId,
+          childrenIds: [],
+        };
+
+        subgraphMap.set(subgraphId, newSubgraph);
+
+        if (parentId) {
+          const parentSubgraph = subgraphMap.get(parentId);
+          if (parentSubgraph) {
+            parentSubgraph.childrenIds.push(subgraphId);
+          }
+        }
+
+        subgraphs.push(newSubgraph);
+      }
     } else if (line === "end" && subgraphStack.length > 0) {
       subgraphStack.pop();
     }
@@ -280,13 +310,40 @@ function parseMermaidCode(code: string): {
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Handle subgraph start
-    const subgraphMatch = line.match(/^subgraph\s+([^\s\[]+)(?:\s*\[(.+)\])?/);
-    if (subgraphMatch) {
-      const [, subgraphId] = subgraphMatch;
-      subgraphStack.push(subgraphId);
-      debugLog(`Entering subgraph: ${subgraphId}, stack: [${subgraphStack.join(', ')}]`);
-      continue;
+    // Handle subgraph start (robust parsing to support quoted titles and bracket titles)
+    if (line.startsWith('subgraph')) {
+      const rest = line.slice('subgraph'.length).trim();
+
+      let subgraphId: string | undefined;
+      // If rest starts with quote, generate id from title
+      const quoteMatch = rest.match(/^(["'])(.*?)\1/);
+      if (quoteMatch) {
+        const title = quoteMatch[2];
+        subgraphId = title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || `sg-${i}`;
+      } else {
+        const bracketMatch = rest.match(/^([^\s\[]+)(?:\s*\[(.+?)\])?/);
+        if (bracketMatch) {
+          subgraphId = bracketMatch[1];
+        }
+
+        // Also support: subgraph id "Title"
+        if (!subgraphId) {
+          const alt = rest.match(/^[^\s]+\s+(["'])(.*?)\1/);
+          if (alt) subgraphId = alt[2]
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || `sg-${i}`;
+        }
+      }
+
+      if (subgraphId) {
+        subgraphStack.push(subgraphId);
+        debugLog(`Entering subgraph: ${subgraphId}, stack: [${subgraphStack.join(', ')}]`);
+        continue;
+      }
     }
 
     // Handle subgraph end

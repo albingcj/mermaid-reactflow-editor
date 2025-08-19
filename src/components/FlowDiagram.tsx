@@ -162,11 +162,9 @@ function FlowDiagramInternal({
   const [selectedEdgeType, setSelectedEdgeType] = useState('animated');
 
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
-    // Only show editor for non-group nodes
-    if (node.type !== 'group') {
-      setSelectedNode(node);
-      setShowNodeEditor(true);
-    }
+  // Show editor for nodes and group (subgraph) nodes
+  setSelectedNode(node);
+  setShowNodeEditor(true);
   }, []);
 
   const handleNodeUpdate = useCallback((nodeId: string, data: any) => {

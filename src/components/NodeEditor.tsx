@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Node } from 'reactflow';
 
 interface NodeEditorProps {
@@ -30,7 +30,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   
   const handleSave = () => {
     onUpdate(node.id, {
-      label,
+  label,
       // githubUrl,
       imageUrl,
       description,
@@ -48,21 +48,26 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
     <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center" style={{zIndex: 1050}}>
       <div className="card shadow-lg" style={{minWidth: 350, maxWidth: 500}}>
         <div className="card-body">
-          <h5 className="card-title mb-3">Edit Node</h5>
+          <h5 className="card-title mb-3">Edit {node.type === 'group' ? 'Subgraph' : 'Node'}</h5>
           <form>
             <div className="mb-3">
               <label className="form-label">Label</label>
               <input type="text" className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" />
             </div>
-            {/* <div className="mb-3">
-              <label className="form-label">GitHub URL</label>
-              <input type="url" className="form-control" value={githubUrl} onChange={e => setGithubUrl(e.target.value)} placeholder="https://github.com/..." />
-            </div> */}
-            <div className="mb-3">
-              <label className="form-label">Image URL</label>
-              <input type="url" className="form-control" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
-              <div className="form-text">Use an image URL to display an image as the node content</div>
-            </div>
+            {node.type !== 'group' && (
+              <>
+                <div className="mb-3">
+                  <label className="form-label">Image URL</label>
+                  <input type="url" className="form-control" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
+                  <div className="form-text">Use an image URL to display an image as the node content</div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <textarea className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Add a description..." rows={3} />
+                </div>
+              </>
+            )}
+            
             <div className="mb-3">
               <label className="form-label">Description</label>
               <textarea className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Add a description..." rows={3} />
