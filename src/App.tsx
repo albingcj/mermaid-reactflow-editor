@@ -34,7 +34,8 @@ function App() {
   const [activeAccordion, setActiveAccordion] = useState("input");
 
   // UI State
-  const [accordionOpen, setAccordionOpen] = useState({
+  type AccordionSection = 'input' | 'palette' | 'diagrams' | 'actions' | 'saved';
+  const [accordionOpen, setAccordionOpen] = useState<Record<AccordionSection, boolean>>({
     input: true,
     palette: false,
     diagrams: false,
@@ -216,8 +217,8 @@ function App() {
     }
   };
 
-  const toggleAccordion = (section: string) => {
-    setAccordionOpen(prev => ({
+  const toggleAccordion = (section: AccordionSection) => {
+    setAccordionOpen((prev) => ({
       ...prev,
       [section]: !prev[section],
     }));
@@ -225,9 +226,10 @@ function App() {
   };
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
-    // You can implement a proper toast notification here
-    // For now, using alert as placeholder
-    alert(message);
+    // Minimal toast: include type in the prefix so the parameter is used.
+    const prefix = type === "success" ? "Success: " : type === "error" ? "Error: " : "Info: ";
+    // You can replace this with a proper toast library later.
+    alert(prefix + message);
   };
 
   const clearAll = () => {

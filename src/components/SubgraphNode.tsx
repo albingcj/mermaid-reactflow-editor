@@ -1,4 +1,4 @@
-import React from "react";
+// React import not required with new JSX transform; kept out to avoid unused import error
 import { NodeProps, Handle, Position, NodeResizer } from "reactflow";
 
 export function SubgraphNode({ data, selected, isConnectable }: NodeProps) {

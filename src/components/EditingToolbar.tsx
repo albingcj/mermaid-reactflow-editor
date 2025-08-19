@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not required with new JSX transform; kept out to avoid unused import error
 import { Node, Edge } from 'reactflow';
 
 interface EditingToolbarProps {

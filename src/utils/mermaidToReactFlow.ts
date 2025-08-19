@@ -61,12 +61,20 @@ function debugLog(...args: any[]) {
   }
 }
 
+// The `cleanLabel` helper was previously used to strip HTML from labels and
+// normalize line breaks. It is currently unused because we use `enhancedCleanLabel`
+// throughout parsing which provides better unicode and escape handling.
+//
+// Keeping the original implementation commented out for reference and to
+// make it easy to re-enable if needed in the future.
+/*
 function cleanLabel(label: string): string {
   return label
-    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<br\s*\/?>(/gi, "\n")
     .replace(/<[^>]*>/g, "")
     .trim();
 }
+*/
 
 function getNodeShape(nodeDefinition: string): string {
   if (nodeDefinition.includes("{") && nodeDefinition.includes("}"))
