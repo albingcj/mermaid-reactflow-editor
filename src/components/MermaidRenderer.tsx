@@ -19,7 +19,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   const uniqueId = useRef(`mermaid-svg-${Math.random().toString(36).substr(2, 9)}`).current;
 
   // Constants for consistent zoom limits
-  const MIN_ZOOM = 2;
+  const MIN_ZOOM = 1;
   const MAX_ZOOM = 500; // 50000%
 
   // Wheel and pinch zoom handler

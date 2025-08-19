@@ -448,27 +448,67 @@ function parseMermaidCode(code: string): {
         // consume whitespace
         while (i < str.length && /\s/.test(str[i])) i++;
 
-        // find operator (try longest first)
-        const operators = ['-->', '---', '==>', '=>', '->', '-.-', ':-:', '::', '~', '...', '===', '-.->', '->>','-<>','<->','<-'];
-        let op = null;
-        for (const o of operators.sort((a,b)=>b.length-a.length)) {
-          if (str.startsWith(o, i)) { op = o; i += o.length; break; }
-        }
-        if (!op) {
-          // fallback: match common arrow symbols
-          const m = str.slice(i).match(/^\s*(-{1,3}>|->|={1,3}>|-\.-|:-:|::|~|\.\.\.|===|-\.->)/);
-          if (m) { op = m[1]; i += m[0].length; }
-        }
-        if (!op) return null;
+        // Enhanced operator and label parsing to support both
+        // 1) pipe labels:   A -->|Yes| B
+        // 2) inline labels: A -- Yes --> B
+        // and legacy connectors without arrows: A --- B, A -.-> B, etc.
 
-        // optional edge label |label|
-        while (i < str.length && /\s/.test(str[i])) i++;
+        // First, try to locate a known arrow head further in the string.
+        const arrowHeads = ['-.->', '-->', '==>', '->>', '<->', '-<>', '<-', '->'];
+        let foundArrowIndex = -1;
+        let foundArrow = '';
+        for (const ah of arrowHeads) {
+          const idx = str.indexOf(ah, i);
+          if (idx !== -1 && (foundArrowIndex === -1 || idx < foundArrowIndex)) {
+            foundArrowIndex = idx;
+            foundArrow = ah;
+          }
+        }
+
+        let op: string | null = null;
         let edgeLabel = '';
-        if (str[i] === '|') {
-          const next = str.indexOf('|', i + 1);
-          if (next !== -1) {
-            edgeLabel = str.slice(i + 1, next);
-            i = next + 1;
+
+        if (foundArrowIndex !== -1) {
+          // There is an arrow head later in the string. The region between
+          // current index and the arrow head can contain dashes and an inline label.
+          const between = str.slice(i, foundArrowIndex);
+
+          // First, check for pipe label within this region (|label|)
+          const pipeMatch = between.match(/\|(.*?)\|/);
+          if (pipeMatch) {
+            edgeLabel = pipeMatch[1];
+          } else {
+            // Remove leading/trailing connector chars, what's left is an inline label
+            const inline = between
+              .replace(/^\s*[\-\.=:\~]+\s*/g, '')
+              .replace(/\s*[\-\.=:\~]+\s*$/g, '')
+              .trim();
+            if (inline) edgeLabel = inline;
+          }
+
+          op = foundArrow;
+          // Advance past the arrow head
+          i = foundArrowIndex + foundArrow.length;
+        } else {
+          // Fallback to legacy immediate-operator parsing (no arrow head found)
+          const operators = ['---', '-.-', '::', ':-:', '...', '~', '==='];
+          for (const o of operators.sort((a, b) => b.length - a.length)) {
+            if (str.startsWith(o, i)) {
+              op = o;
+              i += o.length;
+              break;
+            }
+          }
+          if (!op) return null;
+
+          // optional edge label |label| after operator
+          while (i < str.length && /\s/.test(str[i])) i++;
+          if (str[i] === '|') {
+            const next = str.indexOf('|', i + 1);
+            if (next !== -1) {
+              edgeLabel = str.slice(i + 1, next);
+              i = next + 1;
+            }
           }
         }
 
@@ -477,7 +517,14 @@ function parseMermaidCode(code: string): {
         const tgt = extractToken(str, i);
         if (!tgt) return null;
 
-        return { sourceId: src.id, sourceFull: src.full, targetId: tgt.id, targetFull: tgt.full, edgeType: op, edgeLabel };
+        return {
+          sourceId: src.id,
+          sourceFull: src.full,
+          targetId: tgt.id,
+          targetFull: tgt.full,
+          edgeType: op!,
+          edgeLabel,
+        };
       } catch (e) {
         return null;
       }
