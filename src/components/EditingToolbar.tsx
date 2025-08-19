@@ -33,199 +33,108 @@ export function EditingToolbar({
   const hasSelectedNodes = selectedNodes.length > 0;
   const hasMultipleNodes = selectedNodes.length > 1;
   const hasSelectedElements = selectedNodes.length > 0 || selectedEdges.length > 0;
-
-  if (!hasSelectedElements) {
-    return null;
-  }
+  if (!hasSelectedElements) return null;
 
   return (
-    <div className="btn-toolbar mb-2" role="toolbar" aria-label="Editing toolbar">
-      <div className="btn-group me-2" role="group" aria-label="Align group">
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onAlignNodes('left')}>Left</button>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onAlignNodes('center-horizontal')}>Center</button>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onAlignNodes('right')}>Right</button>
-      </div>
-      <div className="btn-group me-2" role="group" aria-label="Distribute group">
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onDistributeNodes('horizontal')}>Distribute H</button>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onDistributeNodes('vertical')}>Distribute V</button>
-      </div>
-      <div className="btn-group me-2" role="group" aria-label="Group/Ungroup">
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onGroupNodes}>Group</button>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onUngroupNodes}>Ungroup</button>
-      </div>
-      <div className="btn-group me-2" role="group" aria-label="Layer group">
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onBringToFront}>Front</button>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onSendToBack}>Back</button>
-      </div>
-      <div className="btn-group me-2" role="group" aria-label="Duplicate/Delete">
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onDuplicateNodes}>Duplicate</button>
-        <button type="button" className="btn btn-outline-danger btn-sm" onClick={onDeleteSelected}>Delete</button>
-      </div>
-      <div className="btn-group" role="group" aria-label="Lock group">
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onLockNodes}>Lock</button>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onUnlockNodes}>Unlock</button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="editing-toolbar">
-      <div className="editing-toolbar-section">
-        <span className="editing-toolbar-label">Selection: {selectedNodes.length} nodes, {selectedEdges.length} edges</span>
+    <div className="editing-toolbar p-2 bg-white border rounded shadow-sm">
+      <div className="d-flex align-items-center justify-content-between mb-2">
+        <div className="small text-muted">Selection: <strong className="text-dark">{selectedNodes.length}</strong> nodes, <strong className="text-dark">{selectedEdges.length}</strong> edges</div>
+        <div className="small text-muted">Tools</div>
       </div>
 
-      {/* Alignment Tools */}
-      {hasMultipleNodes && (
-        <div className="editing-toolbar-section">
-          <span className="editing-toolbar-label">Align:</span>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onAlignNodes('left')}
-            title="Align Left"
-          >
-            <AlignLeftIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onAlignNodes('center-horizontal')}
-            title="Align Center Horizontal"
-          >
-            <AlignCenterHorizontalIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onAlignNodes('right')}
-            title="Align Right"
-          >
-            <AlignRightIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onAlignNodes('top')}
-            title="Align Top"
-          >
-            <AlignTopIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onAlignNodes('center-vertical')}
-            title="Align Center Vertical"
-          >
-            <AlignCenterVerticalIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onAlignNodes('bottom')}
-            title="Align Bottom"
-          >
-            <AlignBottomIcon />
-          </button>
+      <div className="row g-2">
+        {/* Alignment */}
+        <div className="col-12 col-md-6">
+          <div className="card card-body p-2 h-100">
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <div className="fw-medium">Align</div>
+              <small className="text-muted">Axis</small>
+            </div>
+
+            <div className="d-flex flex-column gap-2">
+              <div className="d-flex gap-2">
+                <button className="btn btn-light btn-sm border" title="Align Left" onClick={() => onAlignNodes('left')}>
+                  <AlignLeftIcon />
+                </button>
+                <button className="btn btn-light btn-sm border" title="Align Center Horizontal" onClick={() => onAlignNodes('center-horizontal')}>
+                  <AlignCenterHorizontalIcon />
+                </button>
+                <button className="btn btn-light btn-sm border" title="Align Right" onClick={() => onAlignNodes('right')}>
+                  <AlignRightIcon />
+                </button>
+              </div>
+
+              <div className="d-flex gap-2">
+                <button className="btn btn-light btn-sm border" title="Align Top" onClick={() => onAlignNodes('top')}>
+                  <AlignTopIcon />
+                </button>
+                <button className="btn btn-light btn-sm border" title="Align Center Vertical" onClick={() => onAlignNodes('center-vertical')}>
+                  <AlignCenterVerticalIcon />
+                </button>
+                <button className="btn btn-light btn-sm border" title="Align Bottom" onClick={() => onAlignNodes('bottom')}>
+                  <AlignBottomIcon />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* Distribution Tools */}
-      {selectedNodes.length >= 3 && (
-        <div className="editing-toolbar-section">
-          <span className="editing-toolbar-label">Distribute:</span>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onDistributeNodes('horizontal')}
-            title="Distribute Horizontally"
-          >
-            <DistributeHorizontalIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={() => onDistributeNodes('vertical')}
-            title="Distribute Vertically"
-          >
-            <DistributeVerticalIcon />
-          </button>
-        </div>
-      )}
+        {/* Distribute & Group */}
+        <div className="col-12 col-md-6">
+          <div className="card card-body p-2 h-100">
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <div className="fw-medium">Arrange</div>
+              <small className="text-muted">Distribute / Group</small>
+            </div>
 
-      {/* Layer Tools */}
-      {hasSelectedNodes && (
-        <div className="editing-toolbar-section">
-          <span className="editing-toolbar-label">Layer:</span>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={onBringToFront}
-            title="Bring to Front"
-          >
-            <BringToFrontIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={onSendToBack}
-            title="Send to Back"
-          >
-            <SendToBackIcon />
-          </button>
-        </div>
-      )}
+            <div className="d-flex flex-wrap gap-2">
+              <button className="btn btn-outline-secondary btn-sm" title="Distribute Horizontally" onClick={() => onDistributeNodes('horizontal')}>
+                <DistributeHorizontalIcon />
+                <span className="ms-2">Distribute H</span>
+              </button>
+              <button className="btn btn-outline-secondary btn-sm" title="Distribute Vertically" onClick={() => onDistributeNodes('vertical')}>
+                <DistributeVerticalIcon />
+                <span className="ms-2">Distribute V</span>
+              </button>
 
-      {/* Edit Tools */}
-      {hasSelectedNodes && (
-        <div className="editing-toolbar-section">
-          <span className="editing-toolbar-label">Edit:</span>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={onDuplicateNodes}
-            title="Duplicate"
-          >
-            <DuplicateIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={onLockNodes}
-            title="Lock Position"
-          >
-            <LockIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={onUnlockNodes}
-            title="Unlock Position"
-          >
-            <UnlockIcon />
-          </button>
-        </div>
-      )}
+              <button className="btn btn-outline-secondary btn-sm" title="Group Selected" onClick={onGroupNodes} disabled={!hasMultipleNodes}>
+                <GroupIcon />
+                <span className="ms-2">Group</span>
+              </button>
+              <button className="btn btn-outline-secondary btn-sm" title="Ungroup Selected" onClick={onUngroupNodes} disabled={!hasMultipleNodes}>
+                <UngroupIcon />
+                <span className="ms-2">Ungroup</span>
+              </button>
 
-      {/* Group Tools */}
-      {hasMultipleNodes && (
-        <div className="editing-toolbar-section">
-          <span className="editing-toolbar-label">Group:</span>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={onGroupNodes}
-            title="Group Selected"
-          >
-            <GroupIcon />
-          </button>
-          <button 
-            className="editing-toolbar-btn"
-            onClick={onUngroupNodes}
-            title="Ungroup Selected"
-          >
-            <UngroupIcon />
-          </button>
-        </div>
-      )}
+              <button className="btn btn-outline-secondary btn-sm" title="Bring to Front" onClick={onBringToFront} disabled={!hasSelectedNodes}>
+                <BringToFrontIcon />
+                <span className="ms-2">Front</span>
+              </button>
+              <button className="btn btn-outline-secondary btn-sm" title="Send to Back" onClick={onSendToBack} disabled={!hasSelectedNodes}>
+                <SendToBackIcon />
+                <span className="ms-2">Back</span>
+              </button>
 
-      {/* Delete Tool */}
-      {hasSelectedElements && (
-        <div className="editing-toolbar-section">
-          <button 
-            className="editing-toolbar-btn editing-toolbar-btn-danger"
-            onClick={onDeleteSelected}
-            title="Delete Selected"
-          >
-            <DeleteIcon />
-          </button>
+              <button className="btn btn-outline-secondary btn-sm" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
+                <DuplicateIcon />
+                <span className="ms-2">Duplicate</span>
+              </button>
+
+              <button className="btn btn-outline-danger btn-sm ms-auto" title="Delete Selected" onClick={onDeleteSelected} disabled={!hasSelectedElements}>
+                <DeleteIcon />
+                <span className="ms-2">Delete</span>
+              </button>
+
+              <button className="btn btn-outline-secondary btn-sm" title="Lock Position" onClick={onLockNodes} disabled={!hasSelectedNodes}>
+                <LockIcon />
+              </button>
+              <button className="btn btn-outline-secondary btn-sm" title="Unlock Position" onClick={onUnlockNodes} disabled={!hasSelectedNodes}>
+                <UnlockIcon />
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

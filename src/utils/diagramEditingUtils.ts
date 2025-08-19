@@ -51,16 +51,8 @@ export function alignNodes(
         }
       });
       break;
-    case 'center-horizontal':
-      const avgY = bounds.reduce((sum, b) => sum + b.y + b.height / 2, 0) / bounds.length;
-      bounds.forEach(bound => {
-        const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
-        if (nodeIndex !== -1) {
-          newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: { ...newNodes[nodeIndex].position, y: avgY - bound.height / 2 } };
-        }
-      });
-      break;
-    case 'center-vertical':
+    // Center nodes horizontally (align their centers on the X axis)
+    case 'center-horizontal': {
       const avgX = bounds.reduce((sum, b) => sum + b.x + b.width / 2, 0) / bounds.length;
       bounds.forEach(bound => {
         const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
@@ -68,6 +60,19 @@ export function alignNodes(
           newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: { ...newNodes[nodeIndex].position, x: avgX - bound.width / 2 } };
         }
       });
+    }
+      break;
+
+    // Center nodes vertically (align their centers on the Y axis)
+    case 'center-vertical': {
+      const avgY = bounds.reduce((sum, b) => sum + b.y + b.height / 2, 0) / bounds.length;
+      bounds.forEach(bound => {
+        const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
+        if (nodeIndex !== -1) {
+          newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: { ...newNodes[nodeIndex].position, y: avgY - bound.height / 2 } };
+        }
+      });
+    }
       break;
   }
   return newNodes;
