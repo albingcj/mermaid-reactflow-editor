@@ -928,7 +928,7 @@ textarea {
   position: absolute;
   top: 0; /* Keep it at the very top */
   left: 0; /* Keep it at the very left */
-  z-index: 10;
+  z-index: 50; /* Ensure header is above nodes and edges */
   display: flex;
   align-items: center;
   gap: 4px; /* Reduce gap for a smaller appearance */
@@ -968,6 +968,7 @@ textarea {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); /* Reduce shadow for a smaller look */
   transition: all 0.2s;
   color: #718096;
+  z-index: 50; /* Ensure drag handle is clickable above other elements */
 }
 
 .subgraph-drag-handle:hover {

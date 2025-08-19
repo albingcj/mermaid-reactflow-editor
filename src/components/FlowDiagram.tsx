@@ -355,6 +355,30 @@ function FlowDiagramInternal({
     }
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
+  // Select all nodes and edges inside a subgraph container
+  const onSelectSubgraphContents = useCallback((subgraphNodeId?: string) => {
+    if (!subgraphNodeId) return;
+    // React Flow uses parentNode = `subgraph-<id>` for nodes inside a container
+    const parentId = subgraphNodeId;
+
+    setNodes((nds) => {
+      const updated = nds.map(n => ({ ...n, selected: n.parentNode === parentId }));
+      const newSelectedNodes = updated.filter(n => n.selected);
+      setSelectedNodes(newSelectedNodes);
+      if (onNodesChangeCallback) onNodesChangeCallback(updated);
+      return updated;
+    });
+
+    setEdges((eds) => {
+      const nodeIds = new Set(nodes.filter(n => n.parentNode === parentId).map(n => n.id));
+      const updatedEdges = eds.map(e => ({ ...e, selected: nodeIds.has(e.source) && nodeIds.has(e.target) }));
+      const newSelectedEdges = updatedEdges.filter(e => e.selected);
+      setSelectedEdges(newSelectedEdges);
+      if (onEdgesChangeCallback) onEdgesChangeCallback(updatedEdges);
+      return updatedEdges;
+    });
+  }, [nodes, onNodesChangeCallback, onEdgesChangeCallback]);
+
   const onGroupNodes = useCallback(() => {
     // This is a placeholder - grouping is complex and would require more implementation
     console.log('Group nodes:', selectedNodes.map(n => n.id));
@@ -390,6 +414,7 @@ function FlowDiagramInternal({
         onDeleteSelected={onDeleteSelected}
         onLockNodes={onLockNodes}
         onUnlockNodes={onUnlockNodes}
+        onSelectSubgraphContents={onSelectSubgraphContents}
       />
       
       {/* Search Button */}
