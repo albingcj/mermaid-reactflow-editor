@@ -1,308 +1,152 @@
 
-# Mermaid to React Flow Converter
+# Mermaid to React Flow Editor
 
 ## Table of Contents
+## Mermaid React Flow Editor
+
+A small editor that converts Mermaid diagrams (from Markdown or pasted code) into interactive, editable React Flow diagrams. It provides import from Markdown, node/edge editing, basic alignment tools, exporting to PNG, and local persistence.
+
+This README was updated to reflect the current implementation in the repository (scripts, features, components and known limitations).
+
+## Quick links
+- Source: this repository
+- Dev server: `npm run dev` (Vite)
+- Build: `npm run build`
+
+## Table of contents
 - [Overview](#overview)
 - [Features](#features)
-- [Architecture](#architecture)
-- [Folder Structure](#folder-structure)
-- [Usage](#usage)
-- [Development](#development)
-- [Internals](#internals)
-- [Technologies](#technologies)
-- [Examples](#examples)
-- [Contribution](#contribution)
-- [License](#license)
+- [Quick start](#quick-start)
+- [Project layout](#project-layout)
+- [Internals & behavior notes](#internals--behavior-notes)
+- [Data model & APIs](#data-model--apis)
+- [Exporting](#exporting)
+- [Known limitations & notes](#known-limitations--notes)
+- [Development notes](#development-notes)
 
----
-
+<a id="overview"></a>
 ## Overview
 
-**Mermaid to React Flow Converter** is a powerful web application that transforms Mermaid diagrams from markdown files into interactive, editable React Flow visualizations. It supports advanced editing, exporting, and management of diagrams, making it ideal for technical documentation, flowchart creation, and collaborative design.
+The app reads Mermaid code blocks from Markdown or pasted text, converts the Mermaid AST into a React Flow node/edge graph, and renders an interactive canvas where nodes and edges can be edited. Diagrams can be saved to browser localStorage, reloaded, and exported to PNG images (exporting to images is still buggy in some cases — see Known limitations).
 
----
+<a id="features"></a>
+## Features (what the repo currently provides)
+- Parse Mermaid code blocks from Markdown and detect diagram headings.
+- Convert Mermaid flowcharts (and many node/edge forms) into React Flow nodes and edges.
+- Support for Mermaid `subgraph` blocks; the converter preserves subgraph/group relationships.
+- Interactive React Flow canvas: pan, zoom, selection, drag, double-click to edit nodes/edges.
+- Custom node types: `custom` and `group` (see `src/components/CustomNode.tsx` and `SubgraphNode.tsx`).
+- Editing toolbar with actions: align, distribute, duplicate, delete, lock/unlock, select subgraph contents, bring to front/send to back.
+- Export current canvas bounding box to PNG using `html-to-image` (configurable pixelRatio). NOTE: exporting to images is still buggy in some scenarios (external images, bounding box calculation, and pixel ratio issues are common).
+- Save/load diagrams to browser `localStorage` with basic metadata.
+- Simple Mermaid SVG preview component with zoom/pan controls.
 
-## Features
+<a id="quick-start"></a>
+## Quick start
 
-- **Markdown Parsing**: Extracts Mermaid code blocks from markdown files or pasted content.
-- **Mermaid to React Flow Conversion**: Converts Mermaid flowcharts into React Flow nodes and edges, preserving structure and relationships.
-- **Interactive UI**: Pan, zoom, minimap, live preview, and code preview.
-- **Diagram Management**: Save, update, delete, and organize diagrams with metadata and tags.
-- **Editing Tools**: Align, distribute, group/ungroup, bring to front/back, duplicate, delete, lock/unlock nodes, and more.
- - **Editing Tools**: Align, distribute, group/ungroup, bring to front/back, duplicate, delete, lock/unlock nodes, and more.
-     - ⚠️ Alignment is not perfect: You may need to manually move nodes to achieve the desired layout after auto-aligning.
-- **Export**: Export diagrams as PNG images with custom bounding box and pixel ratio.
-- **Subgraph & Nested Support**: Handles Mermaid subgraphs and nested structures, visualizing them as grouped nodes.
-- **Multiple Diagrams**: Supports multiple diagrams per markdown file, with selection and preview.
-- **Custom Node Types**: Image nodes, subgraph nodes, and custom rendering.
- - **Custom Node Types**: Image nodes, subgraph nodes, and custom rendering.
-     - 🖼️ You can edit nodes to add images (e.g., logos, icons) directly in the diagram.
-     - 🚧 Exporting diagrams with image links is not yet supported—images will not appear in exported PNGs if they use external links.
-- **Real-Time Conversion**: Instant updates as you edit markdown or diagram.
-- **Responsive Design**: Works on desktop and mobile browsers.
+Requirements: Node 18+ recommended.
 
----
+1. Install dependencies
 
-## Architecture
-
-The application is built with a modular, scalable architecture:
-
-```mermaid
-flowchart TD
-   A[App.tsx] --> B[FlowDiagram]
-   A --> C[MermaidRenderer]
-   A --> D[diagramStorage]
-   A --> E[mermaidParser]
-   A --> F[mermaidToReactFlow]
-   B --> G[CustomNode]
-   B --> H[EditingToolbar]
-   B --> I[NodeEditor]
-   B --> J[SubgraphNode]
-   B --> K[SearchControl]
-   B --> L[exportImage]
-   B --> M[diagramEditingUtils]
-   C --> N[mermaid]
-   F --> O[dagre]
-   F --> N
+```powershell
+npm install
 ```
 
-- **App.tsx**: Main entry, manages state, markdown input, diagram selection, and UI layout.
-- **FlowDiagram**: Renders React Flow diagram, handles node/edge state, editing, and toolbar actions.
-- **MermaidRenderer**: Renders Mermaid SVG for preview, supports pan/zoom.
-- **diagramStorage**: LocalStorage-based diagram CRUD, metadata, and persistence.
-- **mermaidParser**: Extracts Mermaid diagrams from markdown, detects type and heading.
-- **mermaidToReactFlow**: Converts Mermaid AST to React Flow nodes/edges, handles layout, subgraphs, and edge types.
-- **EditingToolbar**: Advanced editing actions for selected nodes/edges.
-- **exportImage**: Exports diagram as PNG using html-to-image.
-- **CustomNode/SubgraphNode/NodeEditor**: Custom React Flow node types and editors.
+2. Start dev server
 
----
-
-## Folder Structure
-
-```mermaid
-flowchart TD
-    %% =========== Root Level ===========
-    subgraph Root["📁 Project Root"]
-        direction TB
-        F[📄 README.md]
-        D[index.html]
-        A[public/]
-        B[src/]
-    end
-
-    %% =========== public/ folder ===========
-    subgraph A["public/"]
-        direction TB
-        A2[favicon.ico]
-        A1[assets/]
-    end
-
-    %% =========== src/ folder ===========
-    subgraph B["src/"]
-        direction TB
-        B4[main.tsx]
-        B1[App.tsx]
-        B6[components/] 
-        B8[utils/] 
-        B3[index.css]
-        B2[App.css]
-    end
-
-    %% =========== Components ===========
-    subgraph B6["components/"]
-        direction LR
-        C1[FlowDiagram.tsx]
-        C2[MermaidRenderer.tsx]
-        C3[NodeEditor.tsx]
-        C4[EditingToolbar.tsx]
-    end
-
-    %% =========== Utils ===========
-    subgraph B8["utils/"]
-        direction LR
-        U1[mermaidToReactFlow.ts]
-        U2[mermaidParser.ts]
-        U3[diagramStorage.ts]
-        U4[exportImage.ts]
-    end
-
-    %% =========== Annotations ===========
-    B4 -->|"«entry»<br>Entry Point"| Note1[ ]
-    B1 -->|"«root»<br>Main Component"| Note2[ ]
-
-    style Note1 fill:#fff5e6,stroke:#ff9800,stroke-dasharray:4 2,opacity:0.8
-    style Note2 fill:#fff5e6,stroke:#4caf50,stroke-dasharray:4 2,opacity:0.8
-
-    classDef folder fill:#eef5ff,stroke:#3366cc,stroke-width:1.5px,rx:6px,ry:6px
-    classDef utility fill:#fef5e7,stroke:#d98b00,rx:4px
-    classDef component fill:#f0f8e8,stroke:#2e8b57,rx:4px
-    classDef file fill:#ffffff,stroke:#999,stroke-width:1px,rx:2px
-
-    class A,B,A1,A2,B6,B8 folder
-    class U1,U2,U3,U4 utility
-    class C1,C2,C3,C4 component
-    class F,P,E,N,D,B1,B2,B3,B4 file
+```powershell
+npm run dev
 ```
 
----
+3. Open the URL printed by Vite (usually http://localhost:5173)
 
-## Usage
+4. Upload a `.md` file or paste Mermaid code in the Input area. Select extracted diagrams and interact with the canvas.
 
-### Quick Start
-1. Install dependencies: `npm install`
-2. Start development server: `npm run dev`
-3. Open browser at the provided local URL
-4. Upload a markdown file or paste Mermaid content
-5. Select and interact with diagrams
+Available scripts (from `package.json`):
+- `dev` — start Vite dev server
+- `build` — run `tsc` then `vite build`
+- `preview` — preview the production build
 
-### Advanced Usage
-- **Edit diagrams**: Use the toolbar for alignment, grouping, and more
- - **Edit diagrams**: Use the toolbar for alignment, grouping, and more (note: alignment may require manual adjustment)
-- **Export**: Click export to save as PNG
- - **Export**: Click export to save as PNG (images from external links are not included yet)
-- **Save/Load**: Diagrams are persisted in browser localStorage
-- **Preview**: Toggle code and live preview
+<a id="project-layout"></a>
+## Project layout (important files)
 
----
+- `index.html` — application host page
+- `src/main.tsx` — React entry
+- `src/App.tsx` — main application UI and state orchestration
+- `src/components/FlowDiagram.tsx` — wrapper around React Flow and most canvas behaviors
+- `src/components/MermaidRenderer.tsx` — render Mermaid SVG with pan/zoom
+- `src/components/CustomNode.tsx` — custom node renderer (used by node types)
+- `src/components/SubgraphNode.tsx` — visual representation of a subgraph/group
+- `src/components/EditingToolbar.tsx` — toolbar actions for selection
+- `src/utils/mermaidParser.ts` — extracts Mermaid code blocks from Markdown and resolves headings
+- `src/utils/mermaidToReactFlow.ts` — converts Mermaid code into React Flow nodes/edges, including subgraph parsing and a Dagre-based layout step
+- `src/utils/exportImage.ts` — handles exporting the visible diagram to PNG using `html-to-image`
+- `src/utils/diagramEditingUtils.ts` — alignment, distribution, duplicate, z-order, and lock/unlock helpers
+- `src/utils/diagramStorage.ts` — localStorage persistence helpers (save/load/delete/export)
 
-## Development
+<a id="internals--behavior-notes"></a>
+## Internals & behavior notes
 
-### Scripts
-- `npm run dev`: Start development server
-- `npm run build`: Build for production
-- `npm run preview`: Preview production build
+Parsing
+- `extractMermaidDiagrams(markdown)` finds triple-backtick Mermaid blocks and attempts to capture the nearest preceding Markdown heading as the diagram name.
 
-### Configuration
-- **Vite**: Fast build and dev server
-- **TypeScript**: Strict typing and modern JS features
+Conversion
+- `convertMermaidToReactFlow(code)` (exposed from `mermaidToReactFlow.ts`) does multi-pass parsing:
+    - Pre-scans code for explicit node definitions to capture labels and shapes reliably.
+    - Detects `subgraph` blocks (including nested subgraphs), keeps a subgraph stack, and assigns nodes to groups.
+    - Parses edges, labels, and supports common Mermaid node shapes.
+    - Uses Dagre for layout and returns `ReactFlowData` ({ nodes, edges }).
 
----
+Canvas & editing
+- The React Flow canvas supports selection, multi-select, node dragging, edge creation (with Ctrl/Cmd), and double-click to edit edge labels.
+- Editing toolbar actions operate on the current selection and update parent state via callbacks.
 
-## Internals
+<a id="exporting"></a>
+Exporting
+- Export uses `html-to-image.toPng(wrapper, { pixelRatio })` and attempts to compute a tight bounding box around nodes. The exporter temporarily resizes the wrapper and sets the viewport so the bounding box maps to (0,0) when rasterizing.
 
-### Key Data Models
-- **MermaidDiagram**: `{ type, code, name, position }`
-- **ReactFlowData**: `{ nodes: Node[], edges: Edge[] }`
-- **SavedDiagram**: `{ id, name, nodes, edges, originalMermaidCode, createdAt, updatedAt, metadata }`
+> ⚠️ Note about image exporting (important): exporting to PNG is currently known to be buggy in several cases. Common issues include missing external images (CORS), incorrect bounding box or empty margins, unexpected scaling when using high pixel ratios, and occasional blank outputs for complex diagrams. Use exporting for simple diagrams or as a convenience — for reliable high-quality exports consider rendering SVG from Mermaid directly or using a headless renderer.
 
-### Main Functions
-- `extractMermaidDiagrams(markdown)`: Finds all Mermaid blocks and headings
-- `convertMermaidToReactFlow(code)`: Converts Mermaid AST to React Flow
-- `saveDiagram(diagram)`: Persists diagram to localStorage
-- `exportReactFlowImage({ wrapper, nodes, ... })`: Exports diagram as PNG
+<a id="data-model--apis"></a>
+Data model (runtime)
+- MermaidDiagram: { type, code, name, position }
+- ReactFlowData: { nodes: Node[], edges: Edge[] }
+- SavedDiagram: { id, name, nodes, edges, originalMermaidCode, createdAt, updatedAt, metadata }
 
-### Editing Actions
-- `alignNodes`, `distributeNodes`, `groupNodes`, `bringToFront`, `duplicateNodes`, `deleteSelected`, `lockNodes`, `unlockNodes`
+<a id="known-limitations--notes"></a>
+## Known limitations & important notes
 
----
+- Mermaid support: The converter implements a robust parser for common flowchart node syntaxes and subgraphs, but not every Mermaid feature is fully supported (sequence diagrams, gantt, class diagrams may not convert to React Flow accurately).
+- Exporting to images (PNG) is buggy: If nodes reference external image URLs, they may not appear in exported PNGs due to cross-origin or html-to-image limitations. Other common problems are incorrect bounding boxes, unexpected scaling, or blank/partial images for complex layouts.
+- Layout/alignment: Alignment and distribution helpers perform arithmetic on node positions. For complex diagrams (many nested subgraphs), minor manual adjustments are commonly required.
+- Performance: Very large diagrams (hundreds of nodes) may be slow to layout in the browser. Dagre layout is synchronous and can block the main thread for complex graphs.
+- Security: `MermaidRenderer` initializes mermaid with `securityLevel: 'loose'` to allow a broader set of diagrams; be cautious if you paste untrusted content.
 
-## Technologies
+<a id="development-notes"></a>
+## Development notes and tips
 
-- **React**: UI framework
-- **React Flow**: Diagram rendering and interaction
-- **Mermaid**: Diagram parsing and SVG rendering
-- **TypeScript**: Type safety
-- **Vite**: Build tool
-- **Bootstrap**: UI styling
-- **Dagre**: Graph layout
-- **html-to-image**: Export diagrams as images
+- TypeScript: The repo is TypeScript-based. Some components include `// @ts-nocheck` when the code intentionally accepts flexible types.
+- React Flow: Node `width`/`height` can come from the renderer or be approximated; the exporter uses defaults when values are missing.
+- Debugging: `mermaidToReactFlow.ts` currently has a `DEBUG` flag — set to `false` to silence converter logs.
+- Keyboard shortcuts implemented in the app:
+    - Ctrl/Cmd+S — save current diagram (when nodes exist)
+    - Ctrl/Cmd+F — open node search
+    - Ctrl/Cmd +/- — zoom in/out in the Mermaid preview component
 
----
+## How to contribute
 
-## Examples
+- Open an issue describing the feature or bug.
+- For code changes: fork, create a topic branch, update code, run `npm run build` and open a pull request.
 
-### Example Markdown
-```markdown
-# Example Flowchart
-```mermaid
-graph TD
-    A[Start] --> B{Decision Point}
-    
-    subgraph "Frontend System"
-        subgraph "User Interface"
-            C[Login Page]
-            D[Dashboard]
-            E[Settings]
-        end
-        
-        subgraph "Client Logic"
-            F[Authentication]
-            G[Data Processing]
-            H[Validation]
-        end
-    end
-    
-    subgraph "Backend System"
-        subgraph "API Layer"
-            I[REST API]
-            J[GraphQL API]
-            K[WebSocket]
-        end
-        
-        subgraph "Business Logic"
-            L[User Service]
-            M[Order Service]
-            N[Payment Service]
-        end
-        
-        subgraph "Data Layer"
-            O[(User DB)]
-            P[(Order DB)]
-            Q[(Cache)]
-        end
-    end
-    
-    %% Complex connections
-    B -->|Yes| C
-    B -->|No| A
-    C --> F
-    D --> G
-    E --> H
-    
-    F --> I
-    G --> J
-    H --> K
-    
-    I --> L
-    J --> M
-    K --> N
-    
-    L --> O
-    M --> P
-    N --> Q
-    
-    %% Cross-subgraph connections
-    D -.-> M
-    F -.-> L
-    G --> N
-    H -.-> O
-    
-    %% Feedback loops
-    Q --> G
-    P --> D
-    O --> C
-    
-    %% End connections
-    L --> Z[Success Response]
-    M --> Z
-    N --> Y[Error Handler]
-    Y --> A
+## Dependencies (high level)
+
+- React 19
+- React Flow (v11)
+- Mermaid (v11)
+- Dagre (layout)
+- html-to-image (export)
+- Vite + TypeScript + Bootstrap for dev and styling
+
+Exact dependencies and versions are in `package.json`.
 
 
-```
-
-
-### Example Output
-![Example Diagram](https://github.com/albingcj/mermaid-reactflow-editor/blob/master/examples/image.png)
-
----
-
-## Contribution
----
-
-## Credits & License
-
-This project started from [james-prysm/mermaid-to-reactflow](https://github.com/james-prysm/mermaid-to-reactflow) — thanks to James for the starter! Many additional features and improvements have been added since then.
-
-This project is licensed under the MIT License (c) 2025.
