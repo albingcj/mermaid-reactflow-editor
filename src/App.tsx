@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { FlowDiagram } from "./components/FlowDiagram";
 import { extractMermaidDiagrams, MermaidDiagram } from "./utils/mermaidParser";
 import {
@@ -17,9 +17,12 @@ import {
 import { Node, Edge } from "reactflow";
 import "./App.css";
 import { MermaidRenderer } from "./components/MermaidRenderer";
+import { Toasts, ToastItem } from "./components/Toasts";
+import MermaidEditor from "./components/MermaidEditor";
 
 function App() {
   const [markdownContent, setMarkdownContent] = useState("");
+  const [mermaidSource, setMermaidSource] = useState("");
   const [diagrams, setDiagrams] = useState<MermaidDiagram[]>([]);
   const [selectedDiagram, setSelectedDiagram] = useState(0);
   const [flowData, setFlowData] = useState<ReactFlowData>({
@@ -34,17 +37,35 @@ function App() {
   const [activeAccordion, setActiveAccordion] = useState("input");
 
   // UI State
-  type AccordionSection = 'input' | 'palette' | 'diagrams' | 'actions' | 'saved';
+  type AccordionSection = 'editor' | 'input' | 'palette' | 'diagrams' | 'saved';
   const [accordionOpen, setAccordionOpen] = useState<Record<AccordionSection, boolean>>({
+    editor: true,
     input: true,
     palette: false,
     diagrams: false,
-    actions: false,
     saved: false,
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showPreviewMain, setShowPreviewMain] = useState(false); // main-area mermaid preview
   const [showFlowMain] = useState(true); // main-area reactflow (kept as default visible)
+  const [splitRatio, setSplitRatio] = useState(0.5); // preview/canvas split
+  const resizerRef = useRef<HTMLDivElement | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Toasts
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const dismissToast = useCallback((id: string) => setToasts((ts) => ts.filter((t) => t.id !== id)), []);
+  // FlowDiagram exposed methods
+  const flowMethodsRef = useRef<{ openSearch?: () => void; exportImage?: () => Promise<void> } | null>(null);
+
+  const registerFlowMethods = useCallback((methods: { openSearch?: () => void; exportImage?: () => Promise<void> } | {}) => {
+    if (!methods || Object.keys(methods).length === 0) {
+      flowMethodsRef.current = null;
+    } else {
+      flowMethodsRef.current = methods as any;
+    }
+  }, []);
 
   // Extract diagrams when markdown content changes
   useEffect(() => {
@@ -54,9 +75,36 @@ function App() {
       if (extractedDiagrams.length > 0) {
         setSelectedDiagram(0);
         setActiveAccordion("diagrams");
+        // if we loaded from markdown, populate the mermaid source editor with the first diagram
+        setMermaidSource(extractedDiagrams[0].code);
       }
     }
   }, [markdownContent]);
+
+  // Re-convert when mermaidSource changes
+  useEffect(() => {
+    if (mermaidSource && mermaidSource.trim() !== "") {
+      setLoading(true);
+      convertMermaidToReactFlow(mermaidSource)
+        .then((data) => {
+          setFlowData(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error('Conversion failed', err);
+          setLoading(false);
+        });
+      // also populate the `diagrams` array so the Mermaid preview pane can render
+      setDiagrams([
+        {
+          type: 'flowchart',
+          code: mermaidSource,
+          name: 'Editor Preview',
+          position: { start: 0, end: mermaidSource.length },
+        },
+      ]);
+    }
+  }, [mermaidSource]);
 
   // Load saved diagrams on mount
   useEffect(() => {
@@ -144,9 +192,17 @@ function App() {
     } else if (currentDiagramId && flowData.nodes.length > 0) {
       const diagram = getDiagram(currentDiagramId);
       if (diagram) {
+        // preserve or derive the original mermaid code so preview can render later
+        const derivedMermaid =
+          diagram.originalMermaidCode ??
+          (diagrams.length > 0 && selectedDiagram < diagrams.length
+            ? diagrams[selectedDiagram].code
+            : markdownContent ?? "");
+
         updateDiagram(currentDiagramId, {
           nodes: flowData.nodes,
           edges: flowData.edges,
+          originalMermaidCode: derivedMermaid,
         });
         setSavedDiagrams(getAllDiagrams());
         showToast("Diagram updated successfully!", "success");
@@ -154,29 +210,38 @@ function App() {
     }
   };
 
-  const handleExportDiagram = () => {
-    if (diagrams.length > 0 && selectedDiagram < diagrams.length) {
-      const currentMermaidDiagram = diagrams[selectedDiagram];
-      const diagramToExport: SavedDiagram = {
-        id: "export",
-        name: currentMermaidDiagram.name,
-        nodes: flowData.nodes,
-        edges: flowData.edges,
-        originalMermaidCode: currentMermaidDiagram.code,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      exportToFile(diagramToExport);
-      showToast("Diagram exported successfully!", "success");
-    }
-  };
+  // export handled via top-nav / FlowDiagram export image; remove local sidebar action
 
   const handleLoadDiagram = (diagram: SavedDiagram) => {
     setFlowData({ nodes: diagram.nodes, edges: diagram.edges });
     setCurrentDiagramId(diagram.id);
-    setMarkdownContent("");
-    setDiagrams([]);
-    setActiveAccordion("actions");
+    // ensure sidebar and editor are visible
+    setSidebarCollapsed(false);
+    // restore original mermaid source into the code editor so users edit raw mermaid
+    if (diagram.originalMermaidCode) {
+      // populate the editor (mermaidSource) and clear markdown input so content does not appear in the markdown textarea
+      setMermaidSource(diagram.originalMermaidCode);
+      setMarkdownContent("");
+      // populate diagrams for the preview pane and open preview
+      setDiagrams([
+        {
+          type: 'flowchart',
+          code: diagram.originalMermaidCode,
+          name: 'Saved Diagram Preview',
+          position: { start: 0, end: diagram.originalMermaidCode.length },
+        },
+      ]);
+      setSelectedDiagram(0);
+      setShowPreviewMain(true);
+      // open editor accordion so users see the code editor by default
+      setActiveAccordion("editor");
+    } else {
+      // no original source available
+      setMermaidSource("");
+      setDiagrams([]);
+      setActiveAccordion("saved");
+      showToast('No original Mermaid source saved for this diagram', 'info');
+    }
     showToast("Diagram loaded successfully!", "success");
   };
 
@@ -228,10 +293,10 @@ function App() {
   };
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
-    // Minimal toast: include type in the prefix so the parameter is used.
-    const prefix = type === "success" ? "Success: " : type === "error" ? "Error: " : "Info: ";
-    // You can replace this with a proper toast library later.
-    alert(prefix + message);
+    setToasts((ts) => [
+      ...ts,
+      { id: Math.random().toString(36).slice(2), message, type, duration: 2400 },
+    ]);
   };
 
   const clearAll = () => {
@@ -251,6 +316,7 @@ function App() {
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       }}
     >
+      <Toasts toasts={toasts} onDismiss={dismissToast} />
       {/* Left Sidebar */}
       <div
         className={`bg-light border-end transition-all ${
@@ -284,6 +350,28 @@ function App() {
           </div>
 
           <div className="p-0">
+            {/* Editor Section (Top priority) */}
+            <div className="border-bottom">
+              <button
+                className={`w-100 btn btn-link text-start px-3 py-2 fw-normal border-0 ${
+                  activeAccordion === "editor" ? "text-primary bg-primary bg-opacity-10" : "text-dark"
+                }`}
+                onClick={() => toggleAccordion("editor")}
+                style={{ borderRadius: 0 }}
+              >
+                <div className="d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center">
+                    <i className="bi bi-code me-2"></i>
+                    <span className="fs-7">Editor</span>
+                  </div>
+                  <i className={`bi bi-chevron-${accordionOpen.editor ? "up" : "down"} fs-7`}></i>
+                </div>
+              </button>
+
+              <div className={`collapse ${accordionOpen.editor ? "show" : ""}`}>
+                <MermaidEditor value={mermaidSource} onChange={(v) => setMermaidSource(v)} />
+              </div>
+            </div>
             {/* Node Palette Section */}
             <div className="border-bottom">
               <button
@@ -522,119 +610,13 @@ function App() {
                     </div>
 
                     {/* Quick Preview Toggle */}
-                    {diagrams.length > 0 &&
-                      selectedDiagram < diagrams.length && (
-                        <div className="mt-2">
-                          <div className="btn-group w-100" role="group">
-                              <div className="btn-group w-100" role="group">
-                                <button
-                                  className={`btn btn-sm ${
-                                    showPreviewMain ? "btn-primary" : "btn-outline-secondary"
-                                  }`}
-                                  onClick={() => setShowPreviewMain(!showPreviewMain)}
-                                  style={{ fontSize: "11px" }}
-                                >
-                                  <i className="bi bi-eye me-1"></i>
-                                  Preview
-                                </button>
-                              </div>
-                          </div>
-
-                          {/* Code Preview */}
-                          {/* Code preview removed; use Diagrams section to inspect code */}
-                        </div>
-                      )}
+                    {/* Preview is available in the top toolbar and canvas floating button; left sidebar preview removed */}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Actions Section */}
-            <div className="border-bottom">
-              <button
-                className={`w-100 btn btn-link text-start px-3 py-2 fw-normal border-0 ${
-                  activeAccordion === "actions"
-                    ? "text-primary bg-primary bg-opacity-10"
-                    : "text-dark"
-                }`}
-                onClick={() => toggleAccordion("actions")}
-                style={{ borderRadius: 0 }}
-              >
-                <div className="d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center">
-                    <i className="bi bi-lightning me-2"></i>
-                    <span className="fs-7">Actions</span>
-                  </div>
-                  <i
-                    className={`bi bi-chevron-${
-                      accordionOpen.actions ? "up" : "down"
-                    } fs-7`}
-                  ></i>
-                </div>
-              </button>
-
-              <div
-                className={`collapse ${
-                  accordionOpen.actions ? "show" : ""
-                }`}
-              >
-                <div className="px-3 py-2 bg-white">
-                  <div className="d-grid gap-2">
-                    <button
-                      onClick={handleSaveDiagram}
-                      disabled={flowData.nodes.length === 0}
-                      className={`btn btn-sm ${
-                        currentDiagramId ? "btn-warning" : "btn-success"
-                      } d-flex align-items-center`}
-                    >
-                      <i
-                        className={`bi bi-${
-                          currentDiagramId ? "arrow-repeat" : "floppy"
-                        } me-2`}
-                      ></i>
-                      <div className="text-start flex-grow-1">
-                        <div className="fw-medium" style={{ fontSize: "12px" }}>
-                          {currentDiagramId ? "Update" : "Save"}
-                        </div>
-                        <small
-                          style={{ fontSize: "9px" }}
-                          className="opacity-75"
-                        >
-                          Ctrl+S
-                        </small>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={handleExportDiagram}
-                      disabled={flowData.nodes.length === 0}
-                      className="btn btn-sm btn-outline-primary d-flex align-items-center"
-                    >
-                      <i className="bi bi-download me-2"></i>
-                      <div className="text-start flex-grow-1">
-                        <div className="fw-medium" style={{ fontSize: "12px" }}>
-                          Export
-                        </div>
-                        <small style={{ fontSize: "9px" }}>JSON file</small>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={clearAll}
-                      className="btn btn-sm btn-outline-danger d-flex align-items-center"
-                    >
-                      <i className="bi bi-trash3 me-2"></i>
-                      <div className="text-start flex-grow-1">
-                        <div className="fw-medium" style={{ fontSize: "12px" }}>
-                          Clear
-                        </div>
-                        <small style={{ fontSize: "9px" }}>Reset all</small>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Actions removed per user request */}
 
             {/* Saved Diagrams Section */}
             <div>
@@ -823,6 +805,7 @@ function App() {
       <div
         className={`flex-grow-1 position-relative transition-all`}
         style={{ transition: "all 0.3s ease" }}
+        ref={containerRef}
       >
         {/* Top Toolbar */}
         <div className="position-absolute top-0 start-0 end-0 z-3 bg-white border-bottom">
@@ -859,7 +842,8 @@ function App() {
             </div>
 
             <div className="d-flex align-items-center gap-1">
-              {showPreviewMain && (
+              {/* Preview toggle: only shown in top nav. Enabled when there are nodes in the canvas. */}
+              {showPreviewMain ? (
                 <button
                   onClick={() => setShowPreviewMain(false)}
                   className="btn btn-sm btn-outline-secondary"
@@ -869,6 +853,18 @@ function App() {
                   <i className="bi bi-eye-slash me-1"></i>
                   Hide Preview
                 </button>
+              ) : (
+                flowData.nodes.length > 0 && (
+                  <button
+                    onClick={() => setShowPreviewMain(true)}
+                    className="btn btn-sm btn-outline-primary"
+                    title="Show Preview"
+                    style={{ fontSize: "11px" }}
+                  >
+                    <i className="bi bi-eye me-1"></i>
+                    Preview
+                  </button>
+                )
               )}
               {flowData.nodes.length > 0 && (
                 <>
@@ -887,14 +883,41 @@ function App() {
                     ></i>
                     {currentDiagramId ? "Update" : "Save"}
                   </button>
+
+                  {/* Search (invokes FlowDiagram search) */}
                   <button
-                    onClick={handleExportDiagram}
-                    className="btn btn-sm btn-outline-primary"
-                    title="Export diagram"
+                    onClick={() => {
+                      if (flowMethodsRef.current?.openSearch) flowMethodsRef.current.openSearch();
+                      else showToast('Search not available', 'info');
+                    }}
+                    className="btn btn-sm btn-outline-secondary"
+                    title="Search nodes"
                     style={{ fontSize: "11px" }}
                   >
-                    <i className="bi bi-download me-1"></i>
-                    Export
+                    <i className="bi bi-search me-1"></i>
+                    Search
+                  </button>
+
+                  {/* Download image (invokes FlowDiagram exportImage) */}
+                  <button
+                    onClick={async () => {
+                      if (flowMethodsRef.current?.exportImage) {
+                        try {
+                          await flowMethodsRef.current.exportImage();
+                          showToast('Image exported', 'success');
+                        } catch (e) {
+                          showToast('Failed to export image', 'error');
+                        }
+                      } else {
+                        showToast('Export not available', 'info');
+                      }
+                    }}
+                    className="btn btn-sm btn-outline-primary"
+                    title="Download image"
+                    style={{ fontSize: "11px" }}
+                  >
+                    <i className="bi bi-image me-1"></i>
+                    Image
                   </button>
                 </>
               )}
@@ -911,7 +934,7 @@ function App() {
         </div>
 
         {/* Canvas */}
-        <div className="w-100 h-100" style={{ paddingTop: "50px" }}>
+  <div className="w-100 h-100" style={{ paddingTop: "50px" }}>
           {loading ? (
             <div className="d-flex align-items-center justify-content-center h-100">
               <div className="text-center">
@@ -926,24 +949,58 @@ function App() {
               </div>
             </div>
           ) : (showPreviewMain || showFlowMain) ? (
-            <div className="d-flex h-100">
+            <div className="d-flex h-100 position-relative">
               {showPreviewMain && diagrams.length > 0 && selectedDiagram < diagrams.length && (
-                <div className="" style={{ width: showFlowMain ? '50%' : '100%', borderRight: '1px solid rgba(0,0,0,0.06)', padding: 8, overflow: 'auto' }}>
-                  <h6 className="text-muted small mb-2"><i className="bi bi-eye me-1"></i> Preview</h6>
-                  <div className="d-flex justify-content-center align-items-center h-100">
+                <div
+                  className="preview-pane"
+                  style={{ width: showFlowMain ? `${Math.round(splitRatio * 100)}%` : '100%' }}
+                >
+                  <div className="preview-pane-header">
+                    <h6 className="text-muted small mb-0"><i className="bi bi-eye me-1"></i> Preview</h6>
+                  </div>
+                  <div className="preview-pane-body">
                     <MermaidRenderer code={diagrams[selectedDiagram].code} />
                   </div>
                 </div>
               )}
 
+              {showPreviewMain && showFlowMain && (
+                <div
+                  ref={resizerRef}
+                  className={`vertical-resizer ${isResizing ? 'resizing' : ''}`}
+                  onMouseDown={(e) => {
+                    if (!containerRef.current) return;
+                    setIsResizing(true);
+                    const startX = e.clientX;
+                    const startRatio = splitRatio;
+                    const onMove = (ev: MouseEvent) => {
+                      const dx = ev.clientX - startX;
+                      const rect = containerRef.current!.getBoundingClientRect();
+                      const newRatio = Math.min(0.85, Math.max(0.15, startRatio + dx / rect.width));
+                      setSplitRatio(newRatio);
+                    };
+                    const onUp = () => {
+                      setIsResizing(false);
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  }}
+                  title="Drag to resize"
+                />
+              )}
+
               {showFlowMain && (
-                <div className="flex-grow-1 position-relative" style={{ padding: 8 }}>
+                <div className="canvas-pane">
                   {flowData.nodes.length > 0 ? (
                     <FlowDiagram
                       nodes={flowData.nodes}
                       edges={flowData.edges}
                       onNodesChange={handleNodesChange}
                       onEdgesChange={handleEdgesChange}
+                      onRequestPreview={() => setShowPreviewMain((s) => !s)}
+                      onRegisterMethods={registerFlowMethods}
                     />
                   ) : (
                     <div className="d-flex align-items-center justify-content-center h-100 text-center">
@@ -959,6 +1016,7 @@ function App() {
               edges={flowData.edges}
               onNodesChange={handleNodesChange}
               onEdgesChange={handleEdgesChange}
+              onRegisterMethods={registerFlowMethods}
             />
           ) : (
             <div className="d-flex align-items-center justify-content-center h-100 text-center">

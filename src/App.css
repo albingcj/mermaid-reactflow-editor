@@ -1150,6 +1150,68 @@ textarea {
   min-width: 0;
 }
 
+/* Modern right-side Inspector */
+/* Inspector removed */
+
+/* Preview/Canvas split panes */
+.preview-pane {
+  border-right: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+}
+.preview-pane-header {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  background: #fff;
+}
+.preview-pane-body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+.canvas-pane {
+  flex: 1;
+  position: relative;
+  min-width: 180px;
+}
+.vertical-resizer {
+  width: 6px;
+  cursor: col-resize;
+  background: linear-gradient(to right, transparent, rgba(0,0,0,0.08), transparent);
+}
+.vertical-resizer:hover, .vertical-resizer.resizing {
+  background: rgba(13,110,253,0.2);
+}
+
+/* Toasts */
+.toasts-container {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2000;
+}
+.toast-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-left: 4px solid #0d6efd;
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(16,24,40,0.12);
+}
+.toast-item .toast-icon { color: #0d6efd; }
+.toast-success { border-left-color: #28a745; }
+.toast-error { border-left-color: #dc3545; }
+.toast-info { border-left-color: #0dcaf0; }
+.toast-message { font-size: 13px; color: #0f172a; }
+
 /* Sidebar Animations */
 .collapsed-sidebar {
   transform: translateX(-100%);

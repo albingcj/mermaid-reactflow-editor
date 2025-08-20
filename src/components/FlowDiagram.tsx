@@ -45,6 +45,8 @@ interface FlowDiagramProps {
   edges: Edge[];
   onNodesChange?: (nodes: Node[]) => void;
   onEdgesChange?: (edges: Edge[]) => void;
+  onRequestPreview?: () => void;
+  onRegisterMethods?: (methods: { openSearch?: () => void; exportImage?: () => Promise<void> }) => void;
 }
 
 function FlowDiagramInternal({
@@ -52,6 +54,8 @@ function FlowDiagramInternal({
   edges: initialEdges,
   onNodesChange: onNodesChangeCallback,
   onEdgesChange: onEdgesChangeCallback,
+  onRequestPreview,
+  onRegisterMethods,
 }: FlowDiagramProps) {
   const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
@@ -72,6 +76,7 @@ function FlowDiagramInternal({
   } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  // inspector removed per UX decision
 
   // keep local state in sync if parent props change
   useEffect(() => {
@@ -102,6 +107,20 @@ function FlowDiagramInternal({
       pixelRatio: 8,
     });
   };
+
+  // Register methods so parent can trigger search/export actions
+  useEffect(() => {
+    if (onRegisterMethods) {
+      onRegisterMethods({
+        openSearch: () => setShowSearch(true),
+        exportImage: handleDownloadImage,
+      });
+    }
+    // unregister on unmount
+    return () => {
+      if (onRegisterMethods) onRegisterMethods({});
+    };
+  }, [onRegisterMethods, handleDownloadImage]);
 
   // only update selected sets when selection actually changes
   const onNodesChange = useCallback(
@@ -340,7 +359,7 @@ function FlowDiagramInternal({
   const cancelEdgeLabelEdit = useCallback(() => setEdgeLabelEditor(null), []);
 
   return (
-    <>
+  <>
       <EditingToolbar
         selectedNodes={selectedNodes}
         selectedEdges={selectedEdges}
@@ -353,35 +372,11 @@ function FlowDiagramInternal({
         onSelectSubgraphContents={onSelectSubgraphContents}
       />
 
-      <button
-        onClick={() => setShowSearch(true)}
-        className="btn btn-primary btn-sm mt-5"
-        style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000, borderRadius: '20px', padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
-        title="Search nodes (Ctrl+F)"
-      >
-        <span className="me-1" style={{ display: 'inline-flex', alignItems: 'center' }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="7" cy="7" r="6" stroke="#fff" strokeWidth="2" fill="none" />
-            <line x1="11.5" y1="11.5" x2="15" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </span>
-        Search
-      </button>
+  {/* Search control moved to top nav; no floating search button */}
 
-      <button
-        onClick={handleDownloadImage}
-        className="btn btn-outline-secondary btn-sm mt-5"
-        style={{ position: 'absolute', top: '50px', right: '10px', zIndex: 1000, borderRadius: '20px', padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}
-        title="Download diagram as image"
-      >
-        <span className="me-1" style={{ display: 'inline-flex', alignItems: 'center' }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 2v8m0 0l-3-3m3 3l3-3" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <rect x="3" y="13" width="10" height="1.5" rx="0.75" fill="#333" />
-          </svg>
-        </span>
-        Download
-      </button>
+  {/* Download/export image moved to top nav; no floating download button */}
+
+  {/* Preview is controlled by top nav in App; no floating preview buttons inside canvas */}
 
       {exporting && (
         <div
@@ -417,7 +412,7 @@ function FlowDiagramInternal({
 
       <SearchControl nodes={nodes} onFocusNode={handleFocusNode} onClose={() => setShowSearch(false)} isVisible={showSearch} />
 
-      <div style={{ width: '100%', height: '100%' }} ref={reactFlowWrapper} className={isDragging ? 'dragging' : ''}>
+  <div style={{ width: '100%', height: '100%' }} ref={reactFlowWrapper} className={isDragging ? 'dragging' : ''}>
         <ReactFlow
           minZoom={0.05}
           nodes={nodes}
@@ -490,6 +485,8 @@ function FlowDiagramInternal({
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
       </div>
+
+  {/* Inspector removed per user request */}
 
       {edgeLabelEditor && (
         <div className="edge-label-editor" style={{ left: edgeLabelEditor.x, top: edgeLabelEditor.y }}>
