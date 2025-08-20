@@ -473,10 +473,10 @@ function parseMermaidCode(code: string): {
           // current index and the arrow head can contain dashes and an inline label.
           const between = str.slice(i, foundArrowIndex);
 
-          // First, check for pipe label within this region (|label|)
-          const pipeMatch = between.match(/\|(.*?)\|/);
-          if (pipeMatch) {
-            edgeLabel = pipeMatch[1];
+          // First, check for pipe label BEFORE the arrow (non-standard but tolerated)
+          const prePipeMatch = between.match(/\|(.*?)\|/);
+          if (prePipeMatch) {
+            edgeLabel = prePipeMatch[1];
           } else {
             // Remove leading/trailing connector chars, what's left is an inline label
             const inline = between
@@ -489,6 +489,19 @@ function parseMermaidCode(code: string): {
           op = foundArrow;
           // Advance past the arrow head
           i = foundArrowIndex + foundArrow.length;
+
+          // Standard Mermaid syntax places pipe labels AFTER the operator:
+          //   A -->|label| B  or  A -.->|label| B
+          // If we didn't already capture a label, or even if we did, prefer the
+          // explicit pipe label immediately after the arrow.
+          while (i < str.length && /\s/.test(str[i])) i++;
+          if (str[i] === '|') {
+            const next = str.indexOf('|', i + 1);
+            if (next !== -1) {
+              edgeLabel = str.slice(i + 1, next);
+              i = next + 1;
+            }
+          }
         } else {
           // Fallback to legacy immediate-operator parsing (no arrow head found)
           const operators = ['---', '-.-', '::', ':-:', '...', '~', '==='];
