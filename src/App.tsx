@@ -43,8 +43,8 @@ function App() {
     saved: false,
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showCodePreview, setShowCodePreview] = useState(false);
-  const [showLivePreview, setShowLivePreview] = useState(false);
+  const [showPreviewMain, setShowPreviewMain] = useState(false); // main-area mermaid preview
+  const [showFlowMain] = useState(true); // main-area reactflow (kept as default visible)
 
   // Extract diagrams when markdown content changes
   useEffect(() => {
@@ -78,6 +78,8 @@ function App() {
         });
     }
   }, [diagrams, selectedDiagram]);
+
+  // No code editor integration — diagrams are extracted from the Markdown textarea only.
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -524,68 +526,22 @@ function App() {
                       selectedDiagram < diagrams.length && (
                         <div className="mt-2">
                           <div className="btn-group w-100" role="group">
-                            <button
-                              className={`btn btn-sm ${
-                                showCodePreview
-                                  ? "btn-primary"
-                                  : "btn-outline-secondary"
-                              }`}
-                              onClick={() =>
-                                setShowCodePreview(!showCodePreview)
-                              }
-                              style={{ fontSize: "11px" }}
-                            >
-                              <i className="bi bi-code-slash me-1"></i>
-                              Code
-                            </button>
-                            <button
-                              className={`btn btn-sm ${
-                                showLivePreview
-                                  ? "btn-primary"
-                                  : "btn-outline-secondary"
-                              }`}
-                              onClick={() =>
-                                setShowLivePreview(!showLivePreview)
-                              }
-                              style={{ fontSize: "11px" }}
-                            >
-                              <i className="bi bi-eye me-1"></i>
-                              Preview
-                            </button>
+                              <div className="btn-group w-100" role="group">
+                                <button
+                                  className={`btn btn-sm ${
+                                    showPreviewMain ? "btn-primary" : "btn-outline-secondary"
+                                  }`}
+                                  onClick={() => setShowPreviewMain(!showPreviewMain)}
+                                  style={{ fontSize: "11px" }}
+                                >
+                                  <i className="bi bi-eye me-1"></i>
+                                  Preview
+                                </button>
+                              </div>
                           </div>
 
                           {/* Code Preview */}
-                          {showCodePreview && (
-                            <div className="mt-2">
-                              <div className="position-relative">
-                                <pre
-                                  className="bg-dark text-light rounded p-2 mb-0 overflow-auto"
-                                  style={{
-                                    maxHeight: "120px",
-                                    fontSize: "9px",
-                                  }}
-                                >
-                                  <code>{diagrams[selectedDiagram].code}</code>
-                                </pre>
-                                <button
-                                  className="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-1 p-1"
-                                  onClick={() =>
-                                    navigator.clipboard.writeText(
-                                      diagrams[selectedDiagram].code
-                                    )
-                                  }
-                                  title="Copy code"
-                                  style={{
-                                    fontSize: "9px",
-                                    width: "24px",
-                                    height: "24px",
-                                  }}
-                                >
-                                  <i className="bi bi-clipboard"></i>
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          {/* Code preview removed; use Diagrams section to inspect code */}
                         </div>
                       )}
                   </div>
@@ -858,6 +814,8 @@ function App() {
               </div>
             </div>
           </div>
+
+            {/* Removed Code Editor accordion — diagrams handled in the Diagrams section */}
         </div>
       </div>
 
@@ -901,9 +859,9 @@ function App() {
             </div>
 
             <div className="d-flex align-items-center gap-1">
-              {showLivePreview && (
+              {showPreviewMain && (
                 <button
-                  onClick={() => setShowLivePreview(false)}
+                  onClick={() => setShowPreviewMain(false)}
                   className="btn btn-sm btn-outline-secondary"
                   title="Hide Preview"
                   style={{ fontSize: "11px" }}
@@ -967,33 +925,33 @@ function App() {
                 <p className="text-muted small">Converting diagram...</p>
               </div>
             </div>
-          ) : showLivePreview &&
-            diagrams.length > 0 &&
-            selectedDiagram < diagrams.length ? (
+          ) : (showPreviewMain || showFlowMain) ? (
             <div className="d-flex h-100">
-              <div className="w-50 border-end p-2 overflow-auto">
-                <h6 className="text-muted small mb-2">
-                  <i className="bi bi-eye me-1"></i>
-                  Live Preview
-                </h6>
-                <div className="d-flex justify-content-center align-items-center h-100">
-                  <MermaidRenderer code={diagrams[selectedDiagram].code} />
-                </div>
-              </div>
-              <div className="w-50 position-relative">
-                {flowData.nodes.length > 0 ? (
-                  <FlowDiagram
-                    nodes={flowData.nodes}
-                    edges={flowData.edges}
-                    onNodesChange={handleNodesChange}
-                    onEdgesChange={handleEdgesChange}
-                  />
-                ) : (
-                  <div className="d-flex align-items-center justify-content-center h-100 text-center">
-                    <p className="text-muted">No diagram to display.</p>
+              {showPreviewMain && diagrams.length > 0 && selectedDiagram < diagrams.length && (
+                <div className="" style={{ width: showFlowMain ? '50%' : '100%', borderRight: '1px solid rgba(0,0,0,0.06)', padding: 8, overflow: 'auto' }}>
+                  <h6 className="text-muted small mb-2"><i className="bi bi-eye me-1"></i> Preview</h6>
+                  <div className="d-flex justify-content-center align-items-center h-100">
+                    <MermaidRenderer code={diagrams[selectedDiagram].code} />
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {showFlowMain && (
+                <div className="flex-grow-1 position-relative" style={{ padding: 8 }}>
+                  {flowData.nodes.length > 0 ? (
+                    <FlowDiagram
+                      nodes={flowData.nodes}
+                      edges={flowData.edges}
+                      onNodesChange={handleNodesChange}
+                      onEdgesChange={handleEdgesChange}
+                    />
+                  ) : (
+                    <div className="d-flex align-items-center justify-content-center h-100 text-center">
+                      <p className="text-muted">No diagram to display.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : flowData.nodes.length > 0 ? (
             <FlowDiagram
