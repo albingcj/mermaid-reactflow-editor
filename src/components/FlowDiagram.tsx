@@ -47,6 +47,7 @@ interface FlowDiagramProps {
   onEdgesChange?: (edges: Edge[]) => void;
   onRequestPreview?: () => void;
   onRegisterMethods?: (methods: { openSearch?: () => void; exportImage?: () => Promise<void> }) => void;
+  interactive?: boolean; // when false, disable user interactions (used during streaming)
 }
 
 function FlowDiagramInternal({
@@ -56,6 +57,7 @@ function FlowDiagramInternal({
   onEdgesChange: onEdgesChangeCallback,
   onRequestPreview,
   onRegisterMethods,
+  interactive = true,
 }: FlowDiagramProps) {
   const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
@@ -412,24 +414,35 @@ function FlowDiagramInternal({
 
       <SearchControl nodes={nodes} onFocusNode={handleFocusNode} onClose={() => setShowSearch(false)} isVisible={showSearch} />
 
-  <div style={{ width: '100%', height: '100%' }} ref={reactFlowWrapper} className={isDragging ? 'dragging' : ''}>
+  <div
+      style={{ width: '100%', height: '100%' }}
+      ref={reactFlowWrapper}
+      className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'}`.trim()}
+    >
         <ReactFlow
           minZoom={0.05}
           nodes={nodes}
           edges={edgesWithSelection}
           onlyRenderVisibleElements
-          onNodeDragStart={onNodeDragStart}
-          onNodeDragStop={onNodeDragStopLocal}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
+          onNodeDragStart={interactive ? onNodeDragStart : undefined}
+          onNodeDragStop={interactive ? onNodeDragStopLocal : undefined}
+          onNodesChange={interactive ? onNodesChange : undefined}
+          onEdgesChange={interactive ? onEdgesChange : undefined}
+          onConnect={interactive ? onConnect : undefined}
           onNodeDoubleClick={onNodeDoubleClick}
           nodeTypes={nodeTypes}
           fitView
           deleteKeyCode={['Delete', 'Backspace']}
-          nodesDraggable={true}
-          nodesConnectable={true}
-          elementsSelectable={true}
+          nodesDraggable={interactive}
+          nodesConnectable={interactive}
+          elementsSelectable={interactive}
+          // Allow panning the canvas even when node interactions are disabled (streaming)
+          panOnDrag={true}
+          // Allow zooming via scroll/pinch during streaming so user can inspect layout
+          panOnScroll={interactive}
+          zoomOnScroll={true}
+          zoomOnPinch={true}
+          zoomOnDoubleClick={interactive}
           defaultEdgeOptions={{
             type: 'smoothstep',
             animated: true,

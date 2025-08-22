@@ -10,6 +10,7 @@ import "./App.css";
 import { MermaidRenderer } from "./components/MermaidRenderer";
 import { Toasts, ToastItem } from "./components/Toasts";
 import MermaidEditor from "./components/MermaidEditor";
+import StreamingPart from "./components/StreamingPart";
 
 function App() {
   const [mermaidSource, setMermaidSource] = useState("");
@@ -18,6 +19,7 @@ function App() {
     edges: [],
   });
   const [loading, setLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   // Saved diagrams (session storage)
   type SavedDiagram = {
     id: string;
@@ -287,6 +289,24 @@ function App() {
                   onChange={(v) => {
                     setFlowMode('editor');
                     setMermaidSource(v);
+                  }}
+                />
+                {/* Streaming demo: simulates LLM streaming output into the editor */}
+                <div style={{ borderTop: '1px solid #f1f1f1', marginTop: 8 }} />
+                <StreamingPart
+                  promptSource={mermaidSource}
+                  onStart={() => setIsStreaming(true)}
+                  onStop={() => setIsStreaming(false)}
+                  onChunk={(partial) => {
+                    // update editor progressively so preview/conversion can run as content streams
+                    setFlowMode('editor');
+                    setMermaidSource(partial);
+                  }}
+                  onComplete={(result) => {
+                    // When streaming completes, ensure final content is applied
+                    setMermaidSource(result);
+                    setFlowMode('editor');
+                    showToast('Streaming complete — applied to editor', 'success');
                   }}
                 />
               </div>
@@ -572,9 +592,9 @@ function App() {
           </div>
         </div>
 
-        {/* Canvas */}
+    {/* Canvas */}
   <div className="w-100 h-100" style={{ paddingTop: "50px" }}>
-          {loading ? (
+          {loading && !isStreaming ? (
             <div className="d-flex align-items-center justify-content-center h-100">
               <div className="text-center">
                 <div
@@ -588,11 +608,11 @@ function App() {
               </div>
             </div>
           ) : (showPreviewMain || showFlowMain) ? (
-            <div className="d-flex h-100 position-relative">
+    <div className="d-flex h-100 position-relative">
               {showPreviewMain && mermaidSource && (
                 <div
-                  className="preview-pane"
-                  style={{ width: showFlowMain ? `${Math.round(splitRatio * 100)}%` : '100%' }}
+      className="preview-pane"
+      style={{ width: isStreaming && showPreviewMain && showFlowMain ? '50%' : (showFlowMain ? `${Math.round(splitRatio * 100)}%` : '100%') }}
                 >
                   <div className="preview-pane-header">
                     <h6 className="text-muted small mb-0"><i className="bi bi-eye me-1"></i> Preview</h6>
@@ -603,7 +623,7 @@ function App() {
                 </div>
               )}
 
-              {showPreviewMain && showFlowMain && (
+              {showPreviewMain && showFlowMain && !isStreaming && (
                 <div
                   ref={resizerRef}
                   className={`vertical-resizer ${isResizing ? 'resizing' : ''}`}
@@ -631,11 +651,12 @@ function App() {
               )}
 
               {showFlowMain && (
-                <div className="canvas-pane">
+                <div className="canvas-pane" style={{ width: isStreaming && showPreviewMain && showFlowMain ? '50%' : undefined }}>
                   {flowData.nodes.length > 0 ? (
                     <FlowDiagram
                       nodes={flowData.nodes}
                       edges={flowData.edges}
+                      interactive={!isStreaming}
                       onNodesChange={handleNodesChange}
                       onEdgesChange={handleEdgesChange}
                       onRequestPreview={() => setShowPreviewMain((s) => !s)}
@@ -648,11 +669,23 @@ function App() {
                   )}
                 </div>
               )}
+            {/* Streaming overlay (non-blocking) */}
+            {isStreaming && (
+              <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1200 }}>
+                <div className="d-flex align-items-center gap-2 p-2 bg-white shadow-sm rounded">
+                  <div className="streaming-indicator" style={{ width: 36, height: 36 }}>
+                    <i className="bi bi-waveform text-info" style={{ fontSize: '1.4rem' }} />
+                  </div>
+                  <div className="small text-muted">Streaming...</div>
+                </div>
+              </div>
+            )}
             </div>
           ) : flowData.nodes.length > 0 ? (
             <FlowDiagram
               nodes={flowData.nodes}
               edges={flowData.edges}
+              interactive={!isStreaming}
               onNodesChange={handleNodesChange}
               onEdgesChange={handleEdgesChange}
               onRegisterMethods={registerFlowMethods}

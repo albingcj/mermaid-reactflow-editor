@@ -20,3 +20,14 @@
 .dragging .react-flow__handle {
   visibility: hidden !important;
 }
+
+/* During streaming, pause animations and hide heavy UI for smoother performance */
+.streaming-mode .react-flow__edge.animated path {
+  animation: none !important;
+  stroke-dasharray: none !important;
+}
+
+.streaming-mode .react-flow__node-resizer,
+.streaming-mode .react-flow__handle {
+  visibility: hidden !important;
+}

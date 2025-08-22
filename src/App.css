@@ -1247,6 +1247,37 @@ textarea {
   height: 3rem;
 }
 
+/* Streaming indicator */
+.streaming-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(13,110,253,0.08), rgba(13,110,253,0.02));
+}
+
+/* When streaming, force single pan (grab) cursor and prevent node hover pointer changes */
+.streaming-mode {
+  cursor: grab !important;
+}
+.streaming-mode .react-flow__node,
+.streaming-mode .react-flow__edge {
+  pointer-events: none !important;
+}
+
+/* While streaming, force preview and canvas to split 50/50 and hide the vertical resizer */
+.streaming-mode .preview-pane {
+  width: 50% !important;
+}
+.streaming-mode .canvas-pane {
+  width: 50% !important;
+}
+.streaming-mode .vertical-resizer {
+  display: none !important;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
   .expanded-sidebar {
