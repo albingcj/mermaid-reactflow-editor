@@ -1,19 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FlowDiagram } from "./components/FlowDiagram";
-import { extractMermaidDiagrams, MermaidDiagram } from "./utils/mermaidParser";
 import {
   convertMermaidToReactFlow,
   ReactFlowData,
 } from "./utils/mermaidToReactFlow";
-import {
-  saveDiagram,
-  getAllDiagrams,
-  deleteDiagram,
-  exportToFile,
-  SavedDiagram,
-  getDiagram,
-  updateDiagram,
-} from "./utils/diagramStorage";
+// storage of diagrams removed — no local persistence
 import { Node, Edge } from "reactflow";
 import "./App.css";
 import { MermaidRenderer } from "./components/MermaidRenderer";
@@ -21,28 +12,20 @@ import { Toasts, ToastItem } from "./components/Toasts";
 import MermaidEditor from "./components/MermaidEditor";
 
 function App() {
-  const [markdownContent, setMarkdownContent] = useState("");
   const [mermaidSource, setMermaidSource] = useState("");
-  const [diagrams, setDiagrams] = useState<MermaidDiagram[]>([]);
-  const [selectedDiagram, setSelectedDiagram] = useState(0);
   const [flowData, setFlowData] = useState<ReactFlowData>({
     nodes: [],
     edges: [],
   });
   const [loading, setLoading] = useState(false);
-  const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>([]);
-  const [currentDiagramId, setCurrentDiagramId] = useState<string | null>(null);
-  const [editingDiagramId, setEditingDiagramId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [activeAccordion, setActiveAccordion] = useState("input");
+  // persistence removed: no saved diagrams state
+  const [activeAccordion, setActiveAccordion] = useState("editor");
 
   // UI State
-  type AccordionSection = 'editor' | 'input' | 'palette' | 'diagrams' | 'saved';
+  type AccordionSection = 'editor' | 'palette' | 'saved';
   const [accordionOpen, setAccordionOpen] = useState<Record<AccordionSection, boolean>>({
     editor: true,
-    input: true,
     palette: false,
-    diagrams: false,
     saved: false,
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -67,20 +50,6 @@ function App() {
     }
   }, []);
 
-  // Extract diagrams when markdown content changes
-  useEffect(() => {
-    if (markdownContent) {
-      const extractedDiagrams = extractMermaidDiagrams(markdownContent);
-      setDiagrams(extractedDiagrams);
-      if (extractedDiagrams.length > 0) {
-        setSelectedDiagram(0);
-        setActiveAccordion("diagrams");
-        // if we loaded from markdown, populate the mermaid source editor with the first diagram
-        setMermaidSource(extractedDiagrams[0].code);
-      }
-    }
-  }, [markdownContent]);
-
   // Re-convert when mermaidSource changes
   useEffect(() => {
     if (mermaidSource && mermaidSource.trim() !== "") {
@@ -94,40 +63,13 @@ function App() {
           console.error('Conversion failed', err);
           setLoading(false);
         });
-      // also populate the `diagrams` array so the Mermaid preview pane can render
-      setDiagrams([
-        {
-          type: 'flowchart',
-          code: mermaidSource,
-          name: 'Editor Preview',
-          position: { start: 0, end: mermaidSource.length },
-        },
-      ]);
+    // conversion completed; preview will render from mermaidSource
     }
   }, [mermaidSource]);
 
-  // Load saved diagrams on mount
-  useEffect(() => {
-    setSavedDiagrams(getAllDiagrams());
-  }, []);
+  // persistence removed: no saved diagrams to load on mount
 
-  // Convert selected diagram to React Flow format
-  useEffect(() => {
-    if (diagrams.length > 0 && selectedDiagram < diagrams.length) {
-      setLoading(true);
-      convertMermaidToReactFlow(diagrams[selectedDiagram].code)
-        .then((data) => {
-          setFlowData(data);
-          setLoading(false);
-        })
-        .catch((error) => {
-          console.error("Error converting diagram:", error);
-          setLoading(false);
-        });
-    }
-  }, [diagrams, selectedDiagram]);
-
-  // No code editor integration — diagrams are extracted from the Markdown textarea only.
+  // Editor-driven: mermaidSource drives conversion and preview.
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -138,33 +80,13 @@ function App() {
           handleSaveDiagram();
         }
       }
-      if (e.key === "Escape") {
-        setEditingDiagramId(null);
-        setEditingName("");
-      }
+      // Escape handling removed
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flowData, currentDiagramId]);
+  }, [flowData]);
 
   // Event handlers
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        setMarkdownContent(content);
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handleTextareaChange = (
-    event: React.ChangeEvent<HTMLTextAreaElement>
-  ) => {
-    setMarkdownContent(event.target.value);
-  };
 
   const handleNodesChange = (nodes: Node[]) => {
     setFlowData((prev) => ({ ...prev, nodes }));
@@ -175,114 +97,13 @@ function App() {
   };
 
   const handleSaveDiagram = () => {
-    if (diagrams.length > 0 && selectedDiagram < diagrams.length) {
-      const currentMermaidDiagram = diagrams[selectedDiagram];
-      const saved = saveDiagram({
-        name: currentMermaidDiagram.name,
-        nodes: flowData.nodes,
-        edges: flowData.edges,
-        originalMermaidCode: currentMermaidDiagram.code,
-        metadata: {
-          description: `Converted from Mermaid ${currentMermaidDiagram.type} diagram`,
-        },
-      });
-      setCurrentDiagramId(saved.id);
-      setSavedDiagrams(getAllDiagrams());
-      showToast("Diagram saved successfully!", "success");
-    } else if (currentDiagramId && flowData.nodes.length > 0) {
-      const diagram = getDiagram(currentDiagramId);
-      if (diagram) {
-        // preserve or derive the original mermaid code so preview can render later
-        const derivedMermaid =
-          diagram.originalMermaidCode ??
-          (diagrams.length > 0 && selectedDiagram < diagrams.length
-            ? diagrams[selectedDiagram].code
-            : markdownContent ?? "");
-
-        updateDiagram(currentDiagramId, {
-          nodes: flowData.nodes,
-          edges: flowData.edges,
-          originalMermaidCode: derivedMermaid,
-        });
-        setSavedDiagrams(getAllDiagrams());
-        showToast("Diagram updated successfully!", "success");
-      }
-    }
+    // persistence was removed per request — saving is disabled
+    showToast('Save/export disabled: persistence removed', 'info');
   };
 
   // export handled via top-nav / FlowDiagram export image; remove local sidebar action
 
-  const handleLoadDiagram = (diagram: SavedDiagram) => {
-    setFlowData({ nodes: diagram.nodes, edges: diagram.edges });
-    setCurrentDiagramId(diagram.id);
-    // ensure sidebar and editor are visible
-    setSidebarCollapsed(false);
-    // restore original mermaid source into the code editor so users edit raw mermaid
-    if (diagram.originalMermaidCode) {
-      // populate the editor (mermaidSource) and clear markdown input so content does not appear in the markdown textarea
-      setMermaidSource(diagram.originalMermaidCode);
-      setMarkdownContent("");
-      // populate diagrams for the preview pane and open preview
-      setDiagrams([
-        {
-          type: 'flowchart',
-          code: diagram.originalMermaidCode,
-          name: 'Saved Diagram Preview',
-          position: { start: 0, end: diagram.originalMermaidCode.length },
-        },
-      ]);
-      setSelectedDiagram(0);
-      setShowPreviewMain(true);
-      // open editor accordion so users see the code editor by default
-      setActiveAccordion("editor");
-    } else {
-      // no original source available
-      setMermaidSource("");
-      setDiagrams([]);
-      setActiveAccordion("saved");
-      showToast('No original Mermaid source saved for this diagram', 'info');
-    }
-    showToast("Diagram loaded successfully!", "success");
-  };
-
-  const handleDeleteDiagram = (id: string) => {
-    if (confirm("Are you sure you want to delete this diagram?")) {
-      deleteDiagram(id);
-      setSavedDiagrams(getAllDiagrams());
-      if (currentDiagramId === id) {
-        setCurrentDiagramId(null);
-      }
-      showToast("Diagram deleted successfully!", "success");
-    }
-  };
-
-  const handleStartRename = (diagram: SavedDiagram) => {
-    setEditingDiagramId(diagram.id);
-    setEditingName(diagram.name);
-  };
-
-  const handleSaveRename = (diagramId: string) => {
-    if (editingName.trim()) {
-      updateDiagram(diagramId, { name: editingName.trim() });
-      setSavedDiagrams(getAllDiagrams());
-      setEditingDiagramId(null);
-      setEditingName("");
-      showToast("Diagram renamed successfully!", "success");
-    }
-  };
-
-  const handleCancelRename = () => {
-    setEditingDiagramId(null);
-    setEditingName("");
-  };
-
-  const handleRenameKeyPress = (e: React.KeyboardEvent, diagramId: string) => {
-    if (e.key === "Enter") {
-      handleSaveRename(diagramId);
-    } else if (e.key === "Escape") {
-      handleCancelRename();
-    }
-  };
+  // persistence handlers removed
 
   const toggleAccordion = (section: AccordionSection) => {
     setAccordionOpen((prev) => ({
@@ -301,11 +122,9 @@ function App() {
 
   const clearAll = () => {
     if (confirm("Are you sure you want to clear all content?")) {
-      setMarkdownContent("");
-      setDiagrams([]);
+      setMermaidSource("");
       setFlowData({ nodes: [], edges: [] });
-      setCurrentDiagramId(null);
-      setActiveAccordion("input");
+      setActiveAccordion("editor");
     }
   };
 
@@ -429,372 +248,11 @@ function App() {
                 </div>
               </div>
             </div>
-            {/* Input Section */}
-            <div className="border-bottom">
-              <button
-                className={`w-100 btn btn-link text-start px-3 py-2 fw-normal border-0 ${
-                  activeAccordion === "input"
-                    ? "text-primary bg-primary bg-opacity-10"
-                    : "text-dark"
-                }`}
-                onClick={() => toggleAccordion("input")}
-                style={{ borderRadius: 0 }}
-              >
-                <div className="d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center">
-                    <i className="bi bi-file-earmark-plus me-2"></i>
-                    <span className="fs-7">Input Source</span>
-                  </div>
-                  <i
-                    className={`bi bi-chevron-${
-                      accordionOpen.input ? "up" : "down"
-                    } fs-7`}
-                  ></i>
-                </div>
-              </button>
-
-              <div
-                className={`collapse ${
-                  accordionOpen.input ? "show" : ""
-                }`}
-              >
-                <div className="px-3 py-2 bg-white">
-                  <div className="mb-3">
-                    <label className="form-label small text-muted mb-1 fw-medium">
-                      <i className="bi bi-cloud-upload me-1"></i>
-                      Upload File
-                    </label>
-                    <input
-                      type="file"
-                      accept=".md,.markdown"
-                      onChange={handleFileUpload}
-                      className="form-control form-control-sm"
-                    />
-                  </div>
-
-                  <div className="mb-2">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <label className="form-label small text-muted mb-0 fw-medium">
-                        <i className="bi bi-code-slash me-1"></i>
-                        Paste Code
-                      </label>
-                      {markdownContent && (
-                        <button
-                          className="btn btn-sm p-0 text-danger"
-                          onClick={() => setMarkdownContent("")}
-                          title="Clear content"
-                          style={{ fontSize: "12px" }}
-                        >
-                          <i className="bi bi-x-circle"></i>
-                        </button>
-                      )}
-                    </div>
-                    <textarea
-                      value={markdownContent}
-                      onChange={handleTextareaChange}
-                      placeholder={`\`\`\`mermaid\ngraph TD\n    A[Start] --> B{Decision}\n    B -->|Yes| C[Action 1]\n    B -->|No| D[Action 2]\n    C --> E[End]\n    D --> E\n\`\`\`\n\nPaste your Mermaid diagram code here...`}
-                      rows={6}
-                      className="form-control form-control-sm font-monospace"
-                      style={{ resize: "vertical", fontSize: "11px" }}
-                    />
-                    {markdownContent && (
-                      <div className="mt-1">
-                        <small
-                          className="text-muted"
-                          style={{ fontSize: "10px" }}
-                        >
-                          <i className="bi bi-info-circle me-1"></i>
-                          {markdownContent.length} chars
-                        </small>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Found Diagrams Section */}
-            {diagrams.length > 0 && (
-              <div className="border-bottom">
-                <button
-                  className={`w-100 btn btn-link text-start px-3 py-2 fw-normal border-0 ${
-                    activeAccordion === "diagrams"
-                      ? "text-primary bg-primary bg-opacity-10"
-                      : "text-dark"
-                  }`}
-                  onClick={() => toggleAccordion("diagrams")}
-                  style={{ borderRadius: 0 }}
-                >
-                  <div className="d-flex align-items-center justify-content-between">
-                    <div className="d-flex align-items-center">
-                      <i className="bi bi-diagram-2 me-2"></i>
-                      <span className="fs-7">Diagrams</span>
-                      <span
-                        className="badge bg-primary rounded-pill ms-2 px-2 py-1"
-                        style={{ fontSize: "9px" }}
-                      >
-                        {diagrams.length}
-                      </span>
-                    </div>
-                    <i
-                      className={`bi bi-chevron-${
-                        accordionOpen.diagrams ? "up" : "down"
-                      } fs-7`}
-                    ></i>
-                  </div>
-                </button>
-
-                <div
-                  className={`collapse ${
-                    accordionOpen.diagrams ? "show" : ""
-                  }`}
-                >
-                  <div className="px-3 py-2 bg-white">
-                    <div className="d-grid gap-2">
-                      {diagrams.map((diagram, index) => (
-                        <div key={index}>
-                          <div
-                            className={`card card-body p-2 cursor-pointer border ${
-                              selectedDiagram === index
-                                ? "border-primary bg-primary bg-opacity-10"
-                                : "border-light"
-                            }`}
-                            style={{
-                              cursor: "pointer",
-                              transition: "all 0.15s ease",
-                            }}
-                            onClick={() => setSelectedDiagram(index)}
-                          >
-                            <div className="d-flex align-items-center">
-                              <div
-                                className={`rounded d-flex align-items-center justify-content-center me-2 ${
-                                  selectedDiagram === index
-                                    ? "bg-primary text-white"
-                                    : "bg-light text-muted"
-                                }`}
-                                style={{ width: "24px", height: "24px" }}
-                              >
-                                <i
-                                  className={`bi bi-${
-                                    diagram.type === "flowchart"
-                                      ? "diagram-3"
-                                      : "graph-up"
-                                  }`}
-                                  style={{ fontSize: "11px" }}
-                                ></i>
-                              </div>
-                              <div className="flex-grow-1 min-width-0">
-                                <div
-                                  className="fw-medium text-truncate"
-                                  style={{ fontSize: "12px" }}
-                                >
-                                  {diagram.name}
-                                </div>
-                                <small
-                                  className="text-muted"
-                                  style={{ fontSize: "10px" }}
-                                >
-                                  {diagram.type}
-                                </small>
-                              </div>
-                              {selectedDiagram === index && (
-                                <i
-                                  className="bi bi-check-circle-fill text-primary"
-                                  style={{ fontSize: "12px" }}
-                                ></i>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Quick Preview Toggle */}
-                    {/* Preview is available in the top toolbar and canvas floating button; left sidebar preview removed */}
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Removed Input and Found Diagrams sections per user request */}
 
             {/* Actions removed per user request */}
 
-            {/* Saved Diagrams Section */}
-            <div>
-              <button
-                className={`w-100 btn btn-link text-start px-3 py-2 fw-normal border-0 ${
-                  activeAccordion === "saved"
-                    ? "text-primary bg-primary bg-opacity-10"
-                    : "text-dark"
-                }`}
-                onClick={() => toggleAccordion("saved")}
-                style={{ borderRadius: 0 }}
-              >
-                <div className="d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center">
-                    <i className="bi bi-collection me-2"></i>
-                    <span className="fs-7">Saved</span>
-                    <span
-                      className="badge bg-secondary rounded-pill ms-2 px-2 py-1"
-                      style={{ fontSize: "9px" }}
-                    >
-                      {savedDiagrams.length}
-                    </span>
-                  </div>
-                  <i
-                    className={`bi bi-chevron-${
-                      accordionOpen.saved ? "up" : "down"
-                    } fs-7`}
-                  ></i>
-                </div>
-              </button>
-
-              <div
-                className={`collapse ${
-                  accordionOpen.saved ? "show" : ""
-                }`}
-              >
-                <div
-                  className="px-3 py-2 bg-white"
-                  style={{ maxHeight: "300px", overflowY: "auto" }}
-                >
-                  {savedDiagrams.length === 0 ? (
-                    <div className="text-center py-3">
-                      <i
-                        className="bi bi-inbox text-muted mb-2"
-                        style={{ fontSize: "24px" }}
-                      ></i>
-                      <p className="text-muted mb-0 small">No saved diagrams</p>
-                      <small
-                        className="text-muted"
-                        style={{ fontSize: "10px" }}
-                      >
-                        Save your first diagram
-                      </small>
-                    </div>
-                  ) : (
-                    <div className="d-grid gap-2">
-                      {savedDiagrams.map((diagram) => (
-                        <div key={diagram.id}>
-                          <div className="card card-body p-2 border">
-                            <div className="d-flex align-items-start mb-2">
-                              <div
-                                className="bg-primary bg-opacity-10 rounded d-flex align-items-center justify-content-center me-2"
-                                style={{ width: "24px", height: "24px" }}
-                              >
-                                <i
-                                  className="bi bi-file-earmark-text text-primary"
-                                  style={{ fontSize: "11px" }}
-                                ></i>
-                              </div>
-                              <div className="flex-grow-1 min-width-0">
-                                {editingDiagramId === diagram.id ? (
-                                  <input
-                                    type="text"
-                                    value={editingName}
-                                    onChange={(e) =>
-                                      setEditingName(e.target.value)
-                                    }
-                                    onKeyDown={(e) =>
-                                      handleRenameKeyPress(e, diagram.id)
-                                    }
-                                    onBlur={() => handleSaveRename(diagram.id)}
-                                    autoFocus
-                                    className="form-control form-control-sm fw-medium"
-                                    style={{ fontSize: "11px" }}
-                                  />
-                                ) : (
-                                  <div
-                                    className="fw-medium text-truncate cursor-pointer"
-                                    onClick={() => handleStartRename(diagram)}
-                                    title={diagram.name}
-                                    style={{
-                                      cursor: "pointer",
-                                      fontSize: "11px",
-                                    }}
-                                  >
-                                    {diagram.name}
-                                  </div>
-                                )}
-                                <small
-                                  className="text-muted"
-                                  style={{ fontSize: "9px" }}
-                                >
-                                  <i className="bi bi-calendar3 me-1"></i>
-                                  {new Date(
-                                    diagram.updatedAt
-                                  ).toLocaleDateString()}
-                                </small>
-                              </div>
-                            </div>
-
-                            <div className="btn-group w-100" role="group">
-                              <button
-                                onClick={() => handleLoadDiagram(diagram)}
-                                className="btn btn-sm btn-primary"
-                                title="Load diagram"
-                                style={{ fontSize: "10px" }}
-                              >
-                                <i className="bi bi-play-fill me-1"></i>
-                                Load
-                              </button>
-                              <button
-                                onClick={() => exportToFile(diagram)}
-                                className="btn btn-sm btn-outline-secondary"
-                                title="Export"
-                                style={{ fontSize: "10px" }}
-                              >
-                                <i className="bi bi-download"></i>
-                              </button>
-                              {editingDiagramId === diagram.id ? (
-                                <>
-                                  <button
-                                    onClick={() => handleSaveRename(diagram.id)}
-                                    className="btn btn-sm btn-success"
-                                    title="Save"
-                                    style={{ fontSize: "10px" }}
-                                  >
-                                    <i className="bi bi-check"></i>
-                                  </button>
-                                  <button
-                                    onClick={handleCancelRename}
-                                    className="btn btn-sm btn-secondary"
-                                    title="Cancel"
-                                    style={{ fontSize: "10px" }}
-                                  >
-                                    <i className="bi bi-x"></i>
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => handleStartRename(diagram)}
-                                    className="btn btn-sm btn-outline-info"
-                                    title="Rename"
-                                    style={{ fontSize: "10px" }}
-                                  >
-                                    <i className="bi bi-pencil"></i>
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteDiagram(diagram.id)
-                                    }
-                                    className="btn btn-sm btn-outline-danger"
-                                    title="Delete"
-                                    style={{ fontSize: "10px" }}
-                                  >
-                                    <i className="bi bi-trash3"></i>
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Saved diagrams/persistence removed */}
           </div>
 
             {/* Removed Code Editor accordion — diagrams handled in the Diagrams section */}
@@ -830,15 +288,7 @@ function App() {
                 <i className="bi bi-diagram-3 me-2"></i>
                 Mermaid Studio
               </h5>
-              {currentDiagramId && (
-                <span
-                  className="badge bg-success ms-2 px-2 py-1"
-                  style={{ fontSize: "9px" }}
-                >
-                  <i className="bi bi-pencil-square me-1"></i>
-                  Editing
-                </span>
-              )}
+              {/* editing state removed */}
             </div>
 
             <div className="d-flex align-items-center gap-1">
@@ -870,18 +320,12 @@ function App() {
                 <>
                   <button
                     onClick={handleSaveDiagram}
-                    className={`btn btn-sm ${
-                      currentDiagramId ? "btn-warning" : "btn-success"
-                    }`}
-                    title="Save diagram (Ctrl+S)"
+                    className="btn btn-sm btn-primary"
+                    title="Save diagram"
                     style={{ fontSize: "11px" }}
                   >
-                    <i
-                      className={`bi bi-${
-                        currentDiagramId ? "arrow-repeat" : "floppy"
-                      } me-1`}
-                    ></i>
-                    {currentDiagramId ? "Update" : "Save"}
+                    <i className="bi bi-save me-1"></i>
+                    Save
                   </button>
 
                   {/* Search (invokes FlowDiagram search) */}
@@ -950,7 +394,7 @@ function App() {
             </div>
           ) : (showPreviewMain || showFlowMain) ? (
             <div className="d-flex h-100 position-relative">
-              {showPreviewMain && diagrams.length > 0 && selectedDiagram < diagrams.length && (
+              {showPreviewMain && mermaidSource && (
                 <div
                   className="preview-pane"
                   style={{ width: showFlowMain ? `${Math.round(splitRatio * 100)}%` : '100%' }}
@@ -959,7 +403,7 @@ function App() {
                     <h6 className="text-muted small mb-0"><i className="bi bi-eye me-1"></i> Preview</h6>
                   </div>
                   <div className="preview-pane-body">
-                    <MermaidRenderer code={diagrams[selectedDiagram].code} />
+                    <MermaidRenderer code={mermaidSource} />
                   </div>
                 </div>
               )}
@@ -1035,7 +479,7 @@ function App() {
                   className="btn btn-primary btn-sm"
                   onClick={() => {
                     setSidebarCollapsed(false);
-                    setActiveAccordion("input");
+                    setActiveAccordion("editor");
                   }}
                 >
                   <i className="bi bi-plus-circle me-2"></i>
