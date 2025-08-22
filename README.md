@@ -4,9 +4,9 @@
 ## Table of Contents
 ## Mermaid React Flow Editor
 
-A small editor that converts Mermaid diagrams (from Markdown or pasted code) into interactive, editable React Flow diagrams. It provides import from Markdown, node/edge editing, basic alignment tools, exporting to PNG, and local persistence.
+ A small editor that converts Mermaid diagrams (from the built-in code editor) into interactive, editable React Flow diagrams.
 
-This README was updated to reflect the current implementation in the repository (scripts, features, components and known limitations).
+ This README reflects the current, simplified workflow: the app uses a single code editor in the left sidebar as the source of truth (paste/type Mermaid code in the Editor). Markdown import and local persistence were removed in this branch.
 
 ## Quick links
 - Source: this repository
@@ -53,7 +53,7 @@ npm install
 ```
 
 2. Start dev server
-
+ The app reads Mermaid code blocks from the built-in code editor, converts the Mermaid AST into a React Flow node/edge graph, and renders an interactive canvas where nodes and edges can be edited. 
 ```powershell
 npm run dev
 ```
@@ -64,7 +64,7 @@ npm run dev
 
 Available scripts (from `package.json`):
 - `dev` — start Vite dev server
-- `build` — run `tsc` then `vite build`
+- (Markdown import removed in this branch)
 - `preview` — preview the production build
 
 <a id="project-layout"></a>
@@ -86,7 +86,7 @@ Available scripts (from `package.json`):
 
 <a id="internals--behavior-notes"></a>
 ## Internals & behavior notes
-
+4. Paste or type Mermaid code in the left-hand Editor and interact with the canvas.
 Parsing
 - `extractMermaidDiagrams(markdown)` finds triple-backtick Mermaid blocks and attempts to capture the nearest preceding Markdown heading as the diagram name.
 
@@ -114,7 +114,7 @@ Data model (runtime)
 - SavedDiagram: { id, name, nodes, edges, originalMermaidCode, createdAt, updatedAt, metadata }
 
 <a id="known-limitations--notes"></a>
-## Known limitations & important notes
+- The app no longer extracts Mermaid code from uploaded Markdown. The editor workflow is code-first: `mermaidSource` drives conversion and preview.
 
 - Mermaid support: The converter implements a robust parser for common flowchart node syntaxes and subgraphs, but not every Mermaid feature is fully supported (sequence diagrams, gantt, class diagrams may not convert to React Flow accurately).
 - Exporting to images (PNG) is buggy: If nodes reference external image URLs, they may not appear in exported PNGs due to cross-origin or html-to-image limitations. Other common problems are incorrect bounding boxes, unexpected scaling, or blank/partial images for complex layouts.

@@ -18,6 +18,23 @@ function App() {
     edges: [],
   });
   const [loading, setLoading] = useState(false);
+  // Saved diagrams (session storage)
+  type SavedDiagram = {
+    id: string;
+    name: string;
+    mermaid: string;
+    nodes: Node[];
+    edges: Edge[];
+    createdAt: number;
+    updatedAt: number;
+  };
+  const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>([]);
+  type FlowMode = 'loaded' | 'editor';
+  const [flowMode, setFlowMode] = useState<FlowMode>('editor');
+  const lastAppliedMermaidRef = useRef<string>("");
+  // Inline rename state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>("");
   // persistence removed: no saved diagrams state
   const [activeAccordion, setActiveAccordion] = useState("editor");
 
@@ -52,22 +69,49 @@ function App() {
 
   // Re-convert when mermaidSource changes
   useEffect(() => {
-    if (mermaidSource && mermaidSource.trim() !== "") {
-      setLoading(true);
-      convertMermaidToReactFlow(mermaidSource)
-        .then((data) => {
-          setFlowData(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error('Conversion failed', err);
-          setLoading(false);
-        });
+    // Only convert when user edits the editor content
+    if (flowMode !== 'editor') return;
+    const src = mermaidSource?.trim();
+    if (!src) return;
+    if (lastAppliedMermaidRef.current === mermaidSource) return;
+
+    setLoading(true);
+    convertMermaidToReactFlow(mermaidSource)
+      .then((data) => {
+        setFlowData(data);
+        lastAppliedMermaidRef.current = mermaidSource;
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Conversion failed', err);
+        setLoading(false);
+      });
     // conversion completed; preview will render from mermaidSource
-    }
-  }, [mermaidSource]);
+  }, [mermaidSource, flowMode]);
 
   // persistence removed: no saved diagrams to load on mount
+
+  // Load saved diagrams from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('mrfe.savedDiagrams');
+      if (raw) {
+        const parsed = JSON.parse(raw) as SavedDiagram[];
+        setSavedDiagrams(parsed);
+      }
+    } catch (e) {
+      console.warn('Failed to load saved diagrams from sessionStorage', e);
+    }
+  }, []);
+
+  const persistSavedDiagrams = (items: SavedDiagram[]) => {
+    try {
+      sessionStorage.setItem('mrfe.savedDiagrams', JSON.stringify(items));
+    } catch (e) {
+      console.warn('Failed to persist saved diagrams to sessionStorage', e);
+      showToast('Failed to save to session storage', 'error');
+    }
+  };
 
   // Editor-driven: mermaidSource drives conversion and preview.
 
@@ -97,9 +141,59 @@ function App() {
   };
 
   const handleSaveDiagram = () => {
-    // persistence was removed per request — saving is disabled
-    showToast('Save/export disabled: persistence removed', 'info');
+    if (!mermaidSource || mermaidSource.trim() === '') {
+      showToast('Nothing to save', 'info');
+      return;
+    }
+
+    const id = Math.random().toString(36).slice(2);
+    const now = Date.now();
+    const defaultName = new Date(now).toLocaleString();
+    const item: SavedDiagram = {
+      id,
+      name: defaultName,
+      mermaid: mermaidSource,
+      nodes: flowData.nodes || [],
+      edges: flowData.edges || [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const next = [item, ...savedDiagrams];
+    setSavedDiagrams(next);
+    persistSavedDiagrams(next);
+  // Record last applied mermaid so future no-op edits don't reconvert immediately
+  lastAppliedMermaidRef.current = mermaidSource;
+    showToast('Diagram saved to session', 'success');
+    // show saved list
+    setAccordionOpen((prev) => ({ ...prev, saved: true }));
+    setSidebarCollapsed(false);
   };
+
+  const loadSavedDiagram = (id: string) => {
+    const item = savedDiagrams.find((d) => d.id === id);
+    if (!item) {
+      showToast('Saved diagram not found', 'error');
+      return;
+    }
+  // Switch to loaded mode and set last applied to prevent reconversion
+  setFlowMode('loaded');
+  lastAppliedMermaidRef.current = item.mermaid;
+  setFlowData({ nodes: item.nodes || [], edges: item.edges || [] });
+  setMermaidSource(item.mermaid);
+    setActiveAccordion('editor');
+    setSidebarCollapsed(true);
+    showToast(`Loaded "${item.name}"`, 'success');
+  };
+
+  const deleteSavedDiagram = (id: string) => {
+    if (!confirm('Delete this saved diagram?')) return;
+    const next = savedDiagrams.filter((d) => d.id !== id);
+    setSavedDiagrams(next);
+    persistSavedDiagrams(next);
+    showToast('Deleted saved diagram', 'info');
+  };
+
+  // rename handled inline in UI
 
   // export handled via top-nav / FlowDiagram export image; remove local sidebar action
 
@@ -188,7 +282,13 @@ function App() {
               </button>
 
               <div className={`collapse ${accordionOpen.editor ? "show" : ""}`}>
-                <MermaidEditor value={mermaidSource} onChange={(v) => setMermaidSource(v)} />
+                <MermaidEditor
+                  value={mermaidSource}
+                  onChange={(v) => {
+                    setFlowMode('editor');
+                    setMermaidSource(v);
+                  }}
+                />
               </div>
             </div>
             {/* Node Palette Section */}
@@ -248,11 +348,90 @@ function App() {
                 </div>
               </div>
             </div>
-            {/* Removed Input and Found Diagrams sections per user request */}
+            {/* Saved Diagrams Section */}
+            <div className="border-bottom">
+              <button
+                className={`w-100 btn btn-link text-start px-3 py-2 fw-normal border-0 ${
+                  activeAccordion === "saved" ? "text-primary bg-primary bg-opacity-10" : "text-dark"
+                }`}
+                onClick={() => toggleAccordion("saved")}
+                style={{ borderRadius: 0 }}
+              >
+                <div className="d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center">
+                    <i className="bi bi-folder2-open me-2"></i>
+                    <span className="fs-7">Saved</span>
+                  </div>
+                  <i className={`bi bi-chevron-${accordionOpen.saved ? "up" : "down"} fs-7`}></i>
+                </div>
+              </button>
 
-            {/* Actions removed per user request */}
-
-            {/* Saved diagrams/persistence removed */}
+              <div className={`collapse ${accordionOpen.saved ? "show" : ""}`}>
+                <div className="px-3 py-2 bg-white">
+                  {savedDiagrams.length === 0 ? (
+                    <div className="text-muted small">No saved diagrams in this session.</div>
+                  ) : (
+                    <div className="list-group">
+                      {savedDiagrams.map((d) => (
+                        <div key={d.id} className="list-group-item d-flex align-items-start justify-content-between">
+                          <div className="me-2" style={{ flex: 1 }}>
+                            {editingId === d.id ? (
+                              <div>
+                                <input
+                                  className="form-control form-control-sm mb-1"
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                />
+                                <div className="d-flex gap-1">
+                                  <button
+                                    className="btn btn-sm btn-primary"
+                                    onClick={() => {
+                                      const name = editingName.trim() || d.name;
+                                      const next = savedDiagrams.map((s) => s.id === d.id ? { ...s, name, updatedAt: Date.now() } : s);
+                                      setSavedDiagrams(next);
+                                      persistSavedDiagrams(next);
+                                      setEditingId(null);
+                                      setEditingName('');
+                                      showToast('Diagram renamed', 'success');
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-outline-secondary"
+                                    onClick={() => { setEditingId(null); setEditingName(''); }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="fw-medium">{d.name}</div>
+                                <div className="text-muted small">{new Date(d.createdAt).toLocaleString()}</div>
+                              </>
+                            )}
+                          </div>
+                          <div className="d-flex flex-column align-items-end gap-1">
+                            <div className="d-flex gap-1">
+                              <button className="btn btn-sm btn-outline-primary" onClick={() => loadSavedDiagram(d.id)} title="Load">
+                                <i className="bi bi-box-arrow-in-right"></i>
+                              </button>
+                              <button className="btn btn-sm btn-outline-secondary" onClick={() => { setEditingId(d.id); setEditingName(d.name); }} title="Rename">
+                                <i className="bi bi-pencil"></i>
+                              </button>
+                              <button className="btn btn-sm btn-outline-danger" onClick={() => deleteSavedDiagram(d.id)} title="Delete">
+                                <i className="bi bi-trash3"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
             {/* Removed Code Editor accordion — diagrams handled in the Diagrams section */}
@@ -327,6 +506,22 @@ function App() {
                     <i className="bi bi-save me-1"></i>
                     Save
                   </button>
+
+                  {savedDiagrams.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setSidebarCollapsed(false);
+                        setAccordionOpen((prev) => ({ ...prev, saved: true }));
+                        setActiveAccordion('saved');
+                      }}
+                      className="btn btn-sm btn-outline-primary"
+                      title="Load saved diagram"
+                      style={{ fontSize: "11px" }}
+                    >
+                      <i className="bi bi-folder2-open me-1"></i>
+                      Load
+                    </button>
+                  )}
 
                   {/* Search (invokes FlowDiagram search) */}
                   <button
