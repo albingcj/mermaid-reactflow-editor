@@ -1247,6 +1247,66 @@ textarea {
   height: 3rem;
 }
 
+/* Streaming indicator */
+.streaming-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(13,110,253,0.08), rgba(13,110,253,0.02));
+}
+
+/* When streaming, force single pan (grab) cursor and prevent node hover pointer changes */
+.streaming-mode {
+  cursor: grab !important;
+}
+.streaming-mode .react-flow__node,
+.streaming-mode .react-flow__edge {
+  pointer-events: none !important;
+}
+
+/* While streaming, force preview and canvas to split 50/50 and hide the vertical resizer */
+.streaming-mode .preview-pane {
+  width: 50% !important;
+}
+.streaming-mode .canvas-pane {
+  width: 50% !important;
+}
+.streaming-mode .vertical-resizer {
+  display: none !important;
+}
+
+/* Bring edges above node containers (useful when subgraph containers overlap edges)
+   but keep interactive controls (handles, resizers, headers, panels) above edges. */
+.react-flow__edges {
+  z-index: 40; /* above typical node content but below UI chrome */
+  pointer-events: none; /* keep edges from blocking interactions */
+}
+
+.react-flow__edge, .react-flow__edge-path, .react-flow__connection {
+  z-index: 40;
+}
+
+/* Ensure handles, headers and resize controls remain above edges for interaction */
+.react-flow__handle,
+.react-flow__resize-control,
+.subgraph-header,
+.react-flow__panel,
+.react-flow__controls,
+.editing-toolbar--floating {
+  z-index: 60 !important;
+  pointer-events: all !important;
+}
+
+/* Make sure node visual content doesn't create a higher stacking context than edges */
+.react-flow__node .node-content,
+.subgraph-node,
+.custom-node {
+  z-index: 10;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
   .expanded-sidebar {

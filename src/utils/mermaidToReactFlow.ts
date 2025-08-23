@@ -51,8 +51,28 @@ interface SubgraphLayout {
   parentId?: string;
 }
 
-const SUBGRAPH_HEADER_HEIGHT = 10;
-const SUBGRAPH_PADDING = 10; // Increased from 30 to 40 for more breathing room
+// Layout spacing constants - Fine-tune these for better visual separation
+const SUBGRAPH_HEADER_HEIGHT = 35; // Increased for proper title clearance
+const SUBGRAPH_PADDING = 15; // Base padding around subgraph edges
+const SUBGRAPH_CONTENT_TOP_MARGIN = 10; // Additional space below title before content
+
+// Node spacing within subgraphs - controls minimum distance between nodes
+const NODE_SEPARATION_HORIZONTAL = 80; // Minimum horizontal distance between nodes in same rank
+const NODE_SEPARATION_VERTICAL = 100; // Minimum vertical distance between different ranks
+
+// Container spacing for meta-graph layout - controls distance between top-level elements
+const CONTAINER_SEPARATION_HORIZONTAL = 150; // Distance between top-level subgraphs/nodes horizontally
+const CONTAINER_SEPARATION_VERTICAL = 180; // Distance between top-level subgraphs/nodes vertically
+
+// Nested subgraph spacing - controls spacing of child subgraphs within parents
+const NESTED_SUBGRAPH_SEPARATION_HORIZONTAL = 120; // Distance between sibling subgraphs (increased)
+const NESTED_SUBGRAPH_SEPARATION_VERTICAL = 140; // Distance between nested subgraph ranks (increased)
+
+// Margin constants for different layout contexts
+const META_GRAPH_MARGIN = 100; // Outer margin for the entire diagram
+const NESTED_CONTENT_MARGIN = 40; // Margin around content within nested subgraphs (increased)
+const MIXED_CONTENT_VERTICAL_SPACING = 100; // Extra spacing between nodes and nested subgraphs in same parent (increased)
+const MIXED_CONTENT_HORIZONTAL_SPACING = 120; // Extra spacing when laying out children beside nodes (LR/RL)
 const DAGRE_RANKER: 'network-simplex' | 'tight-tree' | 'longest-path' = 'tight-tree';
 const DEBUG = true; // Set to true to enable debug logging
  
@@ -93,7 +113,7 @@ function getNodeShape(nodeDefinition: string): string {
 
 // Update the parseMermaidCode function to handle subgraph connections
 
-function parseMermaidCode(code: string): {
+export function parseMermaidCode(code: string): {
   nodes: MermaidNode[];
   edges: MermaidEdge[];
   subgraphs: SubgraphInfo[];
@@ -112,11 +132,53 @@ function parseMermaidCode(code: string): {
   let direction = "TB";
 
   // Remove comments and clean up the code
-  const cleanCode = code
+  let cleanCode = code
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("%%"))
     .join("\n");
+
+  // Pre-process to fix multi-line node definitions
+  // This handles cases where labels are split across lines like:
+  // AI["Transactions Database
+  // (MySQL)"]
+  const preprocessedLines: string[] = [];
+  const rawLines = cleanCode.split("\n");
+  let i = 0;
+  
+  while (i < rawLines.length) {
+    const line = rawLines[i].trim();
+    
+    // Check if this line has an unclosed bracket (indicating a multi-line definition)
+    const openBrackets = (line.match(/[\[\(\{]/g) || []).length;
+    const closeBrackets = (line.match(/[\]\)\}]/g) || []).length;
+    
+    if (openBrackets > closeBrackets && i < rawLines.length - 1) {
+      // This line has unclosed brackets, try to find the closing line
+      let combinedLine = line;
+      let j = i + 1;
+      let currentOpenBrackets = openBrackets;
+      let currentCloseBrackets = closeBrackets;
+      
+      while (j < rawLines.length && currentOpenBrackets > currentCloseBrackets) {
+        const nextLine = rawLines[j].trim();
+        combinedLine += " " + nextLine;
+        
+        currentOpenBrackets += (nextLine.match(/[\[\(\{]/g) || []).length;
+        currentCloseBrackets += (nextLine.match(/[\]\)\}]/g) || []).length;
+        j++;
+      }
+      
+      preprocessedLines.push(combinedLine);
+      i = j; // Skip the lines we just combined
+    } else {
+      preprocessedLines.push(line);
+      i++;
+    }
+  }
+  
+  // Update cleanCode with preprocessed lines
+  cleanCode = preprocessedLines.join("\n");
 
   debugLog("Clean code:", cleanCode);
 
@@ -146,6 +208,7 @@ function parseMermaidCode(code: string): {
         }
       })
       .replace(/\\n/g, "\n")
+      .replace(/\s*\n\s*/g, "\n") // Normalize line breaks and remove extra whitespace
       .trim();
   }
 
@@ -155,46 +218,73 @@ function parseMermaidCode(code: string): {
     const trimmedLine = line.trim();
     if (!trimmedLine || trimmedLine.startsWith("subgraph") || trimmedLine === "end" || trimmedLine.startsWith("%%")) return;
 
-    // Safer node definition scanner: find identifier + opening bracket, then
-    // locate the corresponding closing bracket using indexOf. This avoids
-    // premature matches when labels contain other bracket characters (e.g.
-    // parentheses inside square-bracket labels).
-    const nodeIdOpenPattern = /([A-Za-z0-9_]+)([\[\(\{])/g;
+    // Improved node definition scanner: match complete node definitions
+    // Look for node definitions that appear at word boundaries or after arrows/spaces
+    // This prevents matching letters within labels
+    const nodeDefPattern = /(^|[\s\-\>]|\|[^|]*\|)([A-Za-z0-9_]+)([\[\(\{])/g;
     let match;
-    while ((match = nodeIdOpenPattern.exec(trimmedLine)) !== null) {
-      const nodeId = match[1];
-      if (nodeDefinitions.has(nodeId)) continue;
+    const processedMatches = new Set(); // Track processed positions to avoid duplicates
+    
+    while ((match = nodeDefPattern.exec(trimmedLine)) !== null) {
+      const prefix = match[1];
+      const nodeId = match[2];
+      const openChar = match[3];
+      const matchStart = match.index + prefix.length; // Start of node ID
+      
+      // Skip if we already processed this position or if node already exists
+      if (processedMatches.has(matchStart) || nodeDefinitions.has(nodeId)) continue;
+      processedMatches.add(matchStart);
 
-      const openChar = match[2];
-      const openIndex = match.index + nodeId.length; // position of opening bracket
+      const openIndex = matchStart + nodeId.length; // position of opening bracket
       const closeChar = openChar === '[' ? ']' : openChar === '(' ? ')' : '}';
 
-      // Find the first closing char after the opening bracket
-      const closeIndex = trimmedLine.indexOf(closeChar, openIndex + 1);
+      // Find the matching closing bracket, considering nesting
+      let closeIndex = -1;
+      let depth = 0;
+      for (let i = openIndex; i < trimmedLine.length; i++) {
+        const char = trimmedLine[i];
+        if (char === openChar) {
+          depth++;
+        } else if (char === closeChar) {
+          depth--;
+          if (depth === 0) {
+            closeIndex = i;
+            break;
+          }
+        }
+      }
 
       let fullDef = nodeId;
       let shapeDef = '';
       if (closeIndex !== -1) {
-        fullDef = trimmedLine.slice(match.index, closeIndex + 1);
+        fullDef = trimmedLine.slice(matchStart, closeIndex + 1);
         shapeDef = trimmedLine.slice(openIndex, closeIndex + 1);
       } else {
-        // Fallback to older regex if we couldn't find a matching close
-        const fallback = trimmedLine.slice(match.index).match(/([\[\(\{][^\]\)\}]*[\]\)\}])/);
-        if (fallback) {
-          fullDef = nodeId + fallback[0];
-          shapeDef = fallback[0];
+        // Fallback: try to find any bracket sequence starting from our position
+        const remainingLine = trimmedLine.slice(matchStart);
+        const fallback = remainingLine.match(/([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/);
+        if (fallback && fallback[1] === nodeId) {
+          fullDef = fallback[0];
+          shapeDef = fallback[2];
         }
       }
 
-      const shape = getNodeShape(fullDef);
+      // Only process if we have a valid shape definition
+      if (shapeDef) {
+        const shape = getNodeShape(fullDef);
 
-      let rawLabel = nodeId;
-      const labelContentMatch = shapeDef.match(/^[\[\(\{](.*)[\]\)\}]$/);
-      if (labelContentMatch) rawLabel = labelContentMatch[1];
+        let rawLabel = nodeId;
+        const labelContentMatch = shapeDef.match(/^[\[\(\{](.*)[\]\)\}]$/s);
+        if (labelContentMatch) {
+          rawLabel = labelContentMatch[1];
+          // Strip surrounding quotes if present
+          rawLabel = rawLabel.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+        }
 
-      const label = enhancedCleanLabel(rawLabel);
-      nodeDefinitions.set(nodeId, { label, shape, fullDef });
-      debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
+        const label = enhancedCleanLabel(rawLabel);
+        nodeDefinitions.set(nodeId, { label, shape, fullDef });
+        debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
+      }
     }
   });
 
@@ -807,15 +897,17 @@ function layoutSubgraphs(
       `Laying out subgraph: ${subgraph.id} with ${subgraphNodes.length} nodes and ${subgraphEdges.length} edges`
     );
 
-    // Create a new graph for this subgraph
+    // Create a new graph for this subgraph with proper node spacing
     const g = new dagre.graphlib.Graph();
     g.setGraph({
       rankdir: direction,
-      nodesep: 40,
-      ranksep: 60,
+      // Node separation settings - ensure minimum distance between nodes
+      nodesep: NODE_SEPARATION_HORIZONTAL, // Horizontal spacing between nodes in same rank
+      ranksep: NODE_SEPARATION_VERTICAL,   // Vertical spacing between different ranks
+      // Margins - space around the entire subgraph content area
       marginx: SUBGRAPH_PADDING,
-      marginy: SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT,
-      ranker: DAGRE_RANKER,
+      marginy: SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN,
+      ranker: DAGRE_RANKER, // Algorithm for ranking nodes (tight-tree gives compact layouts)
     });
     g.setDefaultEdgeLabel(() => ({}));
 
@@ -844,6 +936,9 @@ function layoutSubgraphs(
       { x: number; y: number; width: number; height: number }
     >();
 
+    // Transform dagre coordinates to React Flow coordinates
+    // Dagre gives us center-based coordinates, but we need to track bounding boxes
+    // for proper subgraph sizing and relative positioning
     subgraphNodes.forEach((node) => {
       const nodeLayout = g.node(node.id);
       if (!nodeLayout) {
@@ -855,6 +950,7 @@ function layoutSubgraphs(
 
       const size = calculateNodeSize(node.label, node.shape);
 
+      // Store center-based coordinates from dagre (will be converted to top-left later)
       nodePositions.set(node.id, {
         x: nodeLayout.x,
         y: nodeLayout.y,
@@ -862,6 +958,8 @@ function layoutSubgraphs(
         height: size.height,
       });
 
+      // Calculate bounding box for subgraph sizing
+      // Note: dagre coordinates are center-based, so we calculate edges
       minX = Math.min(minX, nodeLayout.x - size.width / 2);
       maxX = Math.max(maxX, nodeLayout.x + size.width / 2);
       minY = Math.min(minY, nodeLayout.y - size.height / 2);
@@ -882,21 +980,28 @@ function layoutSubgraphs(
       );
     }
 
-    // Normalize positions to start from (0, 0) with header space
+    // Normalize positions for React Flow coordinate system
+    // React Flow expects top-left coordinates, but dagre gives center coordinates
+    // We offset everything so the content starts at the proper position within the subgraph
     const offsetX = -minX + SUBGRAPH_PADDING;
-    const offsetY = -minY + SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT;
+    const offsetY = -minY + SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN;
 
+    // Convert center-based coordinates to top-left coordinates for React Flow
     nodePositions.forEach((pos, nodeId) => {
       nodePositions.set(nodeId, {
         ...pos,
+        // Apply offset and convert from center to top-left
         x: pos.x + offsetX,
         y: pos.y + offsetY,
       });
     });
 
-    // Calculate base size from actual content
+    // Validate that nodes have adequate spacing (helps debug layout issues)
+    validateNodeSpacing(nodePositions, subgraph.id);
+
+    // Calculate base size from actual content including header and content margin
     const baseWidth = maxX - minX + SUBGRAPH_PADDING * 2;
-    const baseHeight = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT;
+    const baseHeight = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN;
 
     // Use only a small fixed buffer for width/height (no multipliers)
     const width = baseWidth + 10; // Small buffer
@@ -917,15 +1022,17 @@ function layoutSubgraphs(
   });
 
   // Recalculate parent subgraph sizes to accommodate nested subgraphs
-  recalculateParentSubgraphSizes(subgraphLayouts, orderedSubgraphs);
+  recalculateParentSubgraphSizes(subgraphLayouts, orderedSubgraphs, direction);
 
   return subgraphLayouts;
 }
 
 // Recalculate parent subgraph sizes to include nested subgraphs
+// This runs AFTER child positioning to ensure accurate sizing
 function recalculateParentSubgraphSizes(
   subgraphLayouts: Map<string, SubgraphLayout>,
-  orderedSubgraphs: SubgraphInfo[]
+  orderedSubgraphs: SubgraphInfo[],
+  direction: string
 ) {
   // Process in reverse order (children first, then parents)
   for (let i = orderedSubgraphs.length - 1; i >= 0; i--) {
@@ -939,43 +1046,69 @@ function recalculateParentSubgraphSizes(
     
     if (childSubgraphs.length === 0) continue;
 
-    // Calculate the minimum required size to contain all child subgraphs
-    let maxChildRight = 0;
-    let maxChildBottom = 0;
+  // Calculate the minimum required size based on actual content
+  let maxContentRight = 0;
+  let maxContentBottom = 0;
 
+    // Consider existing nodes in the parent
+    layout.nodes.forEach((nodePos) => {
+      const nodeRight = nodePos.x + nodePos.width / 2;
+      const nodeBottom = nodePos.y + nodePos.height / 2;
+      maxContentRight = Math.max(maxContentRight, nodeRight);
+      maxContentBottom = Math.max(maxContentBottom, nodeBottom);
+    });
+
+    const isHorizontal = direction === 'LR' || direction === 'RL';
+
+    // Consider child subgraphs (they will be positioned with proper spacing)
     childSubgraphs.forEach(childSg => {
       const childLayout = subgraphLayouts.get(childSg.id);
       if (childLayout) {
-        // Child will be positioned at SUBGRAPH_PADDING from left/top
-        const childRight = SUBGRAPH_PADDING + childLayout.width;
-        const childBottom = SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_PADDING + childLayout.height;
-        
-        maxChildRight = Math.max(maxChildRight, childRight);
-        maxChildBottom = Math.max(maxChildBottom, childBottom);
+        // Estimate child position accounting for dagre spacing and mixed content
+        const estimatedChildX = isHorizontal
+          ? Math.max(
+              SUBGRAPH_PADDING + childLayout.width / 2,
+              maxContentRight + MIXED_CONTENT_HORIZONTAL_SPACING + childLayout.width / 2
+            )
+          : SUBGRAPH_PADDING + childLayout.width / 2;
+        const estimatedChildY = isHorizontal
+          ? Math.max(
+              SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING + childLayout.height / 2,
+              childLayout.height / 2 // keep near top content area when horizontal
+            )
+          : Math.max(
+              SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING + childLayout.height / 2,
+              maxContentBottom + MIXED_CONTENT_VERTICAL_SPACING + childLayout.height / 2
+            );
+
+        const childRight = estimatedChildX + childLayout.width / 2;
+        const childBottom = estimatedChildY + childLayout.height / 2;
+
+        maxContentRight = Math.max(maxContentRight, childRight);
+        maxContentBottom = Math.max(maxContentBottom, childBottom);
       }
     });
 
-    // Calculate minimum required parent size based on child content + generous additional space
-    const baseRequiredWidth = maxChildRight + SUBGRAPH_PADDING;
-    const baseRequiredHeight = maxChildBottom + SUBGRAPH_PADDING;
+    // Calculate minimum required parent size with generous padding
+  const minRequiredWidth = maxContentRight + SUBGRAPH_PADDING * 3; // Extra padding for visual breathing room
+  const minRequiredHeight = maxContentBottom + SUBGRAPH_PADDING * 3;
     
-    // Add content-based additional space (not multipliers)
-    const additionalWidthForChildren = Math.max(80, baseRequiredWidth * 0.3); // Add 30% more, min 80px
-    const additionalHeightForChildren = Math.max(60, baseRequiredHeight * 0.3); // Add 30% more, min 60px
+    // Ensure minimum size for readability
+    const absoluteMinWidth = 300;
+    const absoluteMinHeight = 200;
     
-    const minRequiredWidth = baseRequiredWidth + additionalWidthForChildren;
-    const minRequiredHeight = baseRequiredHeight + additionalHeightForChildren;
+    const finalWidth = Math.max(layout.width, minRequiredWidth, absoluteMinWidth);
+    const finalHeight = Math.max(layout.height, minRequiredHeight, absoluteMinHeight);
 
     // Update parent size if it needs to be larger
-    const needsUpdate = minRequiredWidth > layout.width || minRequiredHeight > layout.height;
-    
-    if (needsUpdate) {
-      // Use the larger of current size or required size, with generous buffer
-      layout.width = Math.max(layout.width, minRequiredWidth);
-      layout.height = Math.max(layout.height, minRequiredHeight);
+    if (finalWidth > layout.width || finalHeight > layout.height) {
+      const oldWidth = layout.width;
+      const oldHeight = layout.height;
+      layout.width = finalWidth;
+      layout.height = finalHeight;
       
       debugLog(
-        `Updated subgraph ${subgraph.id} size to accommodate nested subgraphs: width=${layout.width}, height=${layout.height} (was too small for ${childSubgraphs.length} children)`
+        `Pre-sized parent ${subgraph.id}: ${oldWidth}x${oldHeight} → ${layout.width}x${layout.height} to contain ${childSubgraphs.length} children + nodes`
       );
       
       // Also log the child details for debugging
@@ -1022,6 +1155,127 @@ function calculateConnectionWeights(
   return weights;
 }
 
+// Post-positioning size adjustment: ensure parent containers properly contain all positioned children
+function adjustParentSizesAfterPositioning(
+  subgraphLayouts: Map<string, SubgraphLayout>,
+  subgraphPositions: Map<string, { x: number; y: number }>,
+  orderedSubgraphs: SubgraphInfo[],
+  direction: string
+): void {
+  const isHorizontal = direction === 'LR' || direction === 'RL';
+
+  // Iterate a few times to propagate size growth up through ancestors
+  let changed = true;
+  let iterations = 0;
+  while (changed && iterations < 5) {
+    iterations++;
+    changed = false;
+
+    // Process parents ensuring they contain both own nodes and positioned children
+    orderedSubgraphs.forEach((subgraph) => {
+      const layout = subgraphLayouts.get(subgraph.id);
+      const position = subgraphPositions.get(subgraph.id);
+      if (!layout || !position) return;
+
+      // Bounds from this parent's own nodes (relative to parent origin)
+      let maxNodeRight = 0;
+      let maxNodeBottom = SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING; // at least header zone
+      layout.nodes.forEach((nodePos) => {
+        const nodeRight = nodePos.x + nodePos.width / 2;
+        const nodeBottom = nodePos.y + nodePos.height / 2;
+        maxNodeRight = Math.max(maxNodeRight, nodeRight);
+        maxNodeBottom = Math.max(maxNodeBottom, nodeBottom);
+      });
+
+      // Bounds from child subgraphs (direct children only)
+      let maxChildRight = 0;
+      let maxChildBottom = 0;
+      const childSubgraphs = orderedSubgraphs.filter((sg) => sg.parentId === subgraph.id);
+      childSubgraphs.forEach((child) => {
+        const childLayout = subgraphLayouts.get(child.id);
+        const childPosition = subgraphPositions.get(child.id);
+        if (!childLayout || !childPosition) return;
+        const relX = childPosition.x - position.x;
+        const relY = childPosition.y - position.y;
+        maxChildRight = Math.max(maxChildRight, relX + childLayout.width);
+        maxChildBottom = Math.max(maxChildBottom, relY + childLayout.height);
+      });
+
+      // Combine bounds
+      const contentMaxRight = Math.max(maxNodeRight, maxChildRight);
+      const contentMaxBottom = Math.max(maxNodeBottom, maxChildBottom);
+
+      // Required dimensions with safety margins
+      const requiredWidth = contentMaxRight + (isHorizontal ? SUBGRAPH_PADDING * 4 : SUBGRAPH_PADDING * 3);
+      const requiredHeight = contentMaxBottom + SUBGRAPH_PADDING * 3;
+
+      const newWidth = Math.max(layout.width, requiredWidth, isHorizontal ? 600 : 300);
+      const newHeight = Math.max(layout.height, requiredHeight, 200);
+
+      if (newWidth > layout.width || newHeight > layout.height) {
+        debugLog(
+          `Post-positioning resize (iter ${iterations}): ${subgraph.id} ${layout.width}x${layout.height} → ${newWidth}x${newHeight}`
+        );
+        layout.width = newWidth;
+        layout.height = newHeight;
+        changed = true;
+      }
+    });
+  }
+}
+
+// Helper function to calculate the bottom boundary of nodes within a parent subgraph
+function getParentNodesBottomBoundary(
+  parentId: string, 
+  parentLayout: SubgraphLayout
+): number {
+  let maxBottom = 0;
+  
+  // Check all nodes that belong directly to this parent subgraph
+  parentLayout.nodes.forEach((nodePos) => {
+    // nodePos contains center-based coordinates and dimensions
+    const nodeBottom = nodePos.y + nodePos.height / 2;
+    maxBottom = Math.max(maxBottom, nodeBottom);
+  });
+  
+  debugLog(`Parent ${parentId} nodes extend to bottom Y=${maxBottom}`);
+  return maxBottom;
+}
+
+// Validate and enforce minimum spacing between nodes
+function validateNodeSpacing(
+  nodePositions: Map<string, { x: number; y: number; width: number; height: number }>,
+  subgraphId: string
+): void {
+  const positions = Array.from(nodePositions.values());
+  let hasOverlap = false;
+
+  // Check for overlapping nodes
+  for (let i = 0; i < positions.length; i++) {
+    for (let j = i + 1; j < positions.length; j++) {
+      const node1 = positions[i];
+      const node2 = positions[j];
+      
+      // Calculate distance between node centers
+      const centerDistance = Math.sqrt(
+        Math.pow(node1.x - node2.x, 2) + Math.pow(node1.y - node2.y, 2)
+      );
+      
+      // Calculate minimum required distance (sum of half-widths + half-heights + padding)
+      const minDistance = (node1.width + node2.width) / 2 + (node1.height + node2.height) / 2 + 20;
+      
+      if (centerDistance < minDistance) {
+        hasOverlap = true;
+        debugLog(`Warning: Potential node overlap in subgraph ${subgraphId} - distance: ${centerDistance.toFixed(1)}, required: ${minDistance.toFixed(1)}`);
+      }
+    }
+  }
+  
+  if (!hasOverlap) {
+    debugLog(`✓ Node spacing validated for subgraph ${subgraphId} - no overlaps detected`);
+  }
+}
+
 // Phase 2: Layout meta-graph (containers + standalone nodes)
 function layoutMetaGraph(
   nodes: MermaidNode[],
@@ -1032,14 +1286,17 @@ function layoutMetaGraph(
   subgraphPositions: Map<string, { x: number; y: number }>;
   standalonePositions: Map<string, { x: number; y: number }>;
 } {
+  // Create meta-graph for top-level layout with generous spacing
   const g = new dagre.graphlib.Graph();
   g.setGraph({
     rankdir: direction,
-    nodesep: 80,
-    ranksep: 100,
-    marginx: 50,
-    marginy: 50,
-    ranker: DAGRE_RANKER,
+    // Container separation - ensure top-level elements don't overlap
+    nodesep: CONTAINER_SEPARATION_HORIZONTAL,  // Horizontal spacing between top-level containers
+    ranksep: CONTAINER_SEPARATION_VERTICAL,   // Vertical spacing between container ranks
+    // Outer margins for the entire diagram
+    marginx: META_GRAPH_MARGIN,   
+    marginy: META_GRAPH_MARGIN,
+    ranker: DAGRE_RANKER, // Use tight-tree for better container arrangement
   });
   g.setDefaultEdgeLabel(() => ({}));
 
@@ -1127,39 +1384,192 @@ function layoutMetaGraph(
     }
   });
 
-  // Position nested subgraphs relative to their parents
+  // Dagre-based positioning for nested subgraphs within each parent container
   const processedSubgraphs = new Set<string>();
 
-  // Position nested subgraphs relative to their parents
-  function positionNestedSubgraphs() {
-    let progress = false;
+  function layoutChildrenWithinParent(parentId: string): boolean {
+    const parentPos = subgraphPositions.get(parentId);
+    const parentLayout = subgraphLayouts.get(parentId);
+    if (!parentPos || !parentLayout) return false;
 
+    // Collect direct child subgraphs
+    const childIds: string[] = [];
     subgraphLayouts.forEach((layout, id) => {
-      if (!processedSubgraphs.has(id) && layout.parentId) {
-        const parentPos = subgraphPositions.get(layout.parentId);
-        const parentLayout = subgraphLayouts.get(layout.parentId);
+      if (layout.parentId === parentId) childIds.push(id);
+    });
 
-        if (parentPos && parentLayout) {
-          // Position inside parent with some padding
-          const x = parentPos.x + SUBGRAPH_PADDING;
-          const y = parentPos.y + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_PADDING;
+    if (childIds.length === 0) return false;
 
-          subgraphPositions.set(id, { x, y });
-          processedSubgraphs.add(id);
-          progress = true;
+    // CRITICAL FIX: Calculate the occupied space by existing nodes in the parent
+    // This prevents nested subgraphs from overlapping with parent's direct nodes
+    let maxNodeBottom = 0;
+    const parentNodesBottom = getParentNodesBottomBoundary(parentId, parentLayout);
+    if (parentNodesBottom > 0) {
+      maxNodeBottom = parentNodesBottom;
+      debugLog(`Parent ${parentId} has nodes extending to Y=${maxNodeBottom}, will position child subgraphs below this`);
+    }
 
-          debugLog(
-            `Positioned nested subgraph ${id} at (${x}, ${y}) relative to parent ${layout.parentId}`
-          );
+  // Build a dagre graph for child subgraphs with proper nested spacing
+    const cg = new dagre.graphlib.Graph();
+    cg.setGraph({
+      rankdir: direction,
+      // Nested subgraph separation - spacing between sibling subgraphs within parent
+      nodesep: NESTED_SUBGRAPH_SEPARATION_HORIZONTAL,   // Horizontal spacing between sibling subgraphs
+      ranksep: NESTED_SUBGRAPH_SEPARATION_VERTICAL,     // Vertical spacing between subgraph ranks
+      // Margins within parent content area
+      marginx: NESTED_CONTENT_MARGIN,  
+      marginy: NESTED_CONTENT_MARGIN,
+      ranker: DAGRE_RANKER, // Consistent ranking algorithm
+    });
+    cg.setDefaultEdgeLabel(() => ({}));
+
+    // Add child subgraphs as nodes with their sizes
+    childIds.forEach((cid) => {
+      const cl = subgraphLayouts.get(cid)!;
+      cg.setNode(cid, { width: cl.width, height: cl.height });
+    });
+
+    // Add edges between children based on connection weights in the full graph
+    // Only include edges where both source and target are in childIds
+    let hasEdges = false;
+    childIds.forEach((sourceId) => {
+      const targets = connectionWeights.get(sourceId);
+      if (!targets) return;
+      targets.forEach((weight, targetId) => {
+        if (childIds.includes(targetId) && !cg.hasEdge(sourceId, targetId)) {
+          cg.setEdge(sourceId, targetId, { weight });
+          hasEdges = true;
+        }
+      });
+    });
+
+    // If there are no inter-child edges, create a simple flow layout
+    if (!hasEdges && childIds.length > 1) {
+      // Create a simple chain to spread them out better
+      for (let i = 0; i < childIds.length - 1; i++) {
+        cg.setEdge(childIds[i], childIds[i + 1], { weight: 1 });
+      }
+    }
+
+    dagre.layout(cg);
+
+    // Compute bounding box of children from dagre positions
+    let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+    const childTopLefts = new Map<string, { x: number; y: number }>();
+
+    childIds.forEach((cid) => {
+      const n = cg.node(cid);
+      const cl = subgraphLayouts.get(cid)!;
+      const left = n.x - cl.width / 2;
+      const top = n.y - cl.height / 2;
+      const right = n.x + cl.width / 2;
+      const bottom = n.y + cl.height / 2;
+      childTopLefts.set(cid, { x: left, y: top });
+      minLeft = Math.min(minLeft, left);
+      minTop = Math.min(minTop, top);
+      maxRight = Math.max(maxRight, right);
+      maxBottom = Math.max(maxBottom, bottom);
+    });
+
+  // Origin inside parent content area (absolute coords) - below header with content margin
+  let contentOriginX = parentPos.x + SUBGRAPH_PADDING;
+  let contentOriginY = parentPos.y + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING;
+
+    // CRITICAL: If parent has nodes, position child subgraphs below them with adequate spacing
+    const isHorizontal = direction === 'LR' || direction === 'RL';
+    if (isHorizontal) {
+      // In horizontal flow, keep children near the top content band and shift X if parent has wide nodes
+      const parentNodesMaxRight = Array.from(parentLayout.nodes.values()).reduce((acc, n) => Math.max(acc, n.x + n.width / 2), 0);
+      if (parentNodesMaxRight > 0) {
+        const proposedX = parentPos.x + Math.max(SUBGRAPH_PADDING, parentNodesMaxRight + MIXED_CONTENT_HORIZONTAL_SPACING);
+        contentOriginX = Math.max(contentOriginX, proposedX);
+        debugLog(`Adjusted child subgraph start position to X=${contentOriginX} for LR/RL to avoid parent nodes`);
+      }
+      // Keep Y anchored at content start for LR/RL to avoid growing height unnecessarily
+    } else {
+      if (maxNodeBottom > 0) {
+        const nodeBottomInParentCoords = maxNodeBottom;
+        const proposedY = parentPos.y + nodeBottomInParentCoords + MIXED_CONTENT_VERTICAL_SPACING;
+        // Use the lower of the two positions (either normal content start or below existing nodes)
+        contentOriginY = Math.max(contentOriginY, proposedY);
+        debugLog(`Adjusted child subgraph start position to Y=${contentOriginY} to avoid parent nodes (added ${MIXED_CONTENT_VERTICAL_SPACING}px spacing)`);
+      }
+    }
+
+    // Calculate the available space in the parent for centering (accounting for header + content margin)
+  const availableWidth = parentLayout.width - (SUBGRAPH_PADDING * 2);
+  const usedVerticalSpace = contentOriginY - parentPos.y;
+  const availableHeight = parentLayout.height - usedVerticalSpace - SUBGRAPH_PADDING;
+    
+    // Calculate the actual content dimensions
+    const contentWidth = maxRight - minLeft;
+    const contentHeight = maxBottom - minTop;
+    
+    // Center the children's bounding box within the available parent space
+  const centerOffsetX = Math.max(0, (availableWidth - contentWidth) / 2);
+  const centerOffsetY = isHorizontal ? 0 : Math.max(0, (availableHeight - contentHeight) / 2);
+
+    // Position children with centering offset
+    childIds.forEach((cid) => {
+      const tl = childTopLefts.get(cid)!;
+      const absX = contentOriginX + centerOffsetX + (tl.x - minLeft);
+      const absY = contentOriginY + centerOffsetY + (tl.y - minTop);
+      subgraphPositions.set(cid, { x: absX, y: absY });
+      processedSubgraphs.add(cid);
+      debugLog(`Positioned nested subgraph "${cid}" within parent ${parentId} at (${absX}, ${absY}) with centering`);
+    });
+
+    // Ensure parent is large enough to contain both existing nodes and the centered children
+    // Use generous padding to prevent overflow issues
+    const requiredWidth = isHorizontal
+      ? Math.max(contentWidth + SUBGRAPH_PADDING * 6, (contentOriginX - parentPos.x) + contentWidth + SUBGRAPH_PADDING * 3)
+      : contentWidth + (SUBGRAPH_PADDING * 6); // Extra generous padding for centering and overflow prevention
+
+    // Calculate required height considering both node content and child subgraphs
+    const childrenBottomBoundary = contentOriginY + centerOffsetY + (maxBottom - minTop) - parentPos.y;
+    const minRequiredHeight = isHorizontal
+      ? Math.max(SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING * 2 + contentHeight + SUBGRAPH_PADDING * 2, 300)
+      : Math.max(
+          childrenBottomBoundary + SUBGRAPH_PADDING * 4, // Height to fit positioned children with safety margin
+          maxNodeBottom + MIXED_CONTENT_VERTICAL_SPACING + contentHeight + SUBGRAPH_PADDING * 4 // Height for nodes + spacing + children with safety margin
+        );
+
+    // Apply minimum dimensions to prevent cramped layouts
+    const finalRequiredWidth = Math.max(requiredWidth, isHorizontal ? 600 : 400); // Wider min for LR/RL
+    const finalRequiredHeight = Math.max(minRequiredHeight, 300); // Minimum height for readability
+    
+    if (finalRequiredWidth > parentLayout.width || finalRequiredHeight > parentLayout.height) {
+      const oldWidth = parentLayout.width;
+      const oldHeight = parentLayout.height;
+      parentLayout.width = Math.max(parentLayout.width, finalRequiredWidth);
+      parentLayout.height = Math.max(parentLayout.height, finalRequiredHeight);
+      debugLog(`Expanded parent ${parentId} from ${oldWidth}x${oldHeight} to ${parentLayout.width}x${parentLayout.height} to fit nodes + ${childIds.length} child subgraphs (overflow-safe)`);
+    }
+
+    return true;
+  }
+
+  // Process parents in waves from top-level down until all nested are positioned
+  const processedParents = new Set<string>();
+  let madeProgress = true;
+  let safetyCounter = 0;
+  while (madeProgress && safetyCounter < 100) {
+    safetyCounter++;
+    madeProgress = false;
+    // For each subgraph that already has an absolute position, try to lay out its direct children once
+    subgraphLayouts.forEach((_, id) => {
+      if (subgraphPositions.has(id) && !processedParents.has(id)) {
+        const progressed = layoutChildrenWithinParent(id);
+        if (progressed) {
+          madeProgress = true;
+          processedParents.add(id);
         }
       }
     });
-
-    return progress;
   }
-
-  // Keep positioning nested subgraphs until no more progress is made
-  while (positionNestedSubgraphs()) {}
+  if (safetyCounter === 100) {
+    debugLog("Warning: nested subgraph layout reached iteration cap; potential cyclic dependency");
+  }
 
   // Position standalone nodes
   standaloneNodes.forEach((node) => {
@@ -1241,10 +1651,25 @@ function createReactFlowElements(
     if (layout && position) {
       const colors = getSubgraphColors(index);
 
+      // React Flow expects child positions to be RELATIVE to their parent.
+      // Our layoutMetaGraph currently stores ABSOLUTE positions for all subgraphs.
+      // Convert to relative coordinates for nested subgraphs so they render in place
+      // immediately (without requiring a drag to reflow).
+      let finalPosition = position;
+      if (layout.parentId) {
+        const parentAbsPos = subgraphPositions.get(layout.parentId);
+        if (parentAbsPos) {
+          finalPosition = {
+            x: position.x - parentAbsPos.x,
+            y: position.y - parentAbsPos.y,
+          };
+        }
+      }
+
       reactFlowNodes.push({
         id: `subgraph-${subgraph.id}`,
         type: "group",
-        position: position,
+        position: finalPosition,
         data: {
           label: subgraph.title,
           isSubgraph: true,
@@ -1309,30 +1734,38 @@ function createReactFlowElements(
         break;
     }
 
+    // Calculate node position based on whether it's in a subgraph or standalone
     let position: { x: number; y: number };
     let parentNode: string | undefined;
 
     if (node.subgraph) {
-      // Node is inside a subgraph
+      // Node positioning within a subgraph
       const subgraphLayout = subgraphLayouts.get(node.subgraph);
       const subgraphPosition = subgraphPositions.get(node.subgraph);
       const nodeLayout = subgraphLayout?.nodes.get(node.id);
 
       if (nodeLayout && subgraphPosition) {
-        // Position relative to the subgraph container (not global coordinates)
-        // The nodeLayout positions are already relative within the subgraph
+        // CRITICAL: React Flow expects positions relative to parent group
+        // nodeLayout coordinates are already positioned relative to subgraph (0,0)
+        // We convert from center-based to top-left coordinates for React Flow
         position = {
-          x: nodeLayout.x - nodeLayout.width / 2,
-          y: nodeLayout.y - nodeLayout.height / 2,
+          x: nodeLayout.x - nodeLayout.width / 2,  // Convert center-x to top-left-x
+          y: nodeLayout.y - nodeLayout.height / 2, // Convert center-y to top-left-y
         };
         parentNode = `subgraph-${node.subgraph}`;
+        
+        debugLog(`Node ${node.id} positioned at (${position.x}, ${position.y}) within subgraph ${node.subgraph}`);
       } else {
+        // Fallback position if layout data is missing
         position = { x: 0, y: 0 };
+        debugLog(`Warning: Missing layout data for node ${node.id} in subgraph ${node.subgraph}`);
       }
     } else {
-      // Standalone node
+      // Standalone node positioning (global coordinates)
       const standalonePos = standalonePositions.get(node.id);
       position = standalonePos || { x: 0, y: 0 };
+      
+      debugLog(`Standalone node ${node.id} positioned at (${position.x}, ${position.y})`);
     }
 
   // Source/Target handle preference by layout direction
@@ -1460,6 +1893,10 @@ function layoutGraph(
     subgraphLayouts,
     direction
   );
+
+  // Phase 2.5: Post-positioning adjustment - ensure parent containers properly contain positioned children
+  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
+  adjustParentSizesAfterPositioning(subgraphLayouts, subgraphPositions, orderedSubgraphs, direction);
 
   // Phase 3: Combine layouts and create React Flow elements
   return createReactFlowElements(
