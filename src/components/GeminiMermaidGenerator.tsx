@@ -9,16 +9,21 @@ interface Props {
   onStop?: () => void;
 }
 
-const MERMAID_SYSTEM_PROMPT = `You are a Mermaid diagram expert. STRICTLY output ONLY Mermaid diagram code. Do NOT provide any explanations, commentary, or markdown outside the code.
+const MERMAID_SYSTEM_PROMPT = `You are a Mermaid diagram expert. STRICTLY output ONLY raw Mermaid diagram source. Do NOT provide any explanations, commentary, or markdown outside the raw Mermaid text.
 
 Output rules (enforceable):
-- Prefer to wrap the Mermaid code with fenced block using \`\`\`mermaid ... \`\`\` if possible, otherwise output raw Mermaid text only.
-- Do NOT include any surrounding prose, headings, or markdown other than the optional code fence.
+ Output raw Mermaid source only. Do NOT wrap the Mermaid source in fenced code blocks (no triple-backtick code fences).
+- Do NOT include any surrounding prose, headings, or markdown.
 - Generate valid Mermaid syntax for the requested diagram type (flowchart, sequenceDiagram, classDiagram, stateDiagram, gantt, journey, erDiagram, gitGraph, etc.).
 - Use unique node IDs and descriptive labels.
 - Keep output concise: only the diagram source.
 
-If the user request is ambiguous, choose reasonable defaults but still output only Mermaid code.`;
+If the user request is ambiguous, choose reasonable defaults but still output only raw Mermaid code.
+
+NON-NEGOTIABLE RULES:
+- For every node definition, if the label contains parentheses, commas, colons, double quotes, or other punctuation that could break parsing, ALWAYS wrap the entire label in double quotes inside the node shape. Example: D["CDN (CloudFront)"]
+- Never emit unquoted labels when they contain parentheses. This must hold throughout the response, including later sections of longer diagrams.
+- Output raw Mermaid only (no fenced blocks, no extra prose).`;
 
 export default function LLMJSMermaidGenerator({
   onComplete,
@@ -97,17 +102,47 @@ export default function LLMJSMermaidGenerator({
     // is explicit and will be included as the user's prompt.
     const USER_PROMPT_TEMPLATE = [
       "Please follow these rules when generating Mermaid diagram source:",
-      "- STRICT: If a node label contains parentheses (e.g. (CloudFront)) or other special characters that could break parsing, ALWAYS wrap the entire label in double quotes. Example:",
+      "- NON-NEGOTIABLE: If a node label contains parentheses, commas, colons, double quotes, or other punctuation that may break Mermaid parsing, ALWAYS wrap the full label in double quotes inside the node brackets. Example:",
       "  - Wrong: D[CDN (CloudFront)]",
       "  - Correct: D[\"CDN (CloudFront)\"]",
-      "- If a label contains double quotes, escape them with a backslash (\\\"). Example: A[\"Name \\\\\\\"Inc\\\\\\\"\"]",
-      "- Do NOT emit any prose, commentary, or extra markdown — output only the Mermaid source. You may wrap the source in a ```mermaid fenced block but do not include any text outside it.",
-      "- Use unique node IDs and concise labels. If a label contains spaces, punctuation, parentheses, commas, or colons, prefer quoting the label.",
-      "- If the user text contains raw content that looks like a node label, preserve it but apply the quoting/escaping rules above.",
+      "- Escape any literal double quotes inside labels with a backslash (\\\"). Example: A[\"Name \\\"Inc\\\"\"]",
+      "- Do NOT emit prose, commentary, or extra markdown — output only the raw Mermaid source. Do NOT use fenced code blocks.",
+      "- Maintain these quoting rules consistently throughout long outputs; if you generate a label earlier correctly, do not later revert to unquoted labels.",
       "",
       "User request:",
       userInput,
     ].join("\n");
+
+    // Post-generation sanitizer: ensure node labels with parentheses are quoted.
+    function sanitizeMermaidLabels(src: string) {
+      if (!src) return src;
+      // Replace unquoted square-bracket node labels that contain parentheses or double quotes
+      const replaced = src.replace(/([A-Za-z0-9_]+)\[((?:(?!["']).)*?)\]/g, (m, id, label) => {
+        // If label already starts with a quote, leave it alone
+        if (/^["']/.test(label)) return m;
+        // If label contains parentheses, double quotes, or problematic punctuation, quote it
+        if (/[()"\[\],:;]/.test(label)) {
+          const esc = label.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
+          return `${id}["${esc}"]`;
+        }
+        return m;
+      });
+
+      // Also sanitize subgraph titles like: subgraph Frontend (Global)
+      const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)([^|\n\r]+)(\|[^\n\r]*)?$/gmi, (m, pre, title, rest) => {
+        let t = String(title).trim();
+        // If already quoted, leave alone
+        if (/^["']/.test(t)) return m;
+        // If title contains parentheses or other punctuation that may break parsing, quote it
+        if (/[()"\[\],:;]/.test(t)) {
+          const esc = t.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
+          return `${pre}\"${esc}\"${rest || ""}`;
+        }
+        return m;
+      });
+
+      return subgraphFixed;
+    }
 
     messages.push({ role: "user", content: USER_PROMPT_TEMPLATE });
 
@@ -223,7 +258,8 @@ export default function LLMJSMermaidGenerator({
       },
       (finalStr) => {
         const cleaned = finalStr.trim();
-        if (onComplete) onComplete(cleaned);
+        const sanitized = sanitizeMermaidLabels(cleaned);
+        if (onComplete) onComplete(sanitized);
       }
     );
 
@@ -258,7 +294,8 @@ export default function LLMJSMermaidGenerator({
           // Ensure parser finishes and emit final result
           parser.finish();
           const cleaned = (final || "").trim();
-          if (onComplete) onComplete(cleaned);
+          const sanitizedFinal = sanitizeMermaidLabels(cleaned);
+          if (onComplete) onComplete(sanitizedFinal);
           return;
         } catch (gErr) {
           console.error("[LLMJSMermaidGenerator] Google stream error:", gErr);
@@ -536,16 +573,8 @@ export default function LLMJSMermaidGenerator({
         </div>
       )}
 
-  {/* Response display removed - editor shows generated code instead */}
 
-      {/* Help Text */}
-      <div className="mt-2">
-        <small className="text-muted">
-          <i className="bi bi-info-circle me-1"></i>
-          Tip: Be specific about the type of diagram and include key elements
-          you want to visualize.
-        </small>
-      </div>
+  
     </div>
   );
 }
