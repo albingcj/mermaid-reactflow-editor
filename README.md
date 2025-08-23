@@ -6,7 +6,6 @@
 
  A small editor that converts Mermaid diagrams (from the built-in code editor) into interactive, editable React Flow diagrams.
 
- This README reflects the current, simplified workflow: the app uses a single code editor in the left sidebar as the source of truth (paste/type Mermaid code in the Editor). Markdown import and local persistence were removed in this branch.
 
 ## Quick links
 - Source: this repository
@@ -61,92 +60,164 @@ npm run dev
 3. Open the URL printed by Vite (usually http://localhost:5173)
 
 4. Upload a `.md` file or paste Mermaid code in the Input area. Select extracted diagrams and interact with the canvas.
+## Mermaid React Flow Editor
 
-Available scripts (from `package.json`):
+A minimal, code-first editor that converts Mermaid diagram source (entered in the built-in editor) into an interactive React Flow canvas that you can pan, zoom, edit, and export.
+
+This README has been updated to reflect the repository contents on the current branch. It omits previously removed features such as Markdown import flows and focuses on the code-first workflow: paste or type Mermaid code in the editor and the app converts it to editable React Flow nodes and edges.
+
+## Table of contents
+- [Overview](#overview)
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Scripts](#scripts)
+- [Project layout](#project-layout)
+- [Internals & behavior notes](#internals--behavior-notes)
+- [Exporting & limitations](#exporting--limitations)
+- [Development](#development)
+- [How to contribute](#how-to-contribute)
+- [Dependencies (from package.json)](#dependencies-from-packagejson)
+
+## Overview
+
+This project provides a small React + TypeScript application that:
+
+- Accepts Mermaid diagram source in a left-side editor (the editor is the single source of truth).
+- Parses the Mermaid code and converts supported elements into a React Flow graph (nodes, edges, groups/subgraphs).
+- Renders an interactive React Flow canvas where nodes and edges can be repositioned, edited, or deleted.
+- Provides utilities to save diagrams to browser storage, and to export the canvas to raster images (PNG).
+
+Note: some features present in other branches (Markdown file import, multiple-editor workflows) were removed on this branch; the README reflects the current simplified workflow.
+
+## Features
+
+- Code-first Mermaid editor (paste/type Mermaid source).
+- Conversion of common Mermaid flowchart constructs (nodes, edges, labels, subgraphs) into React Flow nodes/edges.
+- Support for subgraph grouping (mapped to React Flow group or custom nodes).
+- Interactive canvas: pan, zoom, drag, multi-select, and basic editing actions.
+- Custom node renderers for enhanced visuals (see `src/components/CustomNode.tsx`).
+- Editing toolbar with common actions (align, distribute, duplicate, lock/unlock, z-order).
+- Export to PNG via `html-to-image` (best-effort; see limitations below).
+- Local browser persistence helpers (save/load) — check `src/utils/diagramStorage.ts` for behavior.
+- An LLM-based Mermaid generator component exists (`src/components/GeminiMermaidGenerator.tsx`) that streams Mermaid source from LLMs (uses LLM.js / optional Google Gemini helper).
+
+- AI integrations & streaming rendering: the project includes an LLM-driven generator component that can stream Mermaid source incrementally into the editor and preview, enabling progressive rendering as the model emits tokens. The streaming implementation handles common streaming formats (async iterables, ReadableStream, and SSE-like payloads), sanitizes and extracts Mermaid code from partial output, and supports an optional Google Gemini streaming helper (`src/utils/geminiStream.ts`). See the dedicated section below for details.
+
+## Quick start
+
+Prerequisites: Node 18+ recommended, npm (or compatible client).
+
+1. Install dependencies
+
+```powershell
+npm install
+```
+
+2. Start the dev server (Vite)
+
+```powershell
+npm run dev
+```
+
+3. Open the URL printed by Vite (typically http://localhost:5173)
+
+4. Paste or type Mermaid code in the left-hand editor and interact with the canvas on the right.
+
+## Scripts
+
+These scripts are defined in `package.json`:
+
 - `dev` — start Vite dev server
-- (Markdown import removed in this branch)
-- `preview` — preview the production build
+- `build` — typecheck (tsc) and build the Vite production bundle
+- `preview` — preview the production build locally
+- `test` — run unit tests with Vitest (if tests are present)
 
-<a id="project-layout"></a>
+Run them with `npm run <script>`.
+
 ## Project layout (important files)
 
-- `index.html` — application host page
-- `src/main.tsx` — React entry
+- `index.html` — application host
+- `src/main.tsx` — React entry point
 - `src/App.tsx` — main application UI and state orchestration
-- `src/components/FlowDiagram.tsx` — wrapper around React Flow and most canvas behaviors
-- `src/components/MermaidRenderer.tsx` — render Mermaid SVG with pan/zoom
-- `src/components/CustomNode.tsx` — custom node renderer (used by node types)
-- `src/components/SubgraphNode.tsx` — visual representation of a subgraph/group
-- `src/components/EditingToolbar.tsx` — toolbar actions for selection
-- `src/utils/mermaidParser.ts` — extracts Mermaid code blocks from Markdown and resolves headings
-- `src/utils/mermaidToReactFlow.ts` — converts Mermaid code into React Flow nodes/edges, including subgraph parsing and a Dagre-based layout step
-- `src/utils/exportImage.ts` — handles exporting the visible diagram to PNG using `html-to-image`
-- `src/utils/diagramEditingUtils.ts` — alignment, distribution, duplicate, z-order, and lock/unlock helpers
-- `src/utils/diagramStorage.ts` — localStorage persistence helpers (save/load/delete/export)
+- `src/components/FlowDiagram.tsx` — React Flow wrapper and canvas logic
+- `src/components/MermaidEditor.tsx` — the code editor where you enter Mermaid source
+- `src/components/MermaidRenderer.tsx` — simple Mermaid SVG preview and controls
+- `src/components/CustomNode.tsx` — a custom node renderer
+- `src/components/SubgraphNode.tsx` — visual representation for subgraph/group nodes
+- `src/components/GeminiMermaidGenerator.tsx` — streaming LLM Mermaid generator UI and logic
+ - `src/utils/geminiStream.ts` — optional Google Gemini streaming helper used by the Gemini generator
+- `src/utils/mermaidToReactFlow.ts` — core conversion logic from Mermaid text to React Flow data
+- `src/utils/mermaidParser.ts` — helper parsing utilities (if present)
+- `src/utils/exportImage.ts` — image export helper using `html-to-image`
+- `src/utils/diagramStorage.ts` — localStorage persistence helpers
+- `src/utils/diagramEditingUtils.ts` — alignment/duplication/z-order helpers
+- `tsconfig.json`, `vite.config.ts`, `package.json` — build & tooling configs
 
-<a id="internals--behavior-notes"></a>
 ## Internals & behavior notes
-4. Paste or type Mermaid code in the left-hand Editor and interact with the canvas.
-Parsing
-- `extractMermaidDiagrams(markdown)` finds triple-backtick Mermaid blocks and attempts to capture the nearest preceding Markdown heading as the diagram name.
 
-Conversion
-- `convertMermaidToReactFlow(code)` (exposed from `mermaidToReactFlow.ts`) does multi-pass parsing:
-    - Pre-scans code for explicit node definitions to capture labels and shapes reliably.
-    - Detects `subgraph` blocks (including nested subgraphs), keeps a subgraph stack, and assigns nodes to groups.
-    - Parses edges, labels, and supports common Mermaid node shapes.
-    - Uses Dagre for layout and returns `ReactFlowData` ({ nodes, edges }).
+- The app uses a code-first workflow: the editor content is the single source of truth. When the editor content changes, the conversion pipeline parses Mermaid source and produces a React Flow graph.
+- The converter focuses on flowchart-style Mermaid diagrams and common node syntaxes. Features such as sequence diagrams, gantt charts, or class diagrams are not guaranteed to convert into meaningful React Flow graphs.
+- Grouping/subgraph support attempts to preserve nested structures by mapping them to React Flow groups or custom container nodes.
+- Layout uses Dagre for automatic initial placement when possible; manual adjustments are supported via the canvas.
 
-Canvas & editing
-- The React Flow canvas supports selection, multi-select, node dragging, edge creation (with Ctrl/Cmd), and double-click to edit edge labels.
-- Editing toolbar actions operate on the current selection and update parent state via callbacks.
+Streaming & progressive rendering (AI integration)
 
-<a id="exporting"></a>
-Exporting
-- Export uses `html-to-image.toPng(wrapper, { pixelRatio })` and attempts to compute a tight bounding box around nodes. The exporter temporarily resizes the wrapper and sets the viewport so the bounding box maps to (0,0) when rasterizing.
+- The `GeminiMermaidGenerator` component (and its utils) implement streaming-friendly logic so Mermaid source can be displayed and converted as chunks arrive from an LLM. Key behaviors:
+    - Supports multiple streaming formats: async iterators (token streams), ReadableStream bodies, and SSE-like `data:` payloads.
+    - Uses a streaming parser that detects fenced Mermaid blocks (```mermaid ... ```), raw mermaid starts (e.g., `graph TD`), and accumulates partial text until a complete diagram is available.
+    - Performs post-processing and sanitization on the final extracted Mermaid text: quotes problematic labels, enforces a single-diagram output, and strips surrounding prose or extra fences.
+    - The UI receives partial chunks via callbacks so the editor or preview can render progressively while the model continues to stream.
 
-> ⚠️ Note about image exporting (important): exporting to PNG is currently known to be buggy in several cases. Common issues include missing external images (CORS), incorrect bounding box or empty margins, unexpected scaling when using high pixel ratios, and occasional blank outputs for complex diagrams. Use exporting for simple diagrams or as a convenience — for reliable high-quality exports consider rendering SVG from Mermaid directly or using a headless renderer.
+This streaming approach improves latency and user feedback when generating large diagrams from an LLM — users see the diagram build up in real time rather than waiting for a full response.
 
-<a id="data-model--apis"></a>
-Data model (runtime)
-- MermaidDiagram: { type, code, name, position }
-- ReactFlowData: { nodes: Node[], edges: Edge[] }
-- SavedDiagram: { id, name, nodes, edges, originalMermaidCode, createdAt, updatedAt, metadata }
+Edge cases and notes:
+- If node labels contain punctuation that could break Mermaid parsing (parentheses, quotes, commas), the generator and sanitizer aim to quote or escape labels. However, complex edge cases may still require manual fixes.
+- Very large diagrams may be slow to layout in the browser. Consider simplifying diagrams or running batch layout offline for very large graphs.
 
-<a id="known-limitations--notes"></a>
-- The app no longer extracts Mermaid code from uploaded Markdown. The editor workflow is code-first: `mermaidSource` drives conversion and preview.
+## Exporting & limitations
 
-- Mermaid support: The converter implements a robust parser for common flowchart node syntaxes and subgraphs, but not every Mermaid feature is fully supported (sequence diagrams, gantt, class diagrams may not convert to React Flow accurately).
-- Exporting to images (PNG) is buggy: If nodes reference external image URLs, they may not appear in exported PNGs due to cross-origin or html-to-image limitations. Other common problems are incorrect bounding boxes, unexpected scaling, or blank/partial images for complex layouts.
-- Layout/alignment: Alignment and distribution helpers perform arithmetic on node positions. For complex diagrams (many nested subgraphs), minor manual adjustments are commonly required.
-- Performance: Very large diagrams (hundreds of nodes) may be slow to layout in the browser. Dagre layout is synchronous and can block the main thread for complex graphs.
-- Security: `MermaidRenderer` initializes mermaid with `securityLevel: 'loose'` to allow a broader set of diagrams; be cautious if you paste untrusted content.
+- Export to PNG uses `html-to-image` to rasterize the React Flow wrapper. This is best-effort and known to have limitations:
+    - External images may be missing due to CORS restrictions.
+    - Bounding-box calculations can be imperfect for complex nested layouts.
+    - High pixelRatio renders may produce increased memory usage or blank images for very large canvases.
 
-<a id="development-notes"></a>
-## Development notes and tips
+If you need deterministic, high-quality SVG or image exports for production, consider rendering Mermaid to SVG server-side or using an offscreen/headless renderer.
 
-- TypeScript: The repo is TypeScript-based. Some components include `// @ts-nocheck` when the code intentionally accepts flexible types.
-- React Flow: Node `width`/`height` can come from the renderer or be approximated; the exporter uses defaults when values are missing.
-- Debugging: `mermaidToReactFlow.ts` currently has a `DEBUG` flag — set to `false` to silence converter logs.
-- Keyboard shortcuts implemented in the app:
-    - Ctrl/Cmd+S — save current diagram (when nodes exist)
-    - Ctrl/Cmd+F — open node search
-    - Ctrl/Cmd +/- — zoom in/out in the Mermaid preview component
+## Development
+
+- TypeScript, React, and Vite are used for development. The project compiles with `tsc` and builds with Vite.
+- Run unit tests (if any) with Vitest:
+
+```powershell
+npm run test
+```
+
+- Linting or formatting is not enforced by default in the repository (check for local configs if you want to add them).
+
+Developer tips:
+- `src/utils/mermaidToReactFlow.ts` is the key conversion module — start there when changing how Mermaid constructs are mapped to React Flow.
+- `src/components/GeminiMermaidGenerator.tsx` streams LLM output and includes sanitizers and parsers to extract Mermaid code from streamed responses — useful if you want to integrate other streaming LLM providers.
 
 ## How to contribute
 
-- Open an issue describing the feature or bug.
-- For code changes: fork, create a topic branch, update code, run `npm run build` and open a pull request.
+- Open an issue describing the bug or feature.
+- Fork the repository and create a branch for your change.
+- Make changes, run `npm run build` and any tests, then open a pull request with a clear description of the change.
 
-## Dependencies (high level)
+## Dependencies (from package.json)
 
-- React 19
-- React Flow (v11)
-- Mermaid (v11)
-- Dagre (layout)
-- html-to-image (export)
-- Vite + TypeScript + Bootstrap for dev and styling
+The project declares dependencies in `package.json`. Key runtime dependencies present on this branch include:
 
-Exact dependencies and versions are in `package.json`.
+- react: ^19.1.0
+- react-dom: ^19.1.0
+- reactflow: ^11.11.4
+- mermaid: ^11.9.0
+- dagre: ^0.8.5
+- html-to-image: ^1.11.13
+- @monaco-editor/react — embedded code editor
+- bootstrap — UI styles
+- LLM/streaming helpers: `@themaximalist/llm.js` and optional `@google/generative-ai` (used by the Gemini generator component)
+
+For exact versions see `package.json` in the repository root.
 
 
