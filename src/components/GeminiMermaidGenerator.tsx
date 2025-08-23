@@ -143,7 +143,26 @@ export default function LLMJSMermaidGenerator({
         return m;
       });
 
-      return subgraphFixed;
+      // Enforce single diagram: keep only the first diagram block that starts with a known diagram keyword
+      const diagRegex = /\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i;
+      const allStarts: number[] = [];
+      let m: RegExpExecArray | null;
+      const globalRegex = new RegExp(diagRegex.source, 'gim');
+      while ((m = globalRegex.exec(subgraphFixed)) !== null) {
+        allStarts.push(m.index);
+        // Prevent infinite loops
+        if (globalRegex.lastIndex === m.index) globalRegex.lastIndex++;
+      }
+
+      if (allStarts.length <= 1) {
+        return subgraphFixed;
+      }
+
+      // Keep from first start to just before second start
+      const first = allStarts[0];
+      const second = allStarts[1];
+      const single = subgraphFixed.slice(first, second).trim();
+      return single;
     }
 
     messages.push({ role: "user", content: USER_PROMPT_TEMPLATE });
