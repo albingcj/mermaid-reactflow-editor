@@ -65,13 +65,13 @@ const CONTAINER_SEPARATION_HORIZONTAL = 150; // Distance between top-level subgr
 const CONTAINER_SEPARATION_VERTICAL = 180; // Distance between top-level subgraphs/nodes vertically
 
 // Nested subgraph spacing - controls spacing of child subgraphs within parents
-const NESTED_SUBGRAPH_SEPARATION_HORIZONTAL = 100; // Distance between sibling subgraphs
-const NESTED_SUBGRAPH_SEPARATION_VERTICAL = 120; // Distance between nested subgraph ranks
+const NESTED_SUBGRAPH_SEPARATION_HORIZONTAL = 120; // Distance between sibling subgraphs (increased)
+const NESTED_SUBGRAPH_SEPARATION_VERTICAL = 140; // Distance between nested subgraph ranks (increased)
 
 // Margin constants for different layout contexts
 const META_GRAPH_MARGIN = 100; // Outer margin for the entire diagram
-const NESTED_CONTENT_MARGIN = 30; // Margin around content within nested subgraphs
-const MIXED_CONTENT_VERTICAL_SPACING = 80; // Extra spacing between nodes and nested subgraphs in same parent
+const NESTED_CONTENT_MARGIN = 40; // Margin around content within nested subgraphs (increased)
+const MIXED_CONTENT_VERTICAL_SPACING = 100; // Extra spacing between nodes and nested subgraphs in same parent (increased)
 const DAGRE_RANKER: 'network-simplex' | 'tight-tree' | 'longest-path' = 'tight-tree';
 const DEBUG = true; // Set to true to enable debug logging
  
@@ -957,6 +957,7 @@ function layoutSubgraphs(
 }
 
 // Recalculate parent subgraph sizes to include nested subgraphs
+// This runs AFTER child positioning to ensure accurate sizing
 function recalculateParentSubgraphSizes(
   subgraphLayouts: Map<string, SubgraphLayout>,
   orderedSubgraphs: SubgraphInfo[]
@@ -973,43 +974,57 @@ function recalculateParentSubgraphSizes(
     
     if (childSubgraphs.length === 0) continue;
 
-    // Calculate the minimum required size to contain all child subgraphs
-    let maxChildRight = 0;
-    let maxChildBottom = 0;
+    // Calculate the minimum required size based on actual content
+    let maxContentRight = 0;
+    let maxContentBottom = 0;
 
+    // Consider existing nodes in the parent
+    layout.nodes.forEach((nodePos) => {
+      const nodeRight = nodePos.x + nodePos.width / 2;
+      const nodeBottom = nodePos.y + nodePos.height / 2;
+      maxContentRight = Math.max(maxContentRight, nodeRight);
+      maxContentBottom = Math.max(maxContentBottom, nodeBottom);
+    });
+
+    // Consider child subgraphs (they will be positioned with proper spacing)
     childSubgraphs.forEach(childSg => {
       const childLayout = subgraphLayouts.get(childSg.id);
       if (childLayout) {
-        // Child will be positioned at SUBGRAPH_PADDING from left/top, below header + content margin
-        const childRight = SUBGRAPH_PADDING + childLayout.width;
-        const childBottom = SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING + childLayout.height;
+        // Estimate child position accounting for dagre spacing and mixed content
+        const estimatedChildX = SUBGRAPH_PADDING + childLayout.width / 2;
+        const estimatedChildY = Math.max(
+          SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING + childLayout.height / 2,
+          maxContentBottom + MIXED_CONTENT_VERTICAL_SPACING + childLayout.height / 2
+        );
         
-        maxChildRight = Math.max(maxChildRight, childRight);
-        maxChildBottom = Math.max(maxChildBottom, childBottom);
+        const childRight = estimatedChildX + childLayout.width / 2;
+        const childBottom = estimatedChildY + childLayout.height / 2;
+        
+        maxContentRight = Math.max(maxContentRight, childRight);
+        maxContentBottom = Math.max(maxContentBottom, childBottom);
       }
     });
 
-    // Calculate minimum required parent size based on child content + generous additional space
-    const baseRequiredWidth = maxChildRight + SUBGRAPH_PADDING;
-    const baseRequiredHeight = maxChildBottom + SUBGRAPH_PADDING;
+    // Calculate minimum required parent size with generous padding
+    const minRequiredWidth = maxContentRight + SUBGRAPH_PADDING * 3; // Extra padding for visual breathing room
+    const minRequiredHeight = maxContentBottom + SUBGRAPH_PADDING * 3;
     
-    // Add content-based additional space (not multipliers)
-    const additionalWidthForChildren = Math.max(80, baseRequiredWidth * 0.3); // Add 30% more, min 80px
-    const additionalHeightForChildren = Math.max(60, baseRequiredHeight * 0.3); // Add 30% more, min 60px
+    // Ensure minimum size for readability
+    const absoluteMinWidth = 300;
+    const absoluteMinHeight = 200;
     
-    const minRequiredWidth = baseRequiredWidth + additionalWidthForChildren;
-    const minRequiredHeight = baseRequiredHeight + additionalHeightForChildren;
+    const finalWidth = Math.max(layout.width, minRequiredWidth, absoluteMinWidth);
+    const finalHeight = Math.max(layout.height, minRequiredHeight, absoluteMinHeight);
 
     // Update parent size if it needs to be larger
-    const needsUpdate = minRequiredWidth > layout.width || minRequiredHeight > layout.height;
-    
-    if (needsUpdate) {
-      // Use the larger of current size or required size, with generous buffer
-      layout.width = Math.max(layout.width, minRequiredWidth);
-      layout.height = Math.max(layout.height, minRequiredHeight);
+    if (finalWidth > layout.width || finalHeight > layout.height) {
+      const oldWidth = layout.width;
+      const oldHeight = layout.height;
+      layout.width = finalWidth;
+      layout.height = finalHeight;
       
       debugLog(
-        `Updated subgraph ${subgraph.id} size to accommodate nested subgraphs: width=${layout.width}, height=${layout.height} (was too small for ${childSubgraphs.length} children)`
+        `Pre-sized parent ${subgraph.id}: ${oldWidth}x${oldHeight} → ${layout.width}x${layout.height} to contain ${childSubgraphs.length} children + nodes`
       );
       
       // Also log the child details for debugging
@@ -1054,6 +1069,59 @@ function calculateConnectionWeights(
   });
 
   return weights;
+}
+
+// Post-positioning size adjustment: ensure parent containers properly contain all positioned children
+function adjustParentSizesAfterPositioning(
+  subgraphLayouts: Map<string, SubgraphLayout>,
+  subgraphPositions: Map<string, { x: number; y: number }>,
+  orderedSubgraphs: SubgraphInfo[]
+): void {
+  // Process parents to ensure they contain all positioned children
+  orderedSubgraphs.forEach((subgraph) => {
+    const layout = subgraphLayouts.get(subgraph.id);
+    const position = subgraphPositions.get(subgraph.id);
+    
+    if (!layout || !position) return;
+
+    // Find child subgraphs that have been positioned
+    const childSubgraphs = orderedSubgraphs.filter(sg => sg.parentId === subgraph.id);
+    if (childSubgraphs.length === 0) return;
+
+    let maxChildRight = 0;
+    let maxChildBottom = 0;
+
+    // Calculate actual bounds of positioned children
+    childSubgraphs.forEach(child => {
+      const childLayout = subgraphLayouts.get(child.id);
+      const childPosition = subgraphPositions.get(child.id);
+      
+      if (childLayout && childPosition) {
+        // Calculate child bounds relative to parent
+        const relativeChildX = childPosition.x - position.x;
+        const relativeChildY = childPosition.y - position.y;
+        const childRight = relativeChildX + childLayout.width;
+        const childBottom = relativeChildY + childLayout.height;
+        
+        maxChildRight = Math.max(maxChildRight, childRight);
+        maxChildBottom = Math.max(maxChildBottom, childBottom);
+      }
+    });
+
+    // Add safety margins
+    const requiredWidth = maxChildRight + SUBGRAPH_PADDING * 2;
+    const requiredHeight = maxChildBottom + SUBGRAPH_PADDING * 2;
+
+    // Expand parent if necessary
+    if (requiredWidth > layout.width || requiredHeight > layout.height) {
+      const oldWidth = layout.width;
+      const oldHeight = layout.height;
+      layout.width = Math.max(layout.width, requiredWidth);
+      layout.height = Math.max(layout.height, requiredHeight);
+      
+      debugLog(`Post-positioning resize: ${subgraph.id} ${oldWidth}x${oldHeight} → ${layout.width}x${layout.height} to contain positioned children`);
+    }
+  });
 }
 
 // Helper function to calculate the bottom boundary of nodes within a parent subgraph
@@ -1341,21 +1409,26 @@ function layoutMetaGraph(
     });
 
     // Ensure parent is large enough to contain both existing nodes and the centered children
-    const requiredWidth = contentWidth + (SUBGRAPH_PADDING * 4); // Extra padding for centering
+    // Use generous padding to prevent overflow issues
+    const requiredWidth = contentWidth + (SUBGRAPH_PADDING * 6); // Extra generous padding for centering and overflow prevention
     
     // Calculate required height considering both node content and child subgraphs
     const childrenBottomBoundary = contentOriginY + centerOffsetY + (maxBottom - minTop) - parentPos.y;
     const minRequiredHeight = Math.max(
-      childrenBottomBoundary + SUBGRAPH_PADDING * 2, // Height to fit positioned children
-      maxNodeBottom + 120 + contentHeight + SUBGRAPH_PADDING * 2 // Height for nodes + spacing + children
+      childrenBottomBoundary + SUBGRAPH_PADDING * 4, // Height to fit positioned children with safety margin
+      maxNodeBottom + MIXED_CONTENT_VERTICAL_SPACING + contentHeight + SUBGRAPH_PADDING * 4 // Height for nodes + spacing + children with safety margin
     );
     
-    if (requiredWidth > parentLayout.width || minRequiredHeight > parentLayout.height) {
+    // Apply minimum dimensions to prevent cramped layouts
+    const finalRequiredWidth = Math.max(requiredWidth, 400); // Minimum width for readability
+    const finalRequiredHeight = Math.max(minRequiredHeight, 300); // Minimum height for readability
+    
+    if (finalRequiredWidth > parentLayout.width || finalRequiredHeight > parentLayout.height) {
       const oldWidth = parentLayout.width;
       const oldHeight = parentLayout.height;
-      parentLayout.width = Math.max(parentLayout.width, requiredWidth);
-      parentLayout.height = Math.max(parentLayout.height, minRequiredHeight);
-      debugLog(`Expanded parent ${parentId} from ${oldWidth}x${oldHeight} to ${parentLayout.width}x${parentLayout.height} to fit nodes + ${childIds.length} child subgraphs`);
+      parentLayout.width = Math.max(parentLayout.width, finalRequiredWidth);
+      parentLayout.height = Math.max(parentLayout.height, finalRequiredHeight);
+      debugLog(`Expanded parent ${parentId} from ${oldWidth}x${oldHeight} to ${parentLayout.width}x${parentLayout.height} to fit nodes + ${childIds.length} child subgraphs (overflow-safe)`);
     }
 
     return true;
@@ -1705,6 +1778,10 @@ function layoutGraph(
     subgraphLayouts,
     direction
   );
+
+  // Phase 2.5: Post-positioning adjustment - ensure parent containers properly contain positioned children
+  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
+  adjustParentSizesAfterPositioning(subgraphLayouts, subgraphPositions, orderedSubgraphs);
 
   // Phase 3: Combine layouts and create React Flow elements
   return createReactFlowElements(
