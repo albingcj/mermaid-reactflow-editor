@@ -1,5 +1,6 @@
 import { useState } from "react";
 import LLM from "@themaximalist/llm.js";
+import { streamGemini } from "../utils/geminiStream";
 
 interface Props {
   onComplete: (mermaidCode: string) => void;
@@ -29,18 +30,11 @@ export default function LLMJSMermaidGenerator({
   const [service, setService] = useState("google");
   const [model, setModel] = useState("gemini-2.0-flash");
   const [userInput, setUserInput] = useState("");
-  const [response, setResponse] = useState("");
+  // response state removed; editor receives streamed code
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const examplePrompts = [
-    "Create a flowchart for user authentication process",
-    "Generate a sequence diagram for API calls between frontend and backend",
-    "Create a class diagram for an e-commerce system",
-    "Make a state diagram for order processing workflow",
-    "Design a git workflow diagram",
-    "Create a network architecture diagram",
-  ];
+  // ...example prompts removed (streaming UI uses editor as source)
 
   const serviceOptions = [
     { value: "google", label: "Google (Gemini)" },
@@ -71,9 +65,7 @@ export default function LLMJSMermaidGenerator({
     },
   ];
 
-  const useExamplePrompt = (prompt: string) => {
-    setUserInput(prompt);
-  };
+  // example prompt helper removed
 
   const generateMermaid = async () => {
     if (!apiKey || !userInput) {
@@ -81,9 +73,8 @@ export default function LLMJSMermaidGenerator({
       return;
     }
 
-    setLoading(true);
-    setResponse("");
-    setError("");
+  setLoading(true);
+  setError("");
 
     if (onStart) onStart();
 
@@ -208,13 +199,11 @@ export default function LLMJSMermaidGenerator({
 
     // Create parser
     const parser = createMermaidStreamParser(
-      (partial) => {
-        setResponse(partial);
+        (partial) => {
         if (onChunk) onChunk(partial);
       },
       (finalStr) => {
         const cleaned = finalStr.trim();
-        setResponse(cleaned);
         if (onComplete) onComplete(cleaned);
       }
     );
@@ -224,6 +213,37 @@ export default function LLMJSMermaidGenerator({
         service,
         model,
       });
+
+      // If using Google Gemini, prefer the direct GoogleGenerativeAI stream helper
+      // which has a stable streaming interface. This mirrors the older working
+      // implementation in `utils/geminiStream.ts`.
+      if (service === "google") {
+        console.log("[LLMJSMermaidGenerator] Using Google generative stream helper");
+
+        // Build a combined prompt by including few-shot examples before the user input.
+        let combinedPrompt = "";
+        for (const ex of FEW_SHOT_EXAMPLES) {
+          combinedPrompt += `User: ${ex.user}\nAssistant:\n${ex.assistant}\n\n`;
+        }
+        combinedPrompt += userInput;
+
+        try {
+          const final = await streamGemini(apiKey, model, MERMAID_SYSTEM_PROMPT, combinedPrompt, (txt) => {
+            // pipe chunks into the existing parser so UI updates incrementally
+            console.log("[LLMJSMermaidGenerator] gemini onChunk:", txt);
+            parser.append(txt);
+          });
+
+          // Ensure parser finishes and emit final result
+          parser.finish();
+          const cleaned = (final || "").trim();
+          if (onComplete) onComplete(cleaned);
+          return;
+        } catch (gErr) {
+          console.error("[LLMJSMermaidGenerator] Google stream error:", gErr);
+          throw gErr;
+        }
+      }
 
       // Helper functions for processing stream chunks
       const textDecoder = new TextDecoder();
@@ -327,8 +347,8 @@ export default function LLMJSMermaidGenerator({
       };
 
       // Get stream from LLM.js
-      const stream = await LLM(messages, config);
-      console.log("[LLMJSMermaidGenerator] Stream type:", typeof stream);
+  const stream: any = await LLM(messages, config);
+  console.log("[LLMJSMermaidGenerator] Stream type:", typeof stream);
 
       if (isAsyncIterable(stream)) {
         console.log("[LLMJSMermaidGenerator] Processing as async iterator");
@@ -376,7 +396,6 @@ export default function LLMJSMermaidGenerator({
       const errorMessage =
         error?.message || String(error) || "Failed to generate Mermaid code";
       setError(errorMessage);
-      setResponse("Error: " + errorMessage);
     } finally {
       setLoading(false);
       if (onStop) onStop();
@@ -384,8 +403,7 @@ export default function LLMJSMermaidGenerator({
   };
 
   const clearResponse = () => {
-    setResponse("");
-    setError("");
+  setError("");
   };
 
   return (
@@ -455,25 +473,7 @@ export default function LLMJSMermaidGenerator({
         />
       </div>
 
-      {/* Example Prompts */}
-      <div className="mb-3">
-        <label className="form-label small text-muted">Quick Examples</label>
-        <div className="d-flex flex-wrap gap-1">
-          {examplePrompts.map((prompt, index) => (
-            <button
-              key={index}
-              type="button"
-              className="btn btn-outline-secondary btn-sm"
-              style={{ fontSize: 11 }}
-              onClick={() => useExamplePrompt(prompt)}
-              disabled={loading}
-            >
-              {prompt.substring(0, 30)}
-              {prompt.length > 30 ? "..." : ""}
-            </button>
-          ))}
-        </div>
-      </div>
+  {/* Quick examples removed - editor is the single source for mermaid code */}
 
       {/* Action Buttons */}
       <div className="mb-3 d-flex gap-2">
@@ -515,42 +515,7 @@ export default function LLMJSMermaidGenerator({
         </div>
       )}
 
-      {/* Response Display */}
-      <div
-        style={{
-          minHeight: 120,
-          borderRadius: 6,
-          overflow: "hidden",
-          border: "1px solid #e9ecef",
-          backgroundColor: "#f8f9fa",
-        }}
-      >
-        <div className="p-2 border-bottom bg-light">
-          <small className="text-muted fw-medium">
-            Generated Mermaid Code:
-          </small>
-        </div>
-        <div
-          style={{
-            padding: 10,
-            minHeight: 80,
-            maxHeight: 300,
-            overflowY: "auto",
-          }}
-        >
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              fontFamily: "monospace",
-              fontSize: 12,
-              margin: 0,
-              color: response ? "#333" : "#888",
-            }}
-          >
-            {response || "Generated Mermaid code will appear here..."}
-          </pre>
-        </div>
-      </div>
+  {/* Response display removed - editor shows generated code instead */}
 
       {/* Help Text */}
       <div className="mt-2">
