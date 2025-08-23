@@ -1,11 +1,11 @@
 // @ts-nocheck
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
-  Background,
-  BackgroundVariant,
   Connection,
   ConnectionLineType,
   ConnectionMode,
+  Background,
+  BackgroundVariant,
   Controls,
   Edge,
   EdgeChange,
@@ -493,9 +493,9 @@ function FlowDiagramInternal({
             }
           }}
         >
+          <Background variant={BackgroundVariant.Dots} />
           <Controls />
           <MiniMap />
-          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
       </div>
 

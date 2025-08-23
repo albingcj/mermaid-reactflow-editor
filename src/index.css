@@ -1,0 +1,233 @@
+:root {
+	/* Light theme variables */
+	--bg: #ffffff;
+	--surface: #f5f5f5;
+	--muted: #6c757d;
+	--text: #111827;
+	--border: #dddddd;
+	--primary: #0d6efd;
+	--accent: #4caf50;
+	--edge-selected: #ff9800;
+	--edge-selected-shadow: #ff9800aa;
+	/* Dotted grid color for React Flow (explicit RGBA to avoid color-mix compat issues) */
+	--grid-dot-color: rgba(17, 24, 39, 0.08);
+	--grid-size: 24px;
+}
+
+/* Dark theme variables */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #0b0f14;
+		--surface: #0f1720;
+		--muted: #9ca3af;
+		--text: #e6eef6;
+		--border: #1f2a36;
+		--primary: #60a5fa;
+		--accent: #4caf50;
+		--edge-selected: #ffb86b;
+		--edge-selected-shadow: #ffb86b55;
+	--grid-dot-color: rgba(230, 238, 246, 0.06);
+	}
+}
+
+/* Theme classes to explicitly override system preference */
+:root.theme-light {
+	--bg: #ffffff;
+	--surface: #f5f5f5;
+	--muted: #6c757d;
+	--text: #111827;
+	--border: #dddddd;
+	--primary: #0d6efd;
+	--accent: #4caf50;
+	--edge-selected: #ff9800;
+	--edge-selected-shadow: #ff9800aa;
+	--grid-dot-color: rgba(17, 24, 39, 0.08);
+}
+
+:root.theme-dark {
+	--bg: #0b0f14;
+	--surface: #0f1720;
+	--muted: #9ca3af;
+	--text: #e6eef6;
+	--border: #1f2a36;
+	--primary: #60a5fa;
+	--accent: #4caf50;
+	--edge-selected: #ffb86b;
+	--edge-selected-shadow: #ffb86b55;
+	--grid-dot-color: rgba(230, 238, 246, 0.06);
+}
+
+/* Base page styling */
+html, body, #root {
+	height: 100%;
+}
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Helpers used across components */
+.bg-surface {
+	background: var(--surface) !important;
+}
+.text-muted {
+	color: var(--muted) !important;
+}
+.border-custom {
+	border-color: var(--border) !important;
+}
+
+/* form elements */
+input, textarea, select, .form-control {
+	background: transparent;
+	color: var(--text);
+	border-color: var(--border) !important;
+}
+
+/* Links and buttons */
+a, .text-primary, .btn-primary {
+	color: var(--primary) !important;
+}
+.btn-primary {
+	background-color: var(--primary) !important;
+	border-color: var(--primary) !important;
+}
+
+/* React Flow background handled by the library's Background component to ensure proper theming. */
+
+/* Small utility for toggles */
+.theme-toggle {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+}
+
+/* Make common Bootstrap utility classes respect theme variables */
+.bg-white {
+	background-color: var(--surface) !important;
+	color: var(--text) !important;
+}
+.bg-light {
+	background-color: var(--surface) !important;
+	color: var(--text) !important;
+}
+.text-dark {
+	color: var(--text) !important;
+}
+.text-muted {
+	color: var(--muted) !important;
+}
+.border-bottom {
+	border-bottom: 1px solid var(--border) !important;
+}
+.border-end {
+	border-right: 1px solid var(--border) !important;
+}
+
+.border-top {
+	border-top: 1px solid var(--border) !important;
+}
+
+/* Form controls and selects */
+.form-control,
+select.form-select,
+.form-select {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border-color: var(--border) !important;
+}
+
+.form-select:focus,
+.form-control:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent 80%);
+}
+
+/* Buttons */
+.btn {
+	color: var(--text) !important;
+}
+.btn-primary {
+	background-color: var(--primary) !important;
+	border-color: var(--primary) !important;
+	color: white !important;
+}
+.btn-outline-secondary {
+	background: transparent !important;
+	color: var(--text) !important;
+	border-color: var(--border) !important;
+}
+
+/* Dropdown menu fallback styling */
+.dropdown-menu {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border-color: var(--border) !important;
+}
+
+/* Placeholder colors for inputs and textareas */
+input::placeholder,
+textarea::placeholder,
+.form-control::placeholder {
+	color: var(--muted) !important;
+	opacity: 0.8 !important;
+}
+
+/* Vendor-specific placeholder selectors for broader browser support */
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder,
+.form-control::-webkit-input-placeholder { color: var(--muted) !important; }
+input:-ms-input-placeholder,
+textarea:-ms-input-placeholder,
+.form-control:-ms-input-placeholder { color: var(--muted) !important; }
+input::-ms-input-placeholder,
+textarea::-ms-input-placeholder,
+.form-control::-ms-input-placeholder { color: var(--muted) !important; }
+input::-moz-placeholder,
+textarea::-moz-placeholder,
+.form-control::-moz-placeholder { color: var(--muted) !important; }
+
+
+/* Ensure select options use theme colors where supported */
+select.form-select option,
+.form-select option {
+	background: var(--surface);
+	color: var(--text);
+}
+
+/* Card and shadow surfaces should follow theme */
+.card,
+.card-body,
+.shadow-sm {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border-color: var(--border) !important;
+}
+
+/* Draggable palette specific (fallback for cards used as palette items) */
+.draggable-palette-item {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+/* Make native select arrow and menu blend better */
+select.form-select,
+.form-select {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	background-image: linear-gradient(45deg, transparent 50%, var(--text) 50%), linear-gradient(135deg, var(--text) 50%, transparent 50%);
+	background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
+	background-size: 5px 5px, 5px 5px;
+	background-repeat: no-repeat;
+}
+
+/* Ensure small surface containers also look correct */
+.shadow-sm {
+	/* keep shadow but adapt background if used as surface */
+	background-clip: padding-box;
+}
+
