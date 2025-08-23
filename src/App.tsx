@@ -10,7 +10,7 @@ import "./App.css";
 import { MermaidRenderer } from "./components/MermaidRenderer";
 import { Toasts, ToastItem } from "./components/Toasts";
 import MermaidEditor from "./components/MermaidEditor";
-import StreamingPart from "./components/StreamingPart";
+import GeminiMermaidGenerator from "./components/GeminiMermaidGenerator";
 
 function App() {
   const [mermaidSource, setMermaidSource] = useState("");
@@ -291,22 +291,21 @@ function App() {
                     setMermaidSource(v);
                   }}
                 />
-                {/* Streaming demo: simulates LLM streaming output into the editor */}
+                {/* AI Mermaid Generator: Uses Gemini API to generate mermaid code */}
                 <div style={{ borderTop: '1px solid #f1f1f1', marginTop: 8 }} />
-                <StreamingPart
-                  promptSource={mermaidSource}
+                <GeminiMermaidGenerator
                   onStart={() => setIsStreaming(true)}
                   onStop={() => setIsStreaming(false)}
-                  onChunk={(partial) => {
+                  onChunk={(partial: string) => {
                     // update editor progressively so preview/conversion can run as content streams
                     setFlowMode('editor');
                     setMermaidSource(partial);
                   }}
-                  onComplete={(result) => {
+                  onComplete={(result: string) => {
                     // When streaming completes, ensure final content is applied
                     setMermaidSource(result);
                     setFlowMode('editor');
-                    showToast('Streaming complete — applied to editor', 'success');
+                    showToast('Mermaid generation complete — applied to editor', 'success');
                   }}
                 />
               </div>
