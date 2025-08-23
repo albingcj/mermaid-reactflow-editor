@@ -113,7 +113,7 @@ function getNodeShape(nodeDefinition: string): string {
 
 // Update the parseMermaidCode function to handle subgraph connections
 
-function parseMermaidCode(code: string): {
+export function parseMermaidCode(code: string): {
   nodes: MermaidNode[];
   edges: MermaidEdge[];
   subgraphs: SubgraphInfo[];
@@ -274,8 +274,12 @@ function parseMermaidCode(code: string): {
         const shape = getNodeShape(fullDef);
 
         let rawLabel = nodeId;
-        const labelContentMatch = shapeDef.match(/^[\[\(\{](.*)[\]\)\}]$/s); // Added 's' flag for multiline
-        if (labelContentMatch) rawLabel = labelContentMatch[1];
+        const labelContentMatch = shapeDef.match(/^[\[\(\{](.*)[\]\)\}]$/s);
+        if (labelContentMatch) {
+          rawLabel = labelContentMatch[1];
+          // Strip surrounding quotes if present
+          rawLabel = rawLabel.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+        }
 
         const label = enhancedCleanLabel(rawLabel);
         nodeDefinitions.set(nodeId, { label, shape, fullDef });

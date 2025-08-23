@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^0.31.0"
   },
   "keywords": [],
   "author": "",
