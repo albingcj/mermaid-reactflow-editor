@@ -44,12 +44,6 @@ export default function LLMJSMermaidGenerator({
 
   const serviceOptions = [
     { value: "google", label: "Google (Gemini)" },
-    { value: "openai", label: "OpenAI (GPT)" },
-    { value: "anthropic", label: "Anthropic (Claude)" },
-    { value: "mistral", label: "Mistral" },
-    { value: "cohere", label: "Cohere" },
-    { value: "groq", label: "Groq" },
-    { value: "together", label: "Together AI" },
   ];
 
   // Few-shot examples: user -> assistant pairs to bias structure
