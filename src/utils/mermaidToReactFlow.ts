@@ -132,11 +132,53 @@ function parseMermaidCode(code: string): {
   let direction = "TB";
 
   // Remove comments and clean up the code
-  const cleanCode = code
+  let cleanCode = code
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("%%"))
     .join("\n");
+
+  // Pre-process to fix multi-line node definitions
+  // This handles cases where labels are split across lines like:
+  // AI["Transactions Database
+  // (MySQL)"]
+  const preprocessedLines: string[] = [];
+  const rawLines = cleanCode.split("\n");
+  let i = 0;
+  
+  while (i < rawLines.length) {
+    const line = rawLines[i].trim();
+    
+    // Check if this line has an unclosed bracket (indicating a multi-line definition)
+    const openBrackets = (line.match(/[\[\(\{]/g) || []).length;
+    const closeBrackets = (line.match(/[\]\)\}]/g) || []).length;
+    
+    if (openBrackets > closeBrackets && i < rawLines.length - 1) {
+      // This line has unclosed brackets, try to find the closing line
+      let combinedLine = line;
+      let j = i + 1;
+      let currentOpenBrackets = openBrackets;
+      let currentCloseBrackets = closeBrackets;
+      
+      while (j < rawLines.length && currentOpenBrackets > currentCloseBrackets) {
+        const nextLine = rawLines[j].trim();
+        combinedLine += " " + nextLine;
+        
+        currentOpenBrackets += (nextLine.match(/[\[\(\{]/g) || []).length;
+        currentCloseBrackets += (nextLine.match(/[\]\)\}]/g) || []).length;
+        j++;
+      }
+      
+      preprocessedLines.push(combinedLine);
+      i = j; // Skip the lines we just combined
+    } else {
+      preprocessedLines.push(line);
+      i++;
+    }
+  }
+  
+  // Update cleanCode with preprocessed lines
+  cleanCode = preprocessedLines.join("\n");
 
   debugLog("Clean code:", cleanCode);
 
@@ -166,6 +208,7 @@ function parseMermaidCode(code: string): {
         }
       })
       .replace(/\\n/g, "\n")
+      .replace(/\s*\n\s*/g, "\n") // Normalize line breaks and remove extra whitespace
       .trim();
   }
 
@@ -175,46 +218,69 @@ function parseMermaidCode(code: string): {
     const trimmedLine = line.trim();
     if (!trimmedLine || trimmedLine.startsWith("subgraph") || trimmedLine === "end" || trimmedLine.startsWith("%%")) return;
 
-    // Safer node definition scanner: find identifier + opening bracket, then
-    // locate the corresponding closing bracket using indexOf. This avoids
-    // premature matches when labels contain other bracket characters (e.g.
-    // parentheses inside square-bracket labels).
-    const nodeIdOpenPattern = /([A-Za-z0-9_]+)([\[\(\{])/g;
+    // Improved node definition scanner: match complete node definitions
+    // Look for node definitions that appear at word boundaries or after arrows/spaces
+    // This prevents matching letters within labels
+    const nodeDefPattern = /(^|[\s\-\>]|\|[^|]*\|)([A-Za-z0-9_]+)([\[\(\{])/g;
     let match;
-    while ((match = nodeIdOpenPattern.exec(trimmedLine)) !== null) {
-      const nodeId = match[1];
-      if (nodeDefinitions.has(nodeId)) continue;
+    const processedMatches = new Set(); // Track processed positions to avoid duplicates
+    
+    while ((match = nodeDefPattern.exec(trimmedLine)) !== null) {
+      const prefix = match[1];
+      const nodeId = match[2];
+      const openChar = match[3];
+      const matchStart = match.index + prefix.length; // Start of node ID
+      
+      // Skip if we already processed this position or if node already exists
+      if (processedMatches.has(matchStart) || nodeDefinitions.has(nodeId)) continue;
+      processedMatches.add(matchStart);
 
-      const openChar = match[2];
-      const openIndex = match.index + nodeId.length; // position of opening bracket
+      const openIndex = matchStart + nodeId.length; // position of opening bracket
       const closeChar = openChar === '[' ? ']' : openChar === '(' ? ')' : '}';
 
-      // Find the first closing char after the opening bracket
-      const closeIndex = trimmedLine.indexOf(closeChar, openIndex + 1);
+      // Find the matching closing bracket, considering nesting
+      let closeIndex = -1;
+      let depth = 0;
+      for (let i = openIndex; i < trimmedLine.length; i++) {
+        const char = trimmedLine[i];
+        if (char === openChar) {
+          depth++;
+        } else if (char === closeChar) {
+          depth--;
+          if (depth === 0) {
+            closeIndex = i;
+            break;
+          }
+        }
+      }
 
       let fullDef = nodeId;
       let shapeDef = '';
       if (closeIndex !== -1) {
-        fullDef = trimmedLine.slice(match.index, closeIndex + 1);
+        fullDef = trimmedLine.slice(matchStart, closeIndex + 1);
         shapeDef = trimmedLine.slice(openIndex, closeIndex + 1);
       } else {
-        // Fallback to older regex if we couldn't find a matching close
-        const fallback = trimmedLine.slice(match.index).match(/([\[\(\{][^\]\)\}]*[\]\)\}])/);
-        if (fallback) {
-          fullDef = nodeId + fallback[0];
-          shapeDef = fallback[0];
+        // Fallback: try to find any bracket sequence starting from our position
+        const remainingLine = trimmedLine.slice(matchStart);
+        const fallback = remainingLine.match(/([A-Za-z0-9_]+)([\[\(\{][^\]\)\}]*[\]\)\}])/);
+        if (fallback && fallback[1] === nodeId) {
+          fullDef = fallback[0];
+          shapeDef = fallback[2];
         }
       }
 
-      const shape = getNodeShape(fullDef);
+      // Only process if we have a valid shape definition
+      if (shapeDef) {
+        const shape = getNodeShape(fullDef);
 
-      let rawLabel = nodeId;
-      const labelContentMatch = shapeDef.match(/^[\[\(\{](.*)[\]\)\}]$/);
-      if (labelContentMatch) rawLabel = labelContentMatch[1];
+        let rawLabel = nodeId;
+        const labelContentMatch = shapeDef.match(/^[\[\(\{](.*)[\]\)\}]$/s); // Added 's' flag for multiline
+        if (labelContentMatch) rawLabel = labelContentMatch[1];
 
-      const label = enhancedCleanLabel(rawLabel);
-      nodeDefinitions.set(nodeId, { label, shape, fullDef });
-      debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
+        const label = enhancedCleanLabel(rawLabel);
+        nodeDefinitions.set(nodeId, { label, shape, fullDef });
+        debugLog(`Pre-scan found node definition: ${nodeId} -> "${label}" (${shape}) from line ${lineIndex + 1}`);
+      }
     }
   });
 
