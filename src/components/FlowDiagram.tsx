@@ -438,8 +438,8 @@ function FlowDiagramInternal({
           elementsSelectable={interactive}
           // Allow panning the canvas even when node interactions are disabled (streaming)
           panOnDrag={true}
-          // Allow zooming via scroll/pinch during streaming so user can inspect layout
-          panOnScroll={interactive}
+          // Always allow zooming with the mouse wheel; disable wheel-to-pan so scroll zooms
+          panOnScroll={false}
           zoomOnScroll={true}
           zoomOnPinch={true}
           zoomOnDoubleClick={interactive}
