@@ -90,7 +90,26 @@ export default function LLMJSMermaidGenerator({
     }
 
     // Add current user input
-    messages.push({ role: "user", content: userInput });
+    // Wrap the raw user input inside a safe template that documents
+    // ground rules for generating Mermaid code. This helps prevent
+    // generation of node contents that contain unescaped double quotes
+    // or parentheses that break the mermaid preview. The template
+    // is explicit and will be included as the user's prompt.
+    const USER_PROMPT_TEMPLATE = [
+      "Please follow these rules when generating Mermaid diagram source:",
+      "- STRICT: If a node label contains parentheses (e.g. (CloudFront)) or other special characters that could break parsing, ALWAYS wrap the entire label in double quotes. Example:",
+      "  - Wrong: D[CDN (CloudFront)]",
+      "  - Correct: D[\"CDN (CloudFront)\"]",
+      "- If a label contains double quotes, escape them with a backslash (\\\"). Example: A[\"Name \\\\\\\"Inc\\\\\\\"\"]",
+      "- Do NOT emit any prose, commentary, or extra markdown — output only the Mermaid source. You may wrap the source in a ```mermaid fenced block but do not include any text outside it.",
+      "- Use unique node IDs and concise labels. If a label contains spaces, punctuation, parentheses, commas, or colons, prefer quoting the label.",
+      "- If the user text contains raw content that looks like a node label, preserve it but apply the quoting/escaping rules above.",
+      "",
+      "User request:",
+      userInput,
+    ].join("\n");
+
+    messages.push({ role: "user", content: USER_PROMPT_TEMPLATE });
 
     const config = {
       service: service,
@@ -221,11 +240,13 @@ export default function LLMJSMermaidGenerator({
         console.log("[LLMJSMermaidGenerator] Using Google generative stream helper");
 
         // Build a combined prompt by including few-shot examples before the user input.
+        // Use the same user prompt template so the Google stream receives the
+        // ground rules upfront and the actual request embedded at the end.
         let combinedPrompt = "";
         for (const ex of FEW_SHOT_EXAMPLES) {
           combinedPrompt += `User: ${ex.user}\nAssistant:\n${ex.assistant}\n\n`;
         }
-        combinedPrompt += userInput;
+        combinedPrompt += USER_PROMPT_TEMPLATE;
 
         try {
           const final = await streamGemini(apiKey, model, MERMAID_SYSTEM_PROMPT, combinedPrompt, (txt) => {
