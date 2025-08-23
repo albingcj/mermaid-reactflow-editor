@@ -44,12 +44,6 @@ export default function LLMJSMermaidGenerator({
 
   const serviceOptions = [
     { value: "google", label: "Google (Gemini)" },
-    { value: "openai", label: "OpenAI (GPT)" },
-    { value: "anthropic", label: "Anthropic (Claude)" },
-    { value: "mistral", label: "Mistral" },
-    { value: "cohere", label: "Cohere" },
-    { value: "groq", label: "Groq" },
-    { value: "together", label: "Together AI" },
   ];
 
   // Few-shot examples: user -> assistant pairs to bias structure
@@ -163,6 +157,40 @@ export default function LLMJSMermaidGenerator({
       const second = allStarts[1];
       const single = subgraphFixed.slice(first, second).trim();
       return single;
+    }
+
+    // Extract mermaid code from fenced blocks or raw text. Returns inner code if fences found,
+    // otherwise attempts to locate a mermaid diagram start keyword and returns from there.
+    function extractMermaidFromFences(content: string) {
+      if (!content) return content;
+      const fencedRegex = /```(?:\s*mermaid\b)?\s*\n([\s\S]*?)```/im;
+      const m = content.match(fencedRegex);
+      if (m && m[1]) return m[1].trim();
+
+      // Generic fenced block without language
+      const genericFenced = /```([\s\S]*?)```/m;
+      const mg = content.match(genericFenced);
+      if (mg && mg[1]) {
+        const inner = mg[1].trim();
+        if (/\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i.test(inner)) {
+          return inner;
+        }
+      }
+
+      // Fallback: locate first mermaid keyword and return from there
+      const rawStartRegex = /\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i;
+      const mr = content.match(rawStartRegex);
+      if (mr) {
+        const idx = content.indexOf(mr[0]);
+        if (idx !== -1) {
+          // stop before next fenced block if present
+          const nextFence = content.indexOf('```', idx);
+          if (nextFence !== -1) return content.slice(idx, nextFence).trim();
+          return content.slice(idx).trim();
+        }
+      }
+
+      return content.trim();
     }
 
     messages.push({ role: "user", content: USER_PROMPT_TEMPLATE });
@@ -279,7 +307,8 @@ export default function LLMJSMermaidGenerator({
       },
       (finalStr) => {
         const cleaned = finalStr.trim();
-        const sanitized = sanitizeMermaidLabels(cleaned);
+        const extracted = extractMermaidFromFences(cleaned);
+        const sanitized = sanitizeMermaidLabels(extracted);
         if (onComplete) onComplete(sanitized);
       }
     );
@@ -315,7 +344,8 @@ export default function LLMJSMermaidGenerator({
           // Ensure parser finishes and emit final result
           parser.finish();
           const cleaned = (final || "").trim();
-          const sanitizedFinal = sanitizeMermaidLabels(cleaned);
+          const extracted = extractMermaidFromFences(cleaned);
+          const sanitizedFinal = sanitizeMermaidLabels(extracted);
           if (onComplete) onComplete(sanitizedFinal);
           return;
         } catch (gErr) {

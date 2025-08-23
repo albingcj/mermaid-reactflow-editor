@@ -3,9 +3,10 @@ import Editor from '@monaco-editor/react';
 interface Props {
   value: string;
   onChange: (v: string) => void;
+  theme?: 'light' | 'dark';
 }
 
-export default function MermaidEditor({ value, onChange }: Props) {
+export default function MermaidEditor({ value, onChange, theme = 'light' }: Props) {
   return (
     <div className="px-3 py-2 bg-white">
       <div className="mb-2 d-flex align-items-center justify-content-between">
@@ -18,11 +19,12 @@ export default function MermaidEditor({ value, onChange }: Props) {
         </small>
       </div>
 
-      <div style={{ height: 260, borderRadius: 6, overflow: 'hidden', border: '1px solid #e9ecef' }}>
+  <div className="editor-container" style={{ height: 260, borderRadius: 6, overflow: 'hidden' }}>
         <Editor
           height="100%"
           defaultLanguage="markdown"
           language="markdown"
+          theme={theme === 'dark' ? 'vs-dark' : 'light'}
           value={value}
           onChange={(val) => onChange(val ?? '')}
           options={{

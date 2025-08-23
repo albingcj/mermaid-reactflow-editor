@@ -158,16 +158,38 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
       return;
     }
 
+    const removeInjectedMermaidDivs = () => {
+      try {
+        const injected = document.querySelectorAll('[id^="dmermaid-svg-"]');
+        injected.forEach((el) => {
+          // avoid removing any nodes that are inside our renderer container
+          if (!ref.current || !ref.current.contains(el)) {
+            el.remove();
+          }
+        });
+      } catch (e) {
+        // defensive: ignore DOM errors
+        // eslint-disable-next-line no-console
+        console.warn('removeInjectedMermaidDivs failed', e);
+      }
+    };
+
     const renderDiagram = async () => {
       try {
+        // cleanup any previous injected nodes before rendering
+        removeInjectedMermaidDivs();
         const { svg } = await mermaid.render(uniqueId, code);
         if (ref.current) {
           ref.current.innerHTML = svg;
         }
+        // cleanup any stray injected nodes created outside this container
+        removeInjectedMermaidDivs();
       } catch (err) {
         console.error('MermaidRenderer: Error rendering diagram', err);
         if (ref.current) {
           ref.current.innerHTML = `<pre style='color:red; font-size: 12px; padding: 8px;'>Mermaid Error: ${String(err)}</pre>`;
+          // ensure we don't leave stray mermaid helper divs in the document
+          removeInjectedMermaidDivs();
         }
       }
     };

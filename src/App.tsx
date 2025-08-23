@@ -69,6 +69,58 @@ function App() {
     }
   }, []);
 
+  // Theme: 'system' | 'light' | 'dark'
+  const [themePref, setThemePref] = useState<'system' | 'light' | 'dark'>('system');
+
+  // Load theme preference from localStorage and apply
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem('mrfe.theme') as 'system' | 'light' | 'dark' | null;
+      if (t === 'light' || t === 'dark' || t === 'system') setThemePref(t);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // Apply theme to documentElement
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('theme-light', 'theme-dark');
+    if (themePref === 'light') {
+      root.classList.add('theme-light');
+    } else if (themePref === 'dark') {
+      root.classList.add('theme-dark');
+    } else {
+      // system: remove explicit class to allow prefers-color-scheme media query
+    }
+    try {
+      localStorage.setItem('mrfe.theme', themePref);
+    } catch (e) {}
+  }, [themePref]);
+
+  // Compute effective theme for components (monaco editor expects 'vs-dark' or 'light')
+  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>(() => {
+    if (themePref === 'light') return 'light';
+    if (themePref === 'dark') return 'dark';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    if (themePref === 'light') setEffectiveTheme('light');
+    else if (themePref === 'dark') setEffectiveTheme('dark');
+    else {
+      const m = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = (e: MediaQueryListEvent) => setEffectiveTheme(e.matches ? 'dark' : 'light');
+      setEffectiveTheme(m.matches ? 'dark' : 'light');
+      if (m.addEventListener) m.addEventListener('change', listener);
+      else m.addListener(listener as any);
+      return () => {
+        if (m.removeEventListener) m.removeEventListener('change', listener);
+        else m.removeListener(listener as any);
+      };
+    }
+  }, [themePref]);
+
   // Re-convert when mermaidSource changes
   useEffect(() => {
     // Only convert when user edits the editor content
@@ -246,18 +298,33 @@ function App() {
       >
         <div className="h-100 overflow-auto" style={{ width: "340px" }}>
           {/* Sidebar Header */}
-          <div className="bg-white border-bottom px-3 py-2 position-sticky top-0 z-2">
-            <div className="d-flex align-items-center justify-content-between">
-              <div>
-                <h6 className="mb-0 fw-semibold text-dark fs-6">
-                  <i className="bi bi-diagram-3 me-2 text-primary"></i>
-                  Diagram Tools
-                </h6>
+          <div className="bg-white border-bottom px-3 py-2 position-sticky top-0 z-2 d-flex align-items-center justify-content-between">
+            <div>
+              <h6 className="mb-0 fw-semibold text-dark fs-6">
+                <i className="bi bi-diagram-3 me-2 text-primary"></i>
+                Diagram Tools
+              </h6>
+            </div>
+
+            <div className="d-flex align-items-center gap-2">
+              <div className="theme-toggle">
+                <select
+                  className="form-select form-select-sm"
+                  value={themePref}
+                  onChange={(e) => setThemePref(e.target.value as any)}
+                  aria-label="Theme preference"
+                >
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
               </div>
+
               <button
                 className="btn btn-sm btn-outline-secondary p-1"
                 onClick={() => setSidebarCollapsed(true)}
                 style={{ width: "28px", height: "28px" }}
+                title="Close sidebar"
               >
                 <i className="bi bi-x fs-6"></i>
               </button>
@@ -286,13 +353,14 @@ function App() {
               <div className={`collapse ${accordionOpen.editor ? "show" : ""}`}>
                 <MermaidEditor
                   value={mermaidSource}
+                  theme={effectiveTheme}
                   onChange={(v) => {
                     setFlowMode('editor');
                     setMermaidSource(v);
                   }}
                 />
                 {/* AI Mermaid Generator: Uses Gemini API to generate mermaid code */}
-                <div style={{ borderTop: '1px solid #f1f1f1', marginTop: 8 }} />
+                <div className="border-top" style={{ marginTop: 8 }} />
                 <GeminiMermaidGenerator
                   onStart={() => setIsStreaming(true)}
                   onStop={() => setIsStreaming(false)}
