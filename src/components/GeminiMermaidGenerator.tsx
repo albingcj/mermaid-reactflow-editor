@@ -1,6 +1,15 @@
 import { useState } from "react";
 import LLM from "@themaximalist/llm.js";
 import { streamGemini } from "../utils/geminiStream";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Card } from "./ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Separator } from "./ui/separator";
+import { Sparkles, Wand2, X, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   onComplete: (mermaidCode: string) => void;
@@ -8,6 +17,7 @@ interface Props {
   onStart?: () => void;
   onStop?: () => void;
 }
+
 
 const MERMAID_SYSTEM_PROMPT = `You are a Mermaid diagram expert. STRICTLY output ONLY raw Mermaid diagram source. Do NOT provide any explanations, commentary, or markdown outside the raw Mermaid text.
 
@@ -26,7 +36,8 @@ NON-NEGOTIABLE RULES:
 - Output raw Mermaid only (no fenced blocks, no extra prose).
 - IMPORTANT: Output exactly ONE Mermaid diagram only. Do NOT produce multiple separate diagrams in the same response. If the request could reasonably produce multiple diagrams, pick the most representative single diagram and output only that.`;
 
-export default function LLMJSMermaidGenerator({
+
+export default function GeminiMermaidGenerator({
   onComplete,
   onChunk,
   onStart,
@@ -36,11 +47,8 @@ export default function LLMJSMermaidGenerator({
   const [service, setService] = useState("google");
   const [model, setModel] = useState("gemini-2.0-flash");
   const [userInput, setUserInput] = useState("");
-  // response state removed; editor receives streamed code
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // ...example prompts removed (streaming UI uses editor as source)
 
   const serviceOptions = [
     { value: "google", label: "Google (Gemini)" },
@@ -515,117 +523,72 @@ export default function LLMJSMermaidGenerator({
   setError("");
   };
 
-  return (
-    <div className="px-3 py-2 bg-white">
-      <div className="mb-2 d-flex align-items-center justify-content-between">
-        <label className="form-label small text-muted mb-0 fw-medium">
-          <i className="bi bi-robot me-1"></i>
-          AI Mermaid Generator
-        </label>
-        <small className="text-muted" style={{ fontSize: 11 }}>
-          Powered by LLM.js
-        </small>
-      </div>
 
-      {/* API Configuration */}
-      <div className="mb-3">
-        <div className="row g-2">
-          <div className="col-6">
-            <label className="form-label small text-muted">API Key</label>
-            <input
-              type="password"
-              className="form-control form-control-sm"
-              placeholder="Enter your API key"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-          </div>
-          <div className="col-3">
-            <label className="form-label small text-muted">Service</label>
-            <select
-              className="form-select form-select-sm"
-              value={service}
-              onChange={(e) => setService(e.target.value)}
-            >
-              {serviceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-3">
-            <label className="form-label small text-muted">Model</label>
-            <input
-              type="text"
-              className="form-control form-control-sm"
-              placeholder="Model name"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* User Input */}
-      <div className="mb-3">
-        <label className="form-label small text-muted">
-          Describe your diagram
-        </label>
-        <textarea
-          className="form-control"
-          rows={3}
-          value={userInput}
-          onChange={(e) => setUserInput(e.target.value)}
-          placeholder="E.g., 'Create a flowchart for user authentication process' or 'Generate a sequence diagram for API calls'"
-          style={{ fontSize: 13 }}
-        />
-      </div>
-
-  {/* Quick examples removed - editor is the single source for mermaid code */}
-
-      {/* Action Buttons */}
-      <div className="mb-3 d-flex gap-2">
-        <button
-          className="btn btn-sm btn-primary"
+return (
+  <Card className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300">
+    <div className="flex flex-col sm:flex-row gap-3">
+      <Input
+        placeholder="Describe your diagram..."
+        value={userInput}
+        onChange={(e) => setUserInput(e.target.value)}
+        className="flex-1 hover:border-primary/50 focus:border-primary transition-colors"
+        onKeyDown={(e) => e.key === "Enter" && generateMermaid()}
+      />
+      <div className="flex gap-2">
+        <Button
           onClick={generateMermaid}
           disabled={loading || !apiKey || !userInput}
+          className="gap-2 bg-primary hover:bg-primary/90 transition-all duration-200 disabled:opacity-50"
         >
           {loading ? (
-            <>
-              <span
-                className="spinner-border spinner-border-sm me-1"
-                role="status"
-                aria-hidden="true"
-              ></span>
-              Generating...
-            </>
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
           ) : (
-            <>
-              <i className="bi bi-magic me-1"></i>
-              Generate Mermaid
-            </>
+            <Sparkles className="h-4 w-4" />
           )}
-        </button>
-        <button
-          className="btn btn-sm btn-outline-secondary"
-          onClick={clearResponse}
-          disabled={loading}
+          {loading ? "Generating..." : "Generate"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setError("")}
+          className="hover:scale-105 transition-transform"
+          title="Clear"
         >
-          Clear
-        </button>
+          <X className="h-4 w-4" />
+        </Button>
       </div>
-
-      {/* Error Display */}
-      {error && (
-        <div className="alert alert-danger alert-sm py-2" role="alert">
-          <i className="bi bi-exclamation-triangle me-1"></i>
-          {error}
-        </div>
-      )}
-
-
-  
     </div>
-  );
+
+    <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-3 border-t border-primary/20">
+      <Input
+        placeholder="API Key"
+        type="password"
+        value={apiKey}
+        onChange={(e) => setApiKey(e.target.value)}
+        className="flex-1"
+      />
+      <select
+        value={model}
+        onChange={(e) => setModel(e.target.value)}
+        className="px-3 py-2 bg-background border border-border rounded text-sm hover:border-primary/50 transition-colors"
+      >
+        <option value="gemini-pro">Gemini Pro</option>
+        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+      </select>
+    </div>
+
+    {/* Error Display */}
+    {error && (
+      <Alert variant="destructive" className="mt-3 py-2">
+        <div className="flex items-center">
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          <span className="text-sm">{error}</span>
+        </div>
+      </Alert>
+    )}
+  </Card>
+);
+
+
 }

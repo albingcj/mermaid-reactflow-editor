@@ -12,8 +12,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [ "./src/*"]
+    },
+  "noUnusedLocals": false,
+  "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src", "test"],

@@ -7,3 +7,5 @@ build/
 .vscode/
 .idea/
 *.md
+
+sample-ui/
