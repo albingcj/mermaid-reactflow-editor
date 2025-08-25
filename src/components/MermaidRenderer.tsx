@@ -4,6 +4,7 @@ import mermaid from 'mermaid';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Button } from './ui/button';
 import { Info } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 export interface MermaidRendererProps {
   code: string;
@@ -18,6 +19,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const uniqueId = useRef(`mermaid-svg-${Math.random().toString(36).substr(2, 9)}`).current;
 
@@ -178,6 +180,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
     };
 
     const renderDiagram = async () => {
+      // reset any prior error
+      setErrorMessage(null);
       try {
         // cleanup any previous injected nodes before rendering
         removeInjectedMermaidDivs();
@@ -189,11 +193,12 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         removeInjectedMermaidDivs();
       } catch (err) {
         console.error('MermaidRenderer: Error rendering diagram', err);
+        // clear content and capture error message
         if (ref.current) {
-          ref.current.innerHTML = `<pre style='color:red; font-size: 12px; padding: 8px;'>Mermaid Error: ${String(err)}</pre>`;
-          // ensure we don't leave stray mermaid helper divs in the document
+          ref.current.innerHTML = '';
           removeInjectedMermaidDivs();
         }
+        setErrorMessage(String(err));
       }
     };
 
@@ -274,6 +279,19 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         <div ref={ref} style={{ pointerEvents: 'auto' }} />
       </div>
       
+      {/* Error indicator popover when rendering fails */}
+      {errorMessage && (
+        <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
+          <Popover>
+            <PopoverTrigger asChild>
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </PopoverTrigger>
+            <PopoverContent sideOffset={6} align="center">
+              <pre className="whitespace-pre-wrap text-xs">{errorMessage}</pre>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
       {/* Fixed position zoom controls */}
       <div style={{
         position: 'absolute',
