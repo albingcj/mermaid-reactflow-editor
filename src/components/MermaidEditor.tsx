@@ -1,4 +1,5 @@
 import Editor from '@monaco-editor/react';
+import { useEffect, useRef } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Button } from './ui/button';
 import { Info } from 'lucide-react';
@@ -10,8 +11,22 @@ interface Props {
 }
 
 export default function MermaidEditor({ value, onChange, theme = 'light' }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<any | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(() => {
+      if (editorRef.current) {
+        try { editorRef.current.layout(); } catch {}
+      }
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="px-3 py-2 flex items-center justify-between">
         <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
           <i className="bi bi-file-code" />
@@ -30,8 +45,8 @@ export default function MermaidEditor({ value, onChange, theme = 'light' }: Prop
         </Tooltip>
       </div>
 
-      <div className="flex-1 px-3 pb-3">
-        <div className="editor-container h-full rounded-md overflow-hidden">
+      <div className="flex-1 min-h-0 px-3 pb-3 overflow-hidden">
+        <div ref={containerRef} className="editor-container h-full min-h-0 rounded-md overflow-hidden">
           <Editor
             height="100%"
             defaultLanguage="markdown"
@@ -39,6 +54,13 @@ export default function MermaidEditor({ value, onChange, theme = 'light' }: Prop
             theme={theme === 'dark' ? 'vs-dark' : 'light'}
             value={value}
             onChange={(val) => onChange(val ?? '')}
+            onMount={(editor) => {
+              editorRef.current = editor;
+              // Defer initial layout to after mount to ensure correct size
+              requestAnimationFrame(() => {
+                try { editor.layout(); } catch {}
+              });
+            }}
             options={{
               minimap: { enabled: false },
               wordWrap: 'on',

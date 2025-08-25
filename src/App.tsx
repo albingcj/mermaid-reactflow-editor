@@ -568,7 +568,7 @@ function App() {
 
   if (fullscreenPanel) {
     return (
-      <div className="h-screen bg-background flex flex-col">
+      <div className="h-screen bg-background flex flex-col min-h-0 overflow-hidden">
         {/* Fullscreen Header */}
         <header className="border-b bg-card px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -594,9 +594,9 @@ function App() {
 
         
 
-        <div className="flex-1">
+    <div className="flex-1 min-h-0 overflow-hidden">
           {fullscreenPanel === "code" && (
-            <div className="h-full p-3 sm:p-6 flex flex-col">
+      <div className="h-full p-3 sm:p-6 flex flex-col min-h-0 overflow-hidden">
               <div className="mb-4">
                 <Button
                   variant="outline"
@@ -670,16 +670,18 @@ function App() {
                 )}
               </div>
 
-              <Card className="flex-1 min-h-0 p-6 bg-muted/30 hover:bg-muted/40 transition-colors">
+              <Card className="flex-1 min-h-0 p-6 bg-muted/30 hover:bg-muted/40 transition-colors flex flex-col overflow-hidden">
                 <div className="font-mono text-sm text-muted-foreground mb-4">Mermaid Code Editor - Fullscreen</div>
-                <MermaidEditor
-                  value={mermaidSource}
-                  theme={effectiveTheme}
-                  onChange={(v) => {
-                    setFlowMode('editor');
-                    setMermaidSource(v);
-                  }}
-                />
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <MermaidEditor
+                    value={mermaidSource}
+                    theme={effectiveTheme}
+                    onChange={(v) => {
+                      setFlowMode('editor');
+                      setMermaidSource(v);
+                    }}
+                  />
+                </div>
               </Card>
             </div>
           )}
@@ -938,7 +940,7 @@ function App() {
       
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Code Editor Panel */}
           {visiblePanels.code && (
@@ -946,7 +948,7 @@ function App() {
               <ResizablePanel
                 defaultSize={Math.floor(100 / visiblePanelCount)}
                 minSize={20}
-                className="border-r bg-card flex flex-col"
+                className="border-r bg-card flex flex-col min-h-0"
               >
                 <div className="p-2 border-b flex items-center justify-between bg-muted/30">
                   <div className="flex items-center gap-2">
@@ -988,7 +990,7 @@ function App() {
                 </div>
 
                 {showAiGenerator && (
-                  <div className="p-3 border-b bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300">
+                  <div className="p-3 border-b bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300 flex-shrink-0">
                     <GeminiMermaidGenerator
                       onStart={() => setIsStreaming(true)}
                       onStop={() => setIsStreaming(false)}
@@ -1028,7 +1030,7 @@ function App() {
               <ResizablePanel
                 defaultSize={Math.floor(100 / visiblePanelCount)}
                 minSize={20}
-                className="border-r bg-card flex flex-col"
+                className="border-r bg-card flex flex-col min-h-0"
               >
                 <div className="p-2 border-b flex items-center justify-between bg-muted/30">
                   <div className="flex items-center gap-2">
@@ -1088,7 +1090,7 @@ function App() {
 
           {/* Canvas Panel */}
           {visiblePanels.canvas && (
-            <ResizablePanel defaultSize={Math.floor(100 / visiblePanelCount)} minSize={30} className="flex flex-col">
+            <ResizablePanel defaultSize={Math.floor(100 / visiblePanelCount)} minSize={30} className="flex flex-col min-h-0">
               <div
                 className={cn("border-b bg-card transition-all duration-300", isToolbarCollapsed ? "h-8" : "h-auto")}
               >
