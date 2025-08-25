@@ -610,63 +610,23 @@ function App() {
                 </Button>
 
                 {showAiGenerator && (
-                  <Card className="p-4 mb-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Input
-                        placeholder="Describe your diagram..."
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        className="flex-1 hover:border-primary/50 focus:border-primary transition-colors"
-                        onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={handleGenerate}
-                          disabled={isStreaming || !aiPrompt.trim()}
-                          className="gap-2 bg-primary hover:bg-primary/90 transition-all duration-200 disabled:opacity-50"
-                        >
-                          {isStreaming ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                          ) : (
-                            <Sparkles className="h-4 w-4" />
-                          )}
-                          {isStreaming ? "Generating..." : "Generate"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setAiSettings((prev) => ({ ...prev, isEditingSettings: !prev.isEditingSettings }))
-                          }
-                          className="hover:scale-105 transition-transform"
-                          title="AI Settings"
-                        >
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {aiSettings.isEditingSettings && (
-                      <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-3 border-t border-primary/20 animate-in slide-in-from-top-1 duration-200">
-                        <Input
-                          placeholder="API Key"
-                          type="password"
-                          value={aiSettings.apiKey}
-                          onChange={(e) => setAiSettings((prev) => ({ ...prev, apiKey: e.target.value }))}
-                          className="flex-1"
-                        />
-                        <select
-                          value={aiSettings.model}
-                          onChange={(e) => setAiSettings((prev) => ({ ...prev, model: e.target.value }))}
-                          className="px-3 py-2 bg-background border border-border rounded text-sm hover:border-primary/50 transition-colors"
-                        >
-                          <option value="gpt-4">GPT-4</option>
-                          <option value="gpt-3.5-turbo">GPT-3.5</option>
-                          <option value="claude-3">Claude-3</option>
-                        </select>
-                      </div>
-                    )}
-                  </Card>
+                  <div className="p-3 border-b bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300 flex-shrink-0">
+                    <GeminiMermaidGenerator
+                      onStart={() => setIsStreaming(true)}
+                      onStop={() => setIsStreaming(false)}
+                      onChunk={(partial: string) => {
+                        // update editor progressively so preview/conversion can run as content streams
+                        setFlowMode('editor');
+                        setMermaidSource(partial);
+                      }}
+                      onComplete={(result: string) => {
+                        // When streaming completes, ensure final content is applied
+                        setMermaidSource(result);
+                        setFlowMode('editor');
+                        showToast('Mermaid generation complete — applied to editor', 'success');
+                      }}
+                    />
+                  </div>
                 )}
               </div>
 
