@@ -4,7 +4,7 @@ import mermaid from 'mermaid';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Button } from './ui/button';
 import { Info } from 'lucide-react';
-import { AlertTriangle } from 'lucide-react';
+// AlertTriangle import removed; using inline error block now
 
 export interface MermaidRendererProps {
   code: string;
@@ -159,6 +159,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
     ref.current.innerHTML = '';
     
     if (!code || code.trim() === '') {
+      // clear any previous error and show empty placeholder
+      setErrorMessage(null);
       ref.current.innerHTML = '<span style="color: #888;">No Mermaid code to render.</span>';
       return;
     }
@@ -189,6 +191,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         if (ref.current) {
           ref.current.innerHTML = svg;
         }
+        // Successful render -> clear any previous error message
+        setErrorMessage(null);
         // cleanup any stray injected nodes created outside this container
         removeInjectedMermaidDivs();
       } catch (err) {
@@ -247,51 +251,53 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className={className} 
-      style={{ 
-        ...style, 
-        position: 'relative', 
-        overflow: 'hidden', 
-        width: '100%', 
+      className={className}
+      style={{
+        ...style,
+        position: 'relative',
+        overflow: 'hidden',
+        width: '100%',
         height: '100%',
-        cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div 
-        style={{ 
-          transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`, 
-          transformOrigin: 'center center', 
+      <div
+        style={{
+          transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+          transformOrigin: 'center center',
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          pointerEvents: zoom > 1 ? 'none' : 'auto', // Prevent SVG interactions when panning
+          pointerEvents: zoom > 1 ? 'none' : 'auto',
         }}
       >
-        <div ref={ref} style={{ pointerEvents: 'auto' }} />
+        <div ref={ref} style={{ pointerEvents: 'auto', width: '100%', height: '100%' }} />
       </div>
-      
-      {/* Error indicator popover when rendering fails */}
+
+      {/* Error overlay: absolute over the preview so ref remains mounted and mermaid can update it */}
       {errorMessage && (
-        <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
-          <Popover>
-            <PopoverTrigger asChild>
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-            </PopoverTrigger>
-            <PopoverContent sideOffset={6} align="center">
-              <pre className="whitespace-pre-wrap text-xs">{errorMessage}</pre>
-            </PopoverContent>
-          </Popover>
+        <div
+          className="bg-destructive/10 text-destructive rounded-md p-4 m-4 overflow-auto text-sm whitespace-pre-wrap"
+          style={{
+            position: 'absolute',
+            inset: '1rem',
+            zIndex: 50,
+            pointerEvents: 'auto',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {errorMessage}
         </div>
       )}
+      
       {/* Fixed position zoom controls */}
       <div style={{
         position: 'absolute',
