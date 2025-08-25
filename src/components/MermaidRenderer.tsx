@@ -1,6 +1,9 @@
 // @ts-nocheck
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import mermaid from 'mermaid';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { Button } from './ui/button';
+import { Info } from 'lucide-react';
 
 export interface MermaidRendererProps {
   code: string;
@@ -346,23 +349,22 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         </div>
       )}
 
-      {/* Help text */}
-      <div style={{
-        position: 'absolute',
-        bottom: '10px',
-        left: '10px',
-        zIndex: 1000,
-        background: 'rgba(255, 255, 255, 0.9)',
-        padding: '6px 10px',
-        borderRadius: '6px',
-        fontSize: '11px',
-        color: '#666',
-        maxWidth: '180px',
-        lineHeight: '1.3'
-      }}>
-        <div><strong>Scroll:</strong> Zoom in/out</div>
-        <div><strong>Drag:</strong> Pan when zoomed</div>
-        <div><strong>Ctrl +/-:</strong> Zoom shortcuts</div>
+      {/* Help tooltip */}
+      <div style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 1000 }}>
+        <Tooltip>
+          <TooltipTrigger>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Info className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent sideOffset={6}>
+            <div style={{ fontSize: 12, lineHeight: 1.4 }}>
+              <div><strong>Scroll:</strong> Zoom in/out</div>
+              <div><strong>Drag:</strong> Pan when zoomed</div>
+              <div><strong>Ctrl +/-:</strong> Zoom shortcuts</div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

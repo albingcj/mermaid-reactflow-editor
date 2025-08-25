@@ -12,6 +12,7 @@ import MermaidEditor from "./components/MermaidEditor";
 import GeminiMermaidGenerator from "./components/GeminiMermaidGenerator";
 // Import UI components with relative paths
 import { Button } from "./components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
@@ -58,6 +59,7 @@ import {
   AlignVerticalSpaceAround,
   Maximize,
   MoveUp,
+  Info,
   MoveDown,
   GitBranch,
   FolderOpen,
@@ -594,7 +596,7 @@ function App() {
 
         <div className="flex-1">
           {fullscreenPanel === "code" && (
-            <div className="h-full p-3 sm:p-6">
+            <div className="h-full p-3 sm:p-6 flex flex-col">
               <div className="mb-4">
                 <Button
                   variant="outline"
@@ -668,7 +670,7 @@ function App() {
                 )}
               </div>
 
-              <Card className="h-full p-6 bg-muted/30 hover:bg-muted/40 transition-colors">
+              <Card className="flex-1 min-h-0 p-6 bg-muted/30 hover:bg-muted/40 transition-colors">
                 <div className="font-mono text-sm text-muted-foreground mb-4">Mermaid Code Editor - Fullscreen</div>
                 <MermaidEditor
                   value={mermaidSource}
@@ -1005,7 +1007,7 @@ function App() {
                   </div>
                 )}
 
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                   <MermaidEditor
                     value={mermaidSource}
                     theme={effectiveTheme}
@@ -1055,15 +1057,26 @@ function App() {
                   </div>
                 </div>
 
-                <div className="flex-1 p-4">
-                  <Card className="h-full p-4 flex items-center justify-center bg-muted/30 hover:bg-muted/40 transition-colors">
+                <div className="flex-1 p-4 flex flex-col min-h-0">
+                  <Card className="flex-1 min-h-0 p-4 flex items-center justify-center bg-muted/30 hover:bg-muted/40 transition-colors">
                     {mermaidSource ? (
                       <MermaidRenderer code={mermaidSource} />
                     ) : (
                       <div className="text-center text-muted-foreground">
                         <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Mermaid Preview</p>
-                        <p className="text-xs mt-1">Live preview renders here</p>
+                        <div className="flex items-center justify-center gap-2">
+                          <p className="sr-only">Mermaid Preview</p>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Info className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent sideOffset={6}>
+                              Live preview will render here once Mermaid code is present.
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
                     )}
                   </Card>
