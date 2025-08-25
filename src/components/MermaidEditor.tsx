@@ -1,6 +1,6 @@
 import Editor from '@monaco-editor/react';
 import { useEffect, useRef } from 'react';
-import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Button } from './ui/button';
 import { Info } from 'lucide-react';
 
@@ -33,16 +33,16 @@ export default function MermaidEditor({ value, onChange, theme = 'light' }: Prop
           <span>Mermaid Source</span>
         </label>
 
-        <Tooltip>
-          <TooltipTrigger>
+        <Popover>
+          <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="h-7 w-7 p-0">
               <Info className="h-4 w-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent sideOffset={6}>
+          </PopoverTrigger>
+          <PopoverContent sideOffset={6} align="center">
             Edit mermaid code only — this editor accepts only Mermaid syntax (no markdown fences).
-          </TooltipContent>
-        </Tooltip>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="flex-1 min-h-0 px-3 pb-3 overflow-hidden">

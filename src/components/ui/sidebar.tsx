@@ -19,11 +19,11 @@ import {
 } from "./sheet"
 import { Skeleton } from "./skeleton"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "./tooltip"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  PopoverAnchor,
+} from "./popover"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -128,25 +128,23 @@ function SidebarProvider({
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delayDuration={0}>
-        <div
-          data-slot="sidebar-wrapper"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH,
-              "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
-              ...style,
-            } as React.CSSProperties
-          }
-          className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
-            className
-          )}
-          {...props}
-        >
-          {children}
-        </div>
-      </TooltipProvider>
+      <div
+        data-slot="sidebar-wrapper"
+        style={
+          {
+            "--sidebar-width": SIDEBAR_WIDTH,
+            "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+            ...style,
+          } as React.CSSProperties
+        }
+        className={cn(
+          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </div>
     </SidebarContext.Provider>
   )
 }
@@ -506,7 +504,7 @@ function SidebarMenuButton({
 }: React.ComponentProps<"button"> & {
   asChild?: boolean
   isActive?: boolean
-  tooltip?: string | React.ComponentProps<typeof TooltipContent>
+  tooltip?: string | React.ComponentProps<typeof PopoverContent>
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot : "button"
   const { isMobile, state } = useSidebar()
@@ -532,16 +530,18 @@ function SidebarMenuButton({
     }
   }
 
+  // Use Popover to provide the same lightweight hover/click content
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent
+    <Popover>
+      <PopoverTrigger asChild>{button}</PopoverTrigger>
+      <PopoverContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
+        sideOffset={6}
+        className={cn(state !== "collapsed" || isMobile ? "hidden" : "", (tooltip as any)?.className)}
+        {...(tooltip as any)}
       />
-    </Tooltip>
+    </Popover>
   )
 }
 

@@ -12,7 +12,7 @@ import MermaidEditor from "./components/MermaidEditor";
 import GeminiMermaidGenerator from "./components/GeminiMermaidGenerator";
 // Import UI components with relative paths
 import { Button } from "./components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
+import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
@@ -1028,16 +1028,16 @@ function App() {
                         <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
                         <div className="flex items-center justify-center gap-2">
                           <p className="sr-only">Mermaid Preview</p>
-                          <Tooltip>
-                            <TooltipTrigger>
+                          <Popover>
+                            <PopoverTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
                                 <Info className="h-4 w-4" />
                               </Button>
-                            </TooltipTrigger>
-                            <TooltipContent sideOffset={6}>
+                            </PopoverTrigger>
+                            <PopoverContent sideOffset={6} align="center">
                               Live preview will render here once Mermaid code is present.
-                            </TooltipContent>
-                          </Tooltip>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     )}

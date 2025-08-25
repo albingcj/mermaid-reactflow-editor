@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import mermaid from 'mermaid';
-import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Button } from './ui/button';
 import { Info } from 'lucide-react';
 
@@ -351,20 +351,20 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
 
       {/* Help tooltip */}
       <div style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 1000 }}>
-        <Tooltip>
-          <TooltipTrigger>
+        <Popover>
+          <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <Info className="h-4 w-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent sideOffset={6}>
+          </PopoverTrigger>
+          <PopoverContent sideOffset={6} align="center">
             <div style={{ fontSize: 12, lineHeight: 1.4 }}>
               <div><strong>Scroll:</strong> Zoom in/out</div>
               <div><strong>Drag:</strong> Pan when zoomed</div>
               <div><strong>Ctrl +/-:</strong> Zoom shortcuts</div>
             </div>
-          </TooltipContent>
-        </Tooltip>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );
