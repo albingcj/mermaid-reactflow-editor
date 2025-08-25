@@ -1,6 +1,6 @@
 
 
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "./use-toast"
 import {
   Toast,
   ToastClose,
@@ -8,16 +8,17 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
-} from "@/components/ui/toast"
+} from "./toast"
 
 export function Toaster() {
   const { toasts } = useToast()
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function (t: { id: string; title?: React.ReactNode; description?: React.ReactNode; action?: React.ReactNode } ) {
+        const { id, title, description, action, ...props } = t
         return (
-          <Toast key={id} {...props}>
+          <Toast key={id} {...(props as any)}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (

@@ -149,9 +149,9 @@ function App() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const dismissToast = useCallback((id: string) => setToasts((ts) => ts.filter((t) => t.id !== id)), []);
   // FlowDiagram exposed methods
-  const flowMethodsRef = useRef<{ openSearch?: () => void; exportImage?: () => Promise<void> } | null>(null);
+  const flowMethodsRef = useRef<{ openSearch?: () => void; exportImage?: () => Promise<void>; selectSubgraphContents?: (id?: string) => void } | null>(null);
 
-  const registerFlowMethods = useCallback((methods: { openSearch?: () => void; exportImage?: () => Promise<void> } | {}) => {
+  const registerFlowMethods = useCallback((methods: { openSearch?: () => void; exportImage?: () => Promise<void>; selectSubgraphContents?: (id?: string) => void } | {}) => {
     if (!methods || Object.keys(methods).length === 0) {
       flowMethodsRef.current = null;
     } else {
@@ -175,11 +175,11 @@ function App() {
   // Apply theme to documentElement
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove('theme-light', 'theme-dark');
+    root.classList.remove('light', 'dark');
     if (themePref === 'light') {
-      root.classList.add('theme-light');
+      root.classList.add('light');
     } else if (themePref === 'dark') {
-      root.classList.add('theme-dark');
+      root.classList.add('dark');
     } else {
       // system: remove explicit class to allow prefers-color-scheme media query
     }
@@ -751,8 +751,13 @@ function App() {
                     interactive={!isStreaming}
                     onNodesChange={handleNodesChange}
                     onEdgesChange={handleEdgesChange}
+                    onSelectionChange={(selectedNodesObjs, selectedEdgesObjs) => {
+                      // store selected node ids in App state
+                      setSelectedNodes(selectedNodesObjs.map(n => n.id));
+                    }}
                     onRequestPreview={() => setShowPreviewMain((s) => !s)}
                     onRegisterMethods={registerFlowMethods}
+                    theme={effectiveTheme}
                   />
                 </div>
               </div>
@@ -1129,22 +1134,45 @@ function App() {
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 mr-4">
-                          {tools.map((tool) => (
+                          {/* Draggable palette: Node and Subgraph */}
+                          <div className="flex items-center gap-1 mr-4">
                             <Button
-                              key={tool.id}
-                              variant={selectedTool === tool.id ? "default" : "ghost"}
+                              variant="ghost"
                               size="sm"
-                              onClick={() => setSelectedTool(tool.id)}
                               className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                              title={tool.label}
+                              title="Add Node (drag to canvas)"
+                              draggable
+                              onDragStart={(e) => e.dataTransfer.setData('application/reactflow', 'node')}
                             >
-                              <tool.icon className="h-4 w-4" />
+                              <PanelLeft className="h-4 w-4" />
                             </Button>
-                          ))}
-                        </div>
 
-                        <Separator orientation="vertical" className="h-6" />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 hover:scale-105 transition-transform"
+                              title="Add Subgraph (drag to canvas)"
+                              draggable
+                              onDragStart={(e) => e.dataTransfer.setData('application/reactflow', 'subgraph')}
+                            >
+                              <PanelRightOpen className="h-4 w-4" />
+                            </Button>
+
+                            {tools.map((tool) => (
+                              <Button
+                                key={tool.id}
+                                variant={selectedTool === tool.id ? "default" : "ghost"}
+                                size="sm"
+                                onClick={() => setSelectedTool(tool.id)}
+                                className="h-8 w-8 p-0 hover:scale-105 transition-transform"
+                                title={tool.label}
+                              >
+                                <tool.icon className="h-4 w-4" />
+                              </Button>
+                            ))}
+                          </div>
+
+                          <Separator orientation="vertical" className="h-6" />
 
                         {selectedNodes.length > 1 && (
                           <>
@@ -1224,6 +1252,28 @@ function App() {
                             <Lock className="h-4 w-4" />
                           </Button>
                         </div>
+                        {/* Select subgraph contents - available when exactly one node selected and it looks like a subgraph */}
+                        {/* selectedNodes here is array of ids in App state; look up the node object from flowData */}
+                        {selectedNodes.length === 1 && (() => {
+                          const nid = selectedNodes[0];
+                          const nodeObj = flowData.nodes.find((n) => n.id === nid);
+                          return nodeObj && (nodeObj.type === 'group' || nodeObj?.data?.isSubgraph) ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="ml-3 gap-2"
+                              onClick={() => {
+                                const id = nodeObj.id;
+                                if (flowMethodsRef.current?.selectSubgraphContents) {
+                                  try { flowMethodsRef.current.selectSubgraphContents(id); } catch (e) {}
+                                }
+                              }}
+                            >
+                              <BoxSelect className="h-4 w-4" />
+                              <span className="hidden sm:inline">Select Contents</span>
+                            </Button>
+                          ) : null;
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -1283,8 +1333,12 @@ function App() {
                       interactive={!isStreaming}
                       onNodesChange={handleNodesChange}
                       onEdgesChange={handleEdgesChange}
+                      onSelectionChange={(selectedNodesObjs, selectedEdgesObjs) => {
+                        setSelectedNodes(selectedNodesObjs.map(n => n.id));
+                      }}
                       onRequestPreview={() => setShowPreviewMain((s) => !s)}
                       onRegisterMethods={registerFlowMethods}
+                      theme={effectiveTheme}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-center">

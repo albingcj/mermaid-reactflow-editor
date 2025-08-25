@@ -1480,3 +1480,77 @@ textarea {
   cursor: se-resize;
 }
 
+/* ReactFlow Dark Mode Styles */
+.dark .react-flow {
+  background-color: hsl(var(--background));
+}
+
+.dark .react-flow__pane {
+  background-color: hsl(var(--background));
+}
+
+.dark .react-flow__controls {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .react-flow__controls button {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.dark .react-flow__controls button:hover {
+  background-color: hsl(var(--muted));
+}
+
+.dark .react-flow__minimap {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .react-flow__background {
+  color: hsl(var(--border));
+}
+
+.dark .react-flow__edge-path {
+  stroke: hsl(var(--muted-foreground));
+}
+
+.dark .react-flow__edge-text {
+  fill: hsl(var(--foreground));
+}
+
+.dark .react-flow__handle {
+  background-color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary-foreground));
+}
+
+.dark .react-flow__handle:hover {
+  background-color: hsl(var(--primary)/0.8);
+}
+
+.dark .react-flow__node {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.dark .react-flow__node-input,
+.dark .react-flow__node-output,
+.dark .react-flow__node-default {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.dark .react-flow__node.selected {
+  box-shadow: 0 0 0 2px hsl(var(--primary));
+}
+
+.dark .react-flow__attribution {
+  background-color: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+}
+

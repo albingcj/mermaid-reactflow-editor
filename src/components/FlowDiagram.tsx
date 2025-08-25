@@ -44,10 +44,12 @@ interface FlowDiagramProps {
   nodes: Node[];
   edges: Edge[];
   onNodesChange?: (nodes: Node[]) => void;
+  onSelectionChange?: (selectedNodes: Node[], selectedEdges: Edge[]) => void;
   onEdgesChange?: (edges: Edge[]) => void;
   onRequestPreview?: () => void;
-  onRegisterMethods?: (methods: { openSearch?: () => void; exportImage?: () => Promise<void> }) => void;
+  onRegisterMethods?: (methods: { openSearch?: () => void; exportImage?: () => Promise<void>; selectSubgraphContents?: (id?: string) => void }) => void;
   interactive?: boolean; // when false, disable user interactions (used during streaming)
+  theme?: 'light' | 'dark'; // Theme for styling the ReactFlow container
 }
 
 function FlowDiagramInternal({
@@ -55,9 +57,11 @@ function FlowDiagramInternal({
   edges: initialEdges,
   onNodesChange: onNodesChangeCallback,
   onEdgesChange: onEdgesChangeCallback,
+  onSelectionChange,
   onRequestPreview,
   onRegisterMethods,
   interactive = true,
+  theme = 'light',
 }: FlowDiagramProps) {
   const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
@@ -116,7 +120,9 @@ function FlowDiagramInternal({
       onRegisterMethods({
         openSearch: () => setShowSearch(true),
         exportImage: handleDownloadImage,
-      });
+        // expose selectSubgraphContents so parent toolbar can trigger it
+        selectSubgraphContents: (id?: string) => onSelectSubgraphContents(id),
+      } as any);
     }
     // unregister on unmount
     return () => {
@@ -131,7 +137,8 @@ function FlowDiagramInternal({
       setNodes((nds) => {
         const updated = applyNodeChanges(changes, nds);
         if (hasSelectChange) {
-          setSelectedNodes(updated.filter((n) => n.selected));
+          const sel = updated.filter((n) => n.selected);
+          setSelectedNodes(sel);
         }
         return updated;
       });
@@ -145,7 +152,8 @@ function FlowDiagramInternal({
       setEdges((eds) => {
         const updated = applyEdgeChanges(changes, eds);
         if (hasSelectChange) {
-          setSelectedEdges(updated.filter((e) => e.selected));
+          const sel = updated.filter((e) => e.selected);
+          setSelectedEdges(sel);
         }
         return updated;
       });
@@ -228,6 +236,14 @@ function FlowDiagramInternal({
     if (onNodesChangeCallback) onNodesChangeCallback(nodes);
     if (onEdgesChangeCallback) onEdgesChangeCallback(edges);
   }, [onNodeDragStop, onNodesChangeCallback, onEdgesChangeCallback, nodes, edges]);
+
+  // Notify parent about selection changes after React has updated local selection state
+  useEffect(() => {
+    if (onSelectionChange) {
+      onSelectionChange(selectedNodes, selectedEdges);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNodes, selectedEdges]);
 
   const handleNodeUpdate = useCallback(
     (nodeId: string, data: any) => {
@@ -417,7 +433,7 @@ function FlowDiagramInternal({
   <div
       style={{ width: '100%', height: '100%' }}
       ref={reactFlowWrapper}
-      className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'}`.trim()}
+      className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'} ${theme === 'dark' ? 'dark' : ''}`.trim()}
     >
         <ReactFlow
           minZoom={0.05}
