@@ -210,19 +210,19 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   }, [code, isInitialized, uniqueId]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (zoom <= 1) return; // Only allow panning when zoomed in
+    // allow panning at any zoom level (user expects to be able to grab/move)
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     e.preventDefault();
-  }, [zoom, pan.x, pan.y]);
+  }, [pan.x, pan.y]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || zoom <= 1) return;
+    if (!isDragging) return;
     setPan({
       x: e.clientX - dragStart.x,
       y: e.clientY - dragStart.y,
     });
-  }, [isDragging, dragStart.x, dragStart.y, zoom]);
+  }, [isDragging, dragStart.x, dragStart.y]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -251,7 +251,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   };
 
   return (
-    <div
+  <div
       ref={containerRef}
       className={className}
       style={{
@@ -260,6 +260,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         overflow: 'hidden',
         width: '100%',
         height: '100%',
+    cursor: isDragging ? 'grabbing' : 'grab',
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
