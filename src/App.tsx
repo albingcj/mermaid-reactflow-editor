@@ -175,17 +175,39 @@ function App() {
   // Apply theme to documentElement
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove('light', 'dark');
+
+    const applyThemeClass = (isDark: boolean) => {
+      root.classList.remove('light', 'dark');
+      if (isDark) root.classList.add('dark');
+      else root.classList.add('light');
+    };
+
     if (themePref === 'light') {
-      root.classList.add('light');
-    } else if (themePref === 'dark') {
-      root.classList.add('dark');
-    } else {
-      // system: remove explicit class to allow prefers-color-scheme media query
+      applyThemeClass(false);
+      try { localStorage.setItem('mrfe.theme', themePref); } catch (e) {}
+      return () => root.classList.remove('light', 'dark');
     }
-    try {
-      localStorage.setItem('mrfe.theme', themePref);
-    } catch (e) {}
+
+    if (themePref === 'dark') {
+      applyThemeClass(true);
+      try { localStorage.setItem('mrfe.theme', themePref); } catch (e) {}
+      return () => root.classList.remove('light', 'dark');
+    }
+
+    // system: follow the OS preference and keep it in sync
+    const m = window.matchMedia('(prefers-color-scheme: dark)');
+    applyThemeClass(m.matches);
+    const listener = (e: MediaQueryListEvent) => applyThemeClass(e.matches);
+    if (m.addEventListener) m.addEventListener('change', listener);
+    else m.addListener(listener as any);
+
+    try { localStorage.setItem('mrfe.theme', themePref); } catch (e) {}
+
+    return () => {
+      if (m.removeEventListener) m.removeEventListener('change', listener);
+      else m.removeListener(listener as any);
+      root.classList.remove('light', 'dark');
+    };
   }, [themePref]);
 
   // Compute effective theme for components (monaco editor expects 'vs-dark' or 'light')
