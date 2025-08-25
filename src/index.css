@@ -57,6 +57,63 @@
 	--grid-dot-color: rgba(230, 238, 246, 0.06);
 }
 
+/* Also support applying the simpler "dark" / "light" class on the documentElement
+	 (App.tsx sets document.documentElement.classList.add('dark'|'light')).
+	 Mirror the same variables here and also map the common variable names
+	 used in other stylesheets (e.g. --background / --foreground). */
+
+:root.light,
+html.light,
+body.light {
+	--bg: #ffffff;
+	--surface: #f5f5f5;
+	--muted: #6c757d;
+	--text: #111827;
+	--border: #dddddd;
+	--primary: #0d6efd;
+	--accent: #4caf50;
+	--edge-selected: #ff9800;
+	--edge-selected-shadow: #ff9800aa;
+	--grid-dot-color: rgba(17, 24, 39, 0.08);
+
+	/* Map to other naming conventions used in the project */
+	--background: var(--bg);
+	--foreground: var(--text);
+	--card: var(--surface);
+	--card-foreground: var(--text);
+	--popover: var(--surface);
+	--popover-foreground: var(--text);
+	--primary-foreground: #ffffff;
+	--muted-foreground: var(--muted);
+	--border: var(--border);
+}
+
+:root.dark,
+html.dark,
+body.dark {
+	--bg: #0b0f14;
+	--surface: #0f1720;
+	--muted: #9ca3af;
+	--text: #e6eef6;
+	--border: #1f2a36;
+	--primary: #60a5fa;
+	--accent: #4caf50;
+	--edge-selected: #ffb86b;
+	--edge-selected-shadow: #ffb86b55;
+	--grid-dot-color: rgba(230, 238, 246, 0.06);
+
+	/* Map to other naming conventions used in the project */
+	--background: var(--bg);
+	--foreground: var(--text);
+	--card: var(--surface);
+	--card-foreground: var(--text);
+	--popover: var(--surface);
+	--popover-foreground: var(--text);
+	--primary-foreground: #000000;
+	--muted-foreground: var(--muted);
+	--border: var(--border);
+}
+
 /* Base page styling */
 html, body, #root {
 	height: 100%;
