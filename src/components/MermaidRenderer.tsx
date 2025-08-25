@@ -190,6 +190,32 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         const { svg } = await mermaid.render(uniqueId, code);
         if (ref.current) {
           ref.current.innerHTML = svg;
+
+          // Post-render adjustments so the SVG centers inside our flex container.
+          // Mermaid sometimes injects fixed width/height or wrapper divs that push the
+          // content to the top-left. Normalize common attributes/styles here.
+          try {
+            const svgEl = ref.current.querySelector('svg');
+            if (svgEl) {
+              svgEl.style.maxWidth = '100%';
+              svgEl.style.height = 'auto';
+              svgEl.style.display = 'block';
+              svgEl.style.margin = 'auto';
+              svgEl.removeAttribute('width');
+              svgEl.removeAttribute('height');
+            }
+
+            // Also ensure any top-level wrapper doesn't force alignment
+            const wrapper = ref.current.firstElementChild as HTMLElement | null;
+            if (wrapper && wrapper !== svgEl) {
+              wrapper.style.display = 'block';
+              wrapper.style.margin = 'auto';
+              wrapper.style.maxWidth = '100%';
+              wrapper.style.height = 'auto';
+            }
+          } catch (e) {
+            // ignore DOM errors
+          }
         }
         // Successful render -> clear any previous error message
         setErrorMessage(null);
@@ -280,7 +306,19 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
           pointerEvents: zoom > 1 ? 'none' : 'auto',
         }}
       >
-        <div ref={ref} style={{ pointerEvents: 'auto', width: '100%', height: '100%' }} />
+        {/* make the inner container a flexbox so the injected SVG can be centered */}
+        <div
+          ref={ref}
+          style={{
+            pointerEvents: 'auto',
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'auto',
+          }}
+        />
       </div>
 
       {/* Error overlay: absolute over the preview so ref remains mounted and mermaid can update it */}
