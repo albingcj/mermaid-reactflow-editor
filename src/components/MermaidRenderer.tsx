@@ -15,6 +15,8 @@ export interface MermaidRendererProps {
 export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, className, style }) => {
   const ref = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const baseScaleRef = useRef(1);
+  const [fitTick, setFitTick] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -181,6 +183,63 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
       }
     };
 
+    const fitToContainer = () => {
+      if (!containerRef.current || !ref.current) return;
+      const svgEl = ref.current.querySelector('svg') as SVGSVGElement | null;
+      if (!svgEl) return;
+
+      // Read natural size from viewBox when available
+      let svgW = 0;
+      let svgH = 0;
+      const vb = svgEl.viewBox && typeof svgEl.viewBox.baseVal !== 'undefined' ? svgEl.viewBox.baseVal : null;
+      if (vb && vb.width && vb.height) {
+        svgW = vb.width;
+        svgH = vb.height;
+      } else {
+        try {
+          const bbox = svgEl.getBBox();
+          svgW = bbox.width;
+          svgH = bbox.height;
+        } catch {
+          // Fallback: use current rendered size or default
+          svgW = svgEl.clientWidth || svgEl.offsetWidth || 300;
+          svgH = svgEl.clientHeight || svgEl.offsetHeight || 200;
+        }
+      }
+
+      const cw = containerRef.current.clientWidth || 1;
+      const ch = containerRef.current.clientHeight || 1;
+      
+      // Guard values; if invalid sizes, keep scale 1
+      if (!isFinite(svgW) || !isFinite(svgH) || svgW <= 0 || svgH <= 0) {
+        baseScaleRef.current = 1;
+        return;
+      }
+      
+      // Calculate scale to fit within container bounds with padding
+      const containerPadding = 20; // Leave some padding
+      const availableWidth = Math.max(100, cw - containerPadding);
+      const availableHeight = Math.max(100, ch - containerPadding);
+      
+      const scaleX = availableWidth / svgW;
+      const scaleY = availableHeight / svgH;
+      const scale = Math.min(1, Math.max(0.1, Math.min(scaleX, scaleY)));
+      
+      baseScaleRef.current = scale;
+      
+      // trigger a re-render so outer transform picks up the new base scale
+      setFitTick((t) => t + 1);
+
+      // Style the SVG for visibility and proper sizing
+      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      svgEl.style.display = 'block';
+      svgEl.style.margin = 'auto';
+      svgEl.style.maxWidth = '100%';
+      svgEl.style.maxHeight = '100%';
+      svgEl.style.width = 'auto';
+      svgEl.style.height = 'auto';
+    };
+
     const renderDiagram = async () => {
       // reset any prior error
       setErrorMessage(null);
@@ -190,32 +249,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         const { svg } = await mermaid.render(uniqueId, code);
         if (ref.current) {
           ref.current.innerHTML = svg;
-
-          // Post-render adjustments so the SVG centers inside our flex container.
-          // Mermaid sometimes injects fixed width/height or wrapper divs that push the
-          // content to the top-left. Normalize common attributes/styles here.
-          try {
-            const svgEl = ref.current.querySelector('svg');
-            if (svgEl) {
-              svgEl.style.maxWidth = '100%';
-              svgEl.style.height = 'auto';
-              svgEl.style.display = 'block';
-              svgEl.style.margin = 'auto';
-              svgEl.removeAttribute('width');
-              svgEl.removeAttribute('height');
-            }
-
-            // Also ensure any top-level wrapper doesn't force alignment
-            const wrapper = ref.current.firstElementChild as HTMLElement | null;
-            if (wrapper && wrapper !== svgEl) {
-              wrapper.style.display = 'block';
-              wrapper.style.margin = 'auto';
-              wrapper.style.maxWidth = '100%';
-              wrapper.style.height = 'auto';
-            }
-          } catch (e) {
-            // ignore DOM errors
-          }
+          // Fit after render and layout
+          requestAnimationFrame(() => fitToContainer());
         }
         // Successful render -> clear any previous error message
         setErrorMessage(null);
@@ -233,6 +268,17 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
     };
 
     renderDiagram();
+    // Recompute fit on container resize
+  const ro = new ResizeObserver(() => {
+      fitToContainer();
+    });
+    if (containerRef.current) ro.observe(containerRef.current);
+  // Also observe the SVG element itself for late size changes
+  const svgEl = ref.current?.querySelector('svg') as SVGSVGElement | null;
+  if (svgEl) ro.observe(svgEl);
+    return () => {
+      try { ro.disconnect(); } catch {}
+    };
   }, [code, isInitialized, uniqueId]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -295,15 +341,21 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
     >
       <div
         style={{
-          transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+          transform: (() => {
+            const scale = Math.max(0.1, Math.min(1, (baseScaleRef.current || 1) * zoom));
+            return `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`;
+          })(),
           transformOrigin: 'center center',
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
           width: '100%',
           height: '100%',
+          maxWidth: '100%',
+          maxHeight: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          pointerEvents: zoom > 1 ? 'none' : 'auto',
+          pointerEvents: 'none',
+          overflow: 'hidden',
         }}
       >
         {/* make the inner container a flexbox so the injected SVG can be centered */}
@@ -316,7 +368,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            overflow: 'auto',
+            overflow: 'hidden',
           }}
         />
       </div>

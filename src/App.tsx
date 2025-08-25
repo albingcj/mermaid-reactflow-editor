@@ -650,7 +650,7 @@ function App() {
             <div className="h-full p-6">
               <Card className="h-full p-6 flex items-center justify-center bg-muted/30 hover:bg-muted/40 transition-colors">
                 {mermaidSource ? (
-                  <MermaidRenderer code={mermaidSource} />
+                  <MermaidRenderer code={mermaidSource} className="w-full h-full min-h-0" />
                 ) : (
                   <div className="text-center text-muted-foreground">
                     <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -1022,7 +1022,7 @@ function App() {
                 <div className="flex-1 p-4 flex flex-col min-h-0">
                   <Card className="flex-1 min-h-0 p-4 flex items-center justify-center bg-muted/30 hover:bg-muted/40 transition-colors">
                     {mermaidSource ? (
-                      <MermaidRenderer code={mermaidSource} />
+                      <MermaidRenderer code={mermaidSource} className="w-full h-full min-h-0" />
                     ) : (
                       <div className="text-center text-muted-foreground">
                         <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
