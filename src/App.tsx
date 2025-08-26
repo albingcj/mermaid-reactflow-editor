@@ -402,6 +402,19 @@ function App() {
 
   const visiblePanelCount = Object.values(visiblePanels).filter(Boolean).length;
 
+  // Helper to compute default panel size so totals sum to 100%.
+  // When there are 3 panels Math.floor(100/3) -> 33 each (sum 99) which
+  // triggers the resizable layout warning. Give the canvas panel the
+  // remaining 1% when there are 3 panels so sizes become 33,33,34.
+  const getDefaultPanelSize = (panel: "code" | "preview" | "canvas") => {
+    const base = Math.floor(100 / visiblePanelCount);
+    if (visiblePanelCount === 3) {
+      // prefer canvas to be slightly larger to avoid a 99% total
+      return panel === "canvas" ? base + 1 : base;
+    }
+    return base;
+  };
+
   const handleNodeClick = useCallback(
     (nodeId: string, isMultiSelect = false) => {
       if (isMultiSelect) {
@@ -901,7 +914,7 @@ function App() {
           {visiblePanels.code && (
             <>
               <ResizablePanel
-                defaultSize={Math.floor(100 / visiblePanelCount)}
+                defaultSize={getDefaultPanelSize("code")}
                 minSize={20}
                 className="border-r bg-card flex flex-col min-h-0"
               >
@@ -983,7 +996,7 @@ function App() {
           {visiblePanels.preview && (
             <>
               <ResizablePanel
-                defaultSize={Math.floor(100 / visiblePanelCount)}
+                defaultSize={getDefaultPanelSize("preview")}
                 minSize={20}
                 className="border-r bg-card flex flex-col min-h-0"
               >
@@ -1045,7 +1058,7 @@ function App() {
 
           {/* Canvas Panel */}
           {visiblePanels.canvas && (
-            <ResizablePanel defaultSize={Math.floor(100 / visiblePanelCount)} minSize={30} className="flex flex-col min-h-0">
+            <ResizablePanel defaultSize={getDefaultPanelSize("canvas")} minSize={30} className="flex flex-col min-h-0">
               {/* Canvas Header (uniform with other panels) */}
               <div className="p-2 border-b flex items-center justify-between bg-muted/30">
                 <div className="flex items-center gap-2">
