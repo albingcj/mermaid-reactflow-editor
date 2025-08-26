@@ -378,18 +378,6 @@ function FlowDiagramInternal({
 
   return (
   <>
-      <EditingToolbar
-        selectedNodes={selectedNodes}
-        selectedEdges={selectedEdges}
-        onAlignNodes={onAlignNodes}
-        onDistributeNodes={onDistributeNodes}
-        onDuplicateNodes={onDuplicateNodes}
-        onDeleteSelected={onDeleteSelected}
-        onLockNodes={onLockNodes}
-        onUnlockNodes={onUnlockNodes}
-        onSelectSubgraphContents={onSelectSubgraphContents}
-      />
-
   {/* Search control moved to top nav; no floating search button */}
 
   {/* Download/export image moved to top nav; no floating download button */}
@@ -433,8 +421,19 @@ function FlowDiagramInternal({
   <div
       style={{ width: '100%', height: '100%' }}
       ref={reactFlowWrapper}
-      className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'} ${theme === 'dark' ? 'dark' : ''}`.trim()}
+      className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'} ${theme === 'dark' ? 'dark' : ''} relative`.trim()}
     >
+        <EditingToolbar
+          selectedNodes={selectedNodes}
+          selectedEdges={selectedEdges}
+          onAlignNodes={onAlignNodes}
+          onDistributeNodes={onDistributeNodes}
+          onDuplicateNodes={onDuplicateNodes}
+          onDeleteSelected={onDeleteSelected}
+          onLockNodes={onLockNodes}
+          onUnlockNodes={onUnlockNodes}
+          onSelectSubgraphContents={onSelectSubgraphContents}
+        />
         <ReactFlow
           minZoom={0.05}
           nodes={nodes}

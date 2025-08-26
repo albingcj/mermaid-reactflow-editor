@@ -1,5 +1,22 @@
 // React import not required with new JSX transform; kept out to avoid unused import error
 import { Node, Edge } from 'reactflow';
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import {
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  ArrowLeftRight,
+  ArrowUpDown,
+  Copy,
+  Lock,
+  Unlock,
+  Trash2,
+  BoxSelect,
+} from "lucide-react";
 
 interface EditingToolbarProps {
   selectedNodes: Node[];
@@ -32,186 +49,88 @@ export function EditingToolbar({
   if (!hasSelectedElements) return null;
 
   return (
-    <div className="editing-toolbar editing-toolbar--floating" role="toolbar" aria-label="Editing tools">
+    <div
+      className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 rounded-full border bg-card/90 backdrop-blur px-2 py-1 shadow-md"
+      role="toolbar"
+      aria-label="Editing tools"
+    >
       {/* Select subgraph contents (visible when a single subgraph container is selected) */}
       {selectedNodes.length === 1 && (selectedNodes[0].type === 'group' || selectedNodes[0]?.data?.isSubgraph) && (
-        <div className="toolbar-group" aria-label="Select subgraph contents">
-          <button className="toolbar-btn" title="Select contents" onClick={() => onSelectSubgraphContents && onSelectSubgraphContents(selectedNodes[0].id)}>
-            <SelectContentsIcon />
-          </button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          title="Select contents"
+          onClick={() => onSelectSubgraphContents && onSelectSubgraphContents(selectedNodes[0].id)}
+        >
+          <BoxSelect className="h-4 w-4" />
+        </Button>
       )}
-      {/* Selection badge */}
-      <div className="toolbar-chip" title={`Selected: ${selectedNodes.length} nodes, ${selectedEdges.length} edges`}>
+
+      <Badge variant="secondary" className="text-xs ml-1">
         {selectedNodes.length}
-      </div>
+      </Badge>
+
+      <div className="w-px h-5 bg-border mx-1" />
 
       {/* Align (H) */}
-      <div className="toolbar-group" aria-label="Align horizontally">
-        <button className="toolbar-btn" title="Align Left" onClick={() => onAlignNodes('left')}>
-          <AlignLeftIcon />
-        </button>
-        <button className="toolbar-btn" title="Align Center (Horizontal)" onClick={() => onAlignNodes('center-horizontal')}>
-          <AlignCenterHorizontalIcon />
-        </button>
-        <button className="toolbar-btn" title="Align Right" onClick={() => onAlignNodes('right')}>
-          <AlignRightIcon />
-        </button>
+      <div className="flex items-center gap-1" aria-label="Align horizontally">
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Align Left" onClick={() => onAlignNodes('left')}>
+          <AlignLeft className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Align Center (Horizontal)" onClick={() => onAlignNodes('center-horizontal')}>
+          <AlignCenter className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Align Right" onClick={() => onAlignNodes('right')}>
+          <AlignRight className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="toolbar-divider" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       {/* Align (V) */}
-      <div className="toolbar-group" aria-label="Align vertically">
-        <button className="toolbar-btn" title="Align Top" onClick={() => onAlignNodes('top')}>
-          <AlignTopIcon />
-        </button>
-        <button className="toolbar-btn" title="Align Middle (Vertical)" onClick={() => onAlignNodes('center-vertical')}>
-          <AlignCenterVerticalIcon />
-        </button>
-        <button className="toolbar-btn" title="Align Bottom" onClick={() => onAlignNodes('bottom')}>
-          <AlignBottomIcon />
-        </button>
+      <div className="flex items-center gap-1" aria-label="Align vertically">
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Align Top" onClick={() => onAlignNodes('top')}>
+          <AlignVerticalJustifyStart className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Align Middle (Vertical)" onClick={() => onAlignNodes('center-vertical')}>
+          <AlignVerticalJustifyCenter className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Align Bottom" onClick={() => onAlignNodes('bottom')}>
+          <AlignVerticalJustifyEnd className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="toolbar-divider" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       {/* Distribute */}
-      <div className="toolbar-group" aria-label="Distribute">
-        <button className="toolbar-btn" title="Distribute Horizontally" onClick={() => onDistributeNodes('horizontal')}>
-          <DistributeHorizontalIcon />
-        </button>
-        <button className="toolbar-btn" title="Distribute Vertically" onClick={() => onDistributeNodes('vertical')}>
-          <DistributeVerticalIcon />
-        </button>
+      <div className="flex items-center gap-1" aria-label="Distribute">
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Distribute Horizontally" onClick={() => onDistributeNodes('horizontal')}>
+          <ArrowLeftRight className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Distribute Vertically" onClick={() => onDistributeNodes('vertical')}>
+          <ArrowUpDown className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="toolbar-divider" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       {/* Actions */}
-      <div className="toolbar-group" aria-label="Actions">
-        <button className="toolbar-btn" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
-          <DuplicateIcon />
-        </button>
-        <button className="toolbar-btn" title="Lock" onClick={onLockNodes} disabled={!hasSelectedNodes}>
-          <LockIcon />
-        </button>
-        <button className="toolbar-btn" title="Unlock" onClick={onUnlockNodes} disabled={!hasSelectedNodes}>
-          <UnlockIcon />
-        </button>
-        <button className="toolbar-btn toolbar-btn--danger" title="Delete" onClick={onDeleteSelected} disabled={!hasSelectedElements}>
-          <DeleteIcon />
-        </button>
+      <div className="flex items-center gap-1" aria-label="Actions">
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Lock" onClick={onLockNodes} disabled={!hasSelectedNodes}>
+          <Lock className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Unlock" onClick={onUnlockNodes} disabled={!hasSelectedNodes}>
+          <Unlock className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" title="Delete" onClick={onDeleteSelected} disabled={!hasSelectedElements}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
 }
-
-// Icon Components
-function AlignLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 2v12h1V2H2zm3 3h8v2H5V5zm0 4h6v2H5V9z"/>
-    </svg>
-  );
-}
-
-function AlignCenterHorizontalIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M8 1v14h1V1H8zM4 5h8v2H4V5zm2 4h4v2H6V9z"/>
-    </svg>
-  );
-}
-
-function AlignRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M13 2v12h1V2h-1zM3 5h8v2H3V5zm2 4h6v2H5V9z"/>
-    </svg>
-  );
-}
-
-function AlignTopIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 2h12v1H2V2zm3 3v8h2V5H5zm4 0v6h2V5H9z"/>
-    </svg>
-  );
-}
-
-function AlignCenterVerticalIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M1 8h14v1H1V8zM5 4v8h2V4H5zm4 2v4h2V6H9z"/>
-    </svg>
-  );
-}
-
-function AlignBottomIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 13h12v1H2v-1zM5 3v8h2V3H5zm4 2v6h2V5H9z"/>
-    </svg>
-  );
-}
-
-function DistributeHorizontalIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 4h2v8H2V4zm5 2h2v4H7V6zm5-2h2v8h-2V4z"/>
-    </svg>
-  );
-}
-
-function DistributeVerticalIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M4 2v2h8V2H4zm2 5v2h4V7H6zm-2 5v2h8v-2H4z"/>
-    </svg>
-  );
-}
-
-function DuplicateIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M4 2h8v2H6v6H4V2zm2 4h8v8H6V6zm1 1v6h6V7H7z"/>
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M5 7V5a3 3 0 116 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8a1 1 0 011-1h1zM6 5v2h4V5a2 2 0 10-4 0z"/>
-    </svg>
-  );
-}
-
-function UnlockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M5 7V5a3 3 0 015.905-.75l.845-1.64A4.5 4.5 0 004 5v2H3a1 1 0 00-1 1v6a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1H5z"/>
-    </svg>
-  );
-}
-
-// Group/Ungroup icons removed
-
-function DeleteIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M5.5 5.5A.5.5 0 016 6v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm2.5 0a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm3 .5a.5.5 0 00-1 0v6a.5.5 0 001 0V6z"/>
-      <path fillRule="evenodd" d="M14.5 3a1 1 0 01-1 1H13v9a2 2 0 01-2 2H5a2 2 0 01-2-2V4h-.5a1 1 0 01-1-1V2a1 1 0 011-1H6a1 1 0 011-1h2a1 1 0 011 1h3.5a1 1 0 011 1v1zM4.118 4L4 4.059V13a1 1 0 001 1h6a1 1 0 001-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-    </svg>
-  );
-}
-
-function SelectContentsIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 2h12v12H2V2zm1 1v10h10V3H3z" />
-      <path d="M5 6h6v1H5V6zm0 3h6v1H5V9z" />
-    </svg>
-  );
-}
+// Icon Components removed; using lucide-react for consistency

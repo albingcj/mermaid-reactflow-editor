@@ -57,7 +57,6 @@ import {
   AlignVerticalJustifyCenter,
   AlignHorizontalSpaceAround,
   AlignVerticalSpaceAround,
-  Maximize,
   MoveUp,
   Info,
   MoveDown,
@@ -67,13 +66,9 @@ import {
   AlignVerticalJustifyStart,
   AlignVerticalJustifyEnd,
   MoreHorizontal,
-  ArrowLeftRight,
-  ArrowUpDown,
   Search,
   Image,
   PlusCircle,
-  PanelLeft,
-  PanelRightOpen,
   LayoutGrid,
   Pencil,
   BoxSelect
@@ -1051,275 +1046,6 @@ function App() {
           {/* Canvas Panel */}
           {visiblePanels.canvas && (
             <ResizablePanel defaultSize={Math.floor(100 / visiblePanelCount)} minSize={30} className="flex flex-col min-h-0">
-              <div
-                className={cn("border-b bg-card transition-all duration-300", isToolbarCollapsed ? "h-8" : "h-auto")}
-              >
-                {isToolbarCollapsed ? (
-                  <div className="px-4 py-1 flex items-center justify-between bg-muted/30">
-                    <span className="text-xs text-muted-foreground">React Flow Canvas</span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:scale-105 transition-transform"
-                        onClick={() => toggleFullscreen("canvas")}
-                        title="Fullscreen"
-                      >
-                        <Maximize2 className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:scale-105 transition-transform"
-                        onClick={() => setIsToolbarCollapsed(false)}
-                        title="Expand Toolbar"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:scale-105 transition-transform"
-                        onClick={() => togglePanelVisibility("canvas")}
-                        title="Close Panel"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="px-4 py-2 bg-muted/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">React Flow Canvas</span>
-                        {selectedNodes.length > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            {selectedNodes.length} selected
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:scale-105 transition-transform"
-                          onClick={() => toggleFullscreen("canvas")}
-                          title="Fullscreen"
-                        >
-                          <Maximize2 className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:scale-105 transition-transform"
-                          onClick={() => setIsToolbarCollapsed(true)}
-                          title="Collapse Toolbar"
-                        >
-                          <ChevronUp className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:scale-105 transition-transform"
-                          onClick={() => togglePanelVisibility("canvas")}
-                          title="Close Panel"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                          {/* Draggable palette: Node and Subgraph */}
-                          <div className="flex items-center gap-1 mr-4">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                              title="Add Node (drag to canvas)"
-                              draggable
-                              onDragStart={(e) => e.dataTransfer.setData('application/reactflow', 'node')}
-                            >
-                              <PanelLeft className="h-4 w-4" />
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                              title="Add Subgraph (drag to canvas)"
-                              draggable
-                              onDragStart={(e) => e.dataTransfer.setData('application/reactflow', 'subgraph')}
-                            >
-                              <PanelRightOpen className="h-4 w-4" />
-                            </Button>
-
-                            {tools.map((tool) => (
-                              <Button
-                                key={tool.id}
-                                variant={selectedTool === tool.id ? "default" : "ghost"}
-                                size="sm"
-                                onClick={() => setSelectedTool(tool.id)}
-                                className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                                title={tool.label}
-                              >
-                                <tool.icon className="h-4 w-4" />
-                              </Button>
-                            ))}
-                          </div>
-
-                          <Separator orientation="vertical" className="h-6" />
-
-                        {selectedNodes.length > 1 && (
-                          <>
-                            <div className="flex items-center gap-1 mr-2">
-                              {alignmentTools.map((tool) => (
-                                <Button
-                                  key={tool.id}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                                  title={tool.label}
-                                  onClick={() => handleAlignment(tool.id)}
-                                >
-                                  <tool.icon className="h-4 w-4" />
-                                </Button>
-                              ))}
-                            </div>
-                            <div className="flex items-center gap-1 mr-2">
-                              {verticalAlignmentTools.map((tool) => (
-                                <Button
-                                  key={tool.id}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                                  title={tool.label}
-                                  onClick={() => handleAlignment(tool.id)}
-                                >
-                                  <tool.icon className="h-4 w-4" />
-                                </Button>
-                              ))}
-                            </div>
-                            <div className="flex items-center gap-1 mr-4">
-                              {distributionTools.map((tool) => (
-                                <Button
-                                  key={tool.id}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                                  title={tool.label}
-                                  onClick={() => handleAlignment(tool.id)}
-                                >
-                                  <tool.icon className="h-4 w-4" />
-                                </Button>
-                              ))}
-                            </div>
-                            <Separator orientation="vertical" className="h-6" />
-                          </>
-                        )}
-
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:scale-105 transition-transform disabled:opacity-50"
-                            title="Duplicate"
-                            disabled={selectedNodes.length === 0}
-                            onClick={handleDuplicate}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:scale-105 transition-transform disabled:opacity-50"
-                            title="Delete"
-                            disabled={selectedNodes.length === 0}
-                            onClick={handleDelete}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                            title="Lock"
-                          >
-                            <Lock className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        {/* Select subgraph contents - available when exactly one node selected and it looks like a subgraph */}
-                        {/* selectedNodes here is array of ids in App state; look up the node object from flowData */}
-                        {selectedNodes.length === 1 && (() => {
-                          const nid = selectedNodes[0];
-                          const nodeObj = flowData.nodes.find((n) => n.id === nid);
-                          return nodeObj && (nodeObj.type === 'group' || nodeObj?.data?.isSubgraph) ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="ml-3 gap-2"
-                              onClick={() => {
-                                const id = nodeObj.id;
-                                if (flowMethodsRef.current?.selectSubgraphContents) {
-                                  try { flowMethodsRef.current.selectSubgraphContents(id); } catch (e) {}
-                                }
-                              }}
-                            >
-                              <BoxSelect className="h-4 w-4" />
-                              <span className="hidden sm:inline">Select Contents</span>
-                            </Button>
-                          ) : null;
-                        })()}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                            onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
-                          >
-                            <ZoomOut className="h-4 w-4" />
-                          </Button>
-                          <span className="text-sm font-mono w-12 text-center">{zoomLevel}%</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                            onClick={() => setZoomLevel(Math.min(200, zoomLevel + 25))}
-                          >
-                            <ZoomIn className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <Separator orientation="vertical" className="h-6" />
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                          onClick={() => setIsGridVisible(!isGridVisible)}
-                          title="Toggle Grid"
-                        >
-                          <Grid className={cn("h-4 w-4 transition-colors", isGridVisible && "text-primary")} />
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                          title="Fit to Screen"
-                        >
-                          <Maximize className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Canvas */}
               <div className="flex-1 relative overflow-hidden">
                 <div className="w-full h-full">
@@ -1612,7 +1338,7 @@ function App() {
                           className="w-full hover:bg-accent transition-colors bg-transparent"
                           onClick={() => handleAlignment("distribute-horizontal")}
                         >
-                          <ArrowLeftRight className="h-4 w-4 mr-2" />
+                          <MoreHorizontal className="h-4 w-4 mr-2" />
                           Distribute Horizontally
                         </Button>
                         <Button
@@ -1621,7 +1347,7 @@ function App() {
                           className="w-full hover:bg-accent transition-colors bg-transparent"
                           onClick={() => handleAlignment("distribute-vertical")}
                         >
-                          <ArrowUpDown className="h-4 w-4 mr-2" />
+                          <MoreHorizontal className="h-4 w-4 mr-2" />
                           Distribute Vertically
                         </Button>
                       </div>
