@@ -201,43 +201,32 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
           svgW = bbox.width;
           svgH = bbox.height;
         } catch {
-          // Fallback: use current rendered size or default
-          svgW = svgEl.clientWidth || svgEl.offsetWidth || 300;
-          svgH = svgEl.clientHeight || svgEl.offsetHeight || 200;
+          const rect = svgEl.getBoundingClientRect();
+          svgW = rect.width || 1;
+          svgH = rect.height || 1;
         }
       }
 
       const cw = containerRef.current.clientWidth || 1;
       const ch = containerRef.current.clientHeight || 1;
-      
       // Guard values; if invalid sizes, keep scale 1
       if (!isFinite(svgW) || !isFinite(svgH) || svgW <= 0 || svgH <= 0) {
         baseScaleRef.current = 1;
         return;
       }
-      
-      // Calculate scale to fit within container bounds with padding
-      const containerPadding = 20; // Leave some padding
-      const availableWidth = Math.max(100, cw - containerPadding);
-      const availableHeight = Math.max(100, ch - containerPadding);
-      
-      const scaleX = availableWidth / svgW;
-      const scaleY = availableHeight / svgH;
-      const scale = Math.min(1, Math.max(0.1, Math.min(scaleX, scaleY)));
-      
-      baseScaleRef.current = scale;
-      
-      // trigger a re-render so outer transform picks up the new base scale
-      setFitTick((t) => t + 1);
+  const scale = Math.max(0.05, Math.min(cw / svgW, ch / svgH));
+  baseScaleRef.current = scale;
+  // trigger a re-render so outer transform picks up the new base scale
+  setFitTick((t) => t + 1);
 
-      // Style the SVG for visibility and proper sizing
+  // Do not force huge intrinsic layout sizes; rely on outer transform and max constraints
       svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-      svgEl.style.display = 'block';
-      svgEl.style.margin = 'auto';
-      svgEl.style.maxWidth = '100%';
-      svgEl.style.maxHeight = '100%';
-      svgEl.style.width = 'auto';
-      svgEl.style.height = 'auto';
+  svgEl.style.display = 'block';
+  ;(svgEl as any).style.margin = 'auto';
+  svgEl.style.width = 'auto';
+  svgEl.style.height = 'auto';
+  svgEl.style.maxWidth = '100%';
+  svgEl.style.maxHeight = '100%';
     };
 
     const renderDiagram = async () => {
@@ -342,33 +331,33 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
       <div
         style={{
           transform: (() => {
-            const scale = Math.max(0.1, Math.min(1, (baseScaleRef.current || 1) * zoom));
+            const scale = Math.max(0.05, (baseScaleRef.current || 1) * zoom);
             return `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`;
           })(),
           transformOrigin: 'center center',
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
           width: '100%',
           height: '100%',
-          maxWidth: '100%',
-          maxHeight: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          pointerEvents: 'none',
-          overflow: 'hidden',
+          pointerEvents: zoom > 1 ? 'none' : 'auto',
         }}
       >
-        {/* make the inner container a flexbox so the injected SVG can be centered */}
+    {/* make the inner container a flexbox so the injected SVG can be centered */}
         <div
           ref={ref}
           style={{
             pointerEvents: 'auto',
-            width: '100%',
-            height: '100%',
+      width: '100%',
+      height: '100%',
+      maxWidth: '100%',
+      maxHeight: '100%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            overflow: 'hidden',
+      overflow: 'hidden',
+  contain: 'layout paint size style',
           }}
         />
       </div>
