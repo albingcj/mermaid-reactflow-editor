@@ -421,7 +421,7 @@ function FlowDiagramInternal({
   <div
       style={{ width: '100%', height: '100%' }}
       ref={reactFlowWrapper}
-      className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'} ${theme === 'dark' ? 'dark' : ''} relative`.trim()}
+      className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'} ${theme === 'dark' ? 'dark' : ''} relative flex flex-col`.trim()}
     >
         <EditingToolbar
           selectedNodes={selectedNodes}
@@ -433,7 +433,9 @@ function FlowDiagramInternal({
           onLockNodes={onLockNodes}
           onUnlockNodes={onUnlockNodes}
           onSelectSubgraphContents={onSelectSubgraphContents}
+          placement="inline"
         />
+        <div className="flex-1 min-h-0">
         <ReactFlow
           minZoom={0.05}
           nodes={nodes}
@@ -507,11 +509,12 @@ function FlowDiagramInternal({
               });
             }
           }}
-        >
+  >
           <Background variant={BackgroundVariant.Dots} />
           <Controls />
           <MiniMap />
         </ReactFlow>
+  </div>
       </div>
 
   {/* Inspector removed per user request */}

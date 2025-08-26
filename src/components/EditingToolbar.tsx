@@ -29,6 +29,7 @@ interface EditingToolbarProps {
   onLockNodes: () => void;
   onUnlockNodes: () => void;
   onSelectSubgraphContents?: (subgraphNodeId?: string) => void;
+  placement?: 'floating' | 'inline';
 }
 
 export function EditingToolbar({
@@ -42,15 +43,19 @@ export function EditingToolbar({
   onLockNodes,
   onUnlockNodes,
   onSelectSubgraphContents,
+  placement = 'inline',
 }: EditingToolbarProps) {
   const hasSelectedNodes = selectedNodes.length > 0;
   // const hasMultipleNodes intentionally removed (grouping not supported)
   const hasSelectedElements = selectedNodes.length > 0 || selectedEdges.length > 0;
-  if (!hasSelectedElements) return null;
 
   return (
     <div
-      className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 rounded-full border bg-card/90 backdrop-blur px-2 py-1 shadow-md"
+      className={
+        placement === 'floating'
+          ? "absolute top-2 left-2 z-10 inline-flex items-center gap-1 rounded-full border bg-card/90 backdrop-blur px-2 py-1 shadow-md"
+          : "w-full border-b bg-muted/30 px-2 py-1 flex items-center gap-1"
+      }
       role="toolbar"
       aria-label="Editing tools"
     >

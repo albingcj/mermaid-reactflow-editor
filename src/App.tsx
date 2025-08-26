@@ -1046,6 +1046,34 @@ function App() {
           {/* Canvas Panel */}
           {visiblePanels.canvas && (
             <ResizablePanel defaultSize={Math.floor(100 / visiblePanelCount)} minSize={30} className="flex flex-col min-h-0">
+              {/* Canvas Header (uniform with other panels) */}
+              <div className="p-2 border-b flex items-center justify-between bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <GitBranch className="h-4 w-4" />
+                  <span className="font-medium text-sm">React Flow Canvas</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 hover:scale-105 transition-transform"
+                    onClick={() => toggleFullscreen("canvas")}
+                    title="Fullscreen"
+                  >
+                    <Maximize2 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 hover:scale-105 transition-transform"
+                    onClick={() => togglePanelVisibility("canvas")}
+                    title="Close Panel"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
               {/* Canvas */}
               <div className="flex-1 relative overflow-hidden">
                 <div className="w-full h-full">
