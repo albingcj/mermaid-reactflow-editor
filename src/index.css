@@ -256,8 +256,7 @@ select.form-select option,
 
 /* Card and shadow surfaces should follow theme */
 .card,
-.card-body,
-.shadow-sm {
+.card-body{
 	background: var(--surface) !important;
 	color: var(--text) !important;
 	border-color: var(--border) !important;
@@ -280,11 +279,5 @@ select.form-select,
 	background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
 	background-size: 5px 5px, 5px 5px;
 	background-repeat: no-repeat;
-}
-
-/* Ensure small surface containers also look correct */
-.shadow-sm {
-	/* keep shadow but adapt background if used as surface */
-	background-clip: padding-box;
 }
 
