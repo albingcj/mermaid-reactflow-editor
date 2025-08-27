@@ -55,8 +55,6 @@ import {
   Copy,
   Trash2,
   Lock,
-  ZoomIn,
-  ZoomOut,
   Grid,
   ChevronUp,
   ChevronDown,
@@ -752,25 +750,7 @@ function App() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                      onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
-                    >
-                      <ZoomOut className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm font-mono w-12 text-center">{zoomLevel}%</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                      onClick={() => setZoomLevel(Math.min(200, zoomLevel + 25))}
-                    >
-                      <ZoomIn className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    <div className="flex items-center gap-1" />
                 </div>
               </div>
 
