@@ -14,6 +14,7 @@ interface NodeEditorProps {
 export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   const [label, setLabel] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageValid, setImageValid] = useState<boolean | null>(null);
   const [description, setDescription] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [borderColor, setBorderColor] = useState('#222222');
@@ -27,6 +28,22 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
       setBorderColor(node.style?.borderColor || '#222222');
     }
   }, [node]);
+
+  // Validate image URL and update preview status
+  useEffect(() => {
+    if (!imageUrl) {
+      setImageValid(null);
+      return;
+    }
+
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => { if (!cancelled) setImageValid(true); };
+    img.onerror = () => { if (!cancelled) setImageValid(false); };
+    img.src = imageUrl;
+
+    return () => { cancelled = true; };
+  }, [imageUrl]);
 
   if (!node) return null;
 
@@ -58,23 +75,31 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
             <Input value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" />
           </div>
 
-          {node.type !== 'group' && (
-            <div>
-              <label className="block text-sm mb-1">Image URL</label>
-              <Input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
-              <div className="text-xs text-muted-foreground mt-1">Use an image URL to display an image as the node content</div>
+          <div className="flex gap-4">
+            <div className="flex flex-col" style={{ flex: '1 1 65%', minWidth: 0 }}>
+              <label className="block text-sm mb-1">Description</label>
+              <Textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Add a description..."
+                className="h-40 resize-none overflow-y-auto custom-scrollbar"
+                style={{ resize: 'none' }}
+              />
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm mb-1">Description</label>
-            <Textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Add a description..."
-              className="h-24 resize-none overflow-y-auto custom-scrollbar"
-              style={{ resize: 'none' }}
-            />
+            {node.type !== 'group' && (
+              <div className="flex flex-col items-start" style={{ width: '260px', minWidth: 160 }}>
+                <label className="block text-sm mb-1">Image URL</label>
+                <Input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
+                <div className="mt-2">
+                  {imageValid === true ? (
+                    <img src={imageUrl} alt="Preview" className="h-28 w-28 rounded-md object-cover border" />
+                  ) : imageValid === false && imageUrl ? (
+                    <div className="h-28 w-28 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border">Invalid image</div>
+                  ) : null}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-4 items-center">
