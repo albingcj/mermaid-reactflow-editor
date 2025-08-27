@@ -74,8 +74,8 @@ const NESTED_CONTENT_MARGIN = 40; // Margin around content within nested subgrap
 const MIXED_CONTENT_VERTICAL_SPACING = 100; // Extra spacing between nodes and nested subgraphs in same parent (increased)
 const MIXED_CONTENT_HORIZONTAL_SPACING = 120; // Extra spacing when laying out children beside nodes (LR/RL)
 const DAGRE_RANKER: 'network-simplex' | 'tight-tree' | 'longest-path' = 'tight-tree';
-// get from env
-const DEBUG = process.env.DEBUG_MERMAID === 'true'; 
+
+const DEBUG = (typeof process !== 'undefined' && typeof process.env !== 'undefined' && process.env.DEBUG_MERMAID === 'true');
  
 function debugLog(...args: any[]) {
   if (DEBUG){
