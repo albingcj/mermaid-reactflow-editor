@@ -398,6 +398,28 @@ textarea {
   transition: background-color 0.3s;
 }
 
+/* Custom scrollbar utility used for modal scroll areas */
+.custom-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(100,100,100,0.6) transparent; /* Firefox */
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(100,100,100,0.35);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100,100,100,0.6);
+}
+
 .save-btn {
   background-color: #4CAF50;
   color: white;

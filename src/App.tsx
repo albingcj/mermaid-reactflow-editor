@@ -151,6 +151,7 @@ function App() {
   const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
   // Confirmation dialogs state
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
   // Inline confirm state for saved-diagram deletion (shows confirm/cancel inline)
@@ -553,8 +554,10 @@ function App() {
   }, [selectedNodes]);
 
   const loadDiagram = () => {
-    setSavedDiagrams(savedDiagrams);
-    setShowLoadDialog(true);
+  // open load dialog and preselect first item
+  setSavedDiagrams(savedDiagrams);
+  setSelectedPreviewId(savedDiagrams.length > 0 ? savedDiagrams[0].id : null);
+  setShowLoadDialog(true);
   };
 
   const saveDiagram = () => {
@@ -1189,91 +1192,120 @@ function App() {
               if (e.currentTarget === e.target) setShowLoadDialog(false);
             }}
           >
-            <div className="bg-card rounded-lg shadow-inner dark:ring-1 dark:ring-primary/40 max-w-md w-full max-h-96 overflow-hidden">
-              <div className="p-4 border-b">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <FolderOpen className="h-4 w-4" />
-                    Load Diagram
-                  </h3>
-                  <Button variant="ghost" size="sm" onClick={() => setShowLoadDialog(false)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
-                {savedDiagrams.length === 0 ? (
-                  <div className="text-center p-4 text-muted-foreground">
-                    <p>No saved diagrams found</p>
+                <div className="bg-card rounded-lg shadow-inner dark:ring-1 dark:ring-primary/40 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                  {/* Modal Header - common fixed header for both columns */}
+                  <div className="flex items-center justify-between p-4 border-b bg-muted/5">
+                    <div className="flex items-center gap-3">
+                      <FolderOpen className="h-5 w-5" />
+                      <h3 className="font-semibold text-lg">Saved Diagrams</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowLoadDialog(false)}
+                        className="whitespace-nowrap"
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => { if (selectedPreviewId) loadSavedDiagram(selectedPreviewId); }}
+                        disabled={!selectedPreviewId}
+                        className="whitespace-nowrap"
+                      >
+                        Load
+                      </Button>
+                    </div>
                   </div>
-                ) : (
-                  savedDiagrams.map((diagram) => (
-                    <div
-                      key={diagram.id}
-                      className="p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors group"
-                      onClick={() => loadSavedDiagram(diagram.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-sm group-hover:text-primary transition-colors">
-                            {diagram.name}
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(diagram.createdAt).toLocaleDateString()}
-                          </p>
+
+                  {/* Modal Body: left list and right preview. Only body scrolls. */}
+                  <div className="flex-1 flex overflow-hidden">
+                    {/* Left: list */}
+                    <div className="w-1/2 border-r p-4 overflow-y-auto custom-scrollbar">
+                      {savedDiagrams.length === 0 ? (
+                        <div className="text-center p-4 text-muted-foreground">
+                          <p>No saved diagrams found</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {confirmDeleteId === diagram.id ? (
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // perform delete immediately
-                                  // also clear any modal-based deleteDialogId
-                                  setDeleteDialogId(null);
-                                  setConfirmDeleteId(diagram.id);
-                                  confirmDeleteSavedDiagram();
-                                }}
-                              >
-                                Delete
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setConfirmDeleteId(null);
-                                }}
-                              >
-                                Cancel
-                              </Button>
+                      ) : (
+                        savedDiagrams.map((diagram) => (
+                          <div
+                            key={diagram.id}
+                            className={cn(
+                              "p-3 border rounded-lg cursor-pointer transition-colors mb-2 flex items-center justify-between",
+                              selectedPreviewId === diagram.id ? "bg-accent/30 border-primary" : "hover:bg-accent"
+                            )}
+                            onClick={() => setSelectedPreviewId(diagram.id)}
+                          >
+                            <div>
+                              <h4 className="font-medium text-sm">{diagram.name}</h4>
+                              <p className="text-xs text-muted-foreground">{new Date(diagram.createdAt).toLocaleDateString()}</p>
                             </div>
-                          ) : (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="p-0"
-                                title="Delete saved diagram"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteSavedDiagram(diagram.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                            </>
-                          )}
-                        </div>
+                            <div className="flex items-center gap-2">
+                              {confirmDeleteId === diagram.id ? (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      confirmDeleteSavedDiagram();
+                                      if (selectedPreviewId === diagram.id) setSelectedPreviewId(null);
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmDeleteId(null);
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="p-0"
+                                    title="Delete saved diagram"
+                                    onClick={(e) => { e.stopPropagation(); deleteSavedDiagram(diagram.id); }}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Right: preview */}
+                    <div className="w-1/2 p-4 flex flex-col overflow-y-auto custom-scrollbar">
+                      <div className="flex-1 border rounded p-3 bg-muted/10 overflow-auto">
+                        {selectedPreviewId ? (
+                          (() => {
+                            const item = savedDiagrams.find((d) => d.id === selectedPreviewId);
+                            return item ? (
+                              <MermaidRenderer code={item.mermaid} className="w-full h-full min-h-[300px]" />
+                            ) : (
+                              <div className="text-center text-muted-foreground">Preview not found</div>
+                            );
+                          })()
+                        ) : (
+                          <div className="text-center text-muted-foreground">Select a saved diagram to preview</div>
+                        )}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
+                  </div>
+                </div>
           </div>
         )}
 
