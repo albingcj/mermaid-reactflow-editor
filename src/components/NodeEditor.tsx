@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 
 interface NodeEditorProps {
   node: Node | null;
@@ -105,11 +106,46 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
           <div className="flex gap-4 items-center">
             <div className="flex items-center gap-2">
               <label className="text-sm">Background</label>
-              <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} title="Choose background color" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick background color">
+                    <span className="block h-5 w-5 rounded-sm border" style={{ background: backgroundColor }} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent sideOffset={6} align="start" className="w-56">
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
+                    <Input value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="w-28" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-7 gap-2">
+                    {['#ffffff','#f8fafc','#fde68a','#bfdbfe','#fecaca','#d1fae5','#ddd6fe'].map(c => (
+                      <button key={c} type="button" onClick={() => setBackgroundColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set background ${c}`} />
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+
             <div className="flex items-center gap-2">
               <label className="text-sm">Border</label>
-              <input type="color" value={borderColor} onChange={e => setBorderColor(e.target.value)} title="Choose border color" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick border color">
+                    <span className="block h-5 w-5 rounded-sm border" style={{ background: borderColor }} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent sideOffset={6} align="start" className="w-56">
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={borderColor} onChange={e => setBorderColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
+                    <Input value={borderColor} onChange={e => setBorderColor(e.target.value)} className="w-28" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-7 gap-2">
+                    {['#222222','#000000','#64748b','#fb7185','#f59e0b','#34d399','#7c3aed'].map(c => (
+                      <button key={c} type="button" onClick={() => setBorderColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set border ${c}`} />
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
