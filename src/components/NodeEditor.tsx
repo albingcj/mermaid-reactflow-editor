@@ -50,9 +50,12 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
       onClick={(e) => { e.stopPropagation(); }}
       style={{ position: 'fixed', inset: 0, zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
     >
+      {/* backdrop placed before content so it stays visually behind the dialog */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1040 }} />
+
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ minWidth: 350, maxWidth: 500, background: 'var(--card)', borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', padding: 16 }}
+        style={{ minWidth: 350, maxWidth: 500, background: 'var(--card)', borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', padding: 16, zIndex: 1051 }}
       >
         <div style={{ marginBottom: 12 }}>
           <h5 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Edit {node.type === 'group' ? 'Subgraph' : 'Node'}</h5>
@@ -96,8 +99,6 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
           </div>
         </form>
       </div>
-      {/* backdrop */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
     </div>
   );
 
