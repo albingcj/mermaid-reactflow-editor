@@ -246,7 +246,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         // cleanup any stray injected nodes created outside this container
         removeInjectedMermaidDivs();
       } catch (err) {
-        console.error('MermaidRenderer: Error rendering diagram', err);
+        // console.error('MermaidRenderer: Error rendering diagram', err);
         // clear content and capture error message
         if (ref.current) {
           ref.current.innerHTML = '';

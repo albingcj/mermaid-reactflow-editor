@@ -814,43 +814,7 @@ function App() {
 
           {fullscreenPanel === "canvas" && (
             <div className="h-full flex flex-col">
-              {/* Canvas Toolbar */}
-              <div className="border-b bg-card px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 mr-4">
-                    {tools.map((tool) => (
-                      <Button
-                        key={tool.id}
-                        variant={selectedTool === tool.id ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setSelectedTool(tool.id)}
-                        className="h-8 w-8 p-0 hover:scale-105 transition-transform"
-                        title={tool.label}
-                      >
-                        <tool.icon className="h-4 w-4" />
-                      </Button>
-                    ))}
-                  </div>
-                  <Separator orientation="vertical" className="h-6" />
-                  <div className="flex items-center gap-1 mr-4">
-                    {alignmentTools.map((tool) => (
-                      <Button
-                        key={tool.id}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 hover:scale-105 transition-transform disabled:hover:scale-100"
-                        title={tool.label}
-                        disabled={selectedNodes.length === 0}
-                      >
-                        <tool.icon className="h-4 w-4" />
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1" />
-                </div>
-              </div>
+
 
               {/* Fullscreen Canvas */}
               <div className="flex-1 relative overflow-hidden">
