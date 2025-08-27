@@ -750,7 +750,7 @@ function App() {
                 </Button>
 
                 {showAiGenerator && (
-                  <div className="p-3 border-b bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300 flex-shrink-0">
+                  <div className="p-3 border-b bg-gradient-to-r dark:from-primary/5 dark:to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300 flex-shrink-0">
                     <GeminiMermaidGenerator
                       onStart={() => setIsStreaming(true)}
                       onStop={() => setIsStreaming(false)}
@@ -1066,7 +1066,7 @@ function App() {
                 </div>
 
                 {showAiGenerator && (
-                  <div className="p-3 border-b bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300 flex-shrink-0">
+                  <div className="p-3 border-b bg-gradient-to-r dark:from-primary/5 dark:to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300 flex-shrink-0">
                     <GeminiMermaidGenerator
                       onStart={() => setIsStreaming(true)}
                       onStop={() => setIsStreaming(false)}

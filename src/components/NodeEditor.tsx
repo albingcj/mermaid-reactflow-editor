@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom';
 import { Node } from 'reactflow';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 
 interface NodeEditorProps {
   node: Node | null;
@@ -10,29 +14,43 @@ interface NodeEditorProps {
 
 export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   const [label, setLabel] = useState('');
-  // const [githubUrl, setGithubUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageValid, setImageValid] = useState<boolean | null>(null);
   const [description, setDescription] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [borderColor, setBorderColor] = useState('#222222');
-  
+
   useEffect(() => {
     if (node) {
       setLabel(node.data.label || '');
-      // setGithubUrl(node.data.githubUrl || '');
       setImageUrl(node.data.imageUrl || '');
       setDescription(node.data.description || '');
       setBackgroundColor(node.style?.backgroundColor || '#ffffff');
       setBorderColor(node.style?.borderColor || '#222222');
     }
   }, [node]);
-  
+
+  // Validate image URL and update preview status
+  useEffect(() => {
+    if (!imageUrl) {
+      setImageValid(null);
+      return;
+    }
+
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => { if (!cancelled) setImageValid(true); };
+    img.onerror = () => { if (!cancelled) setImageValid(false); };
+    img.src = imageUrl;
+
+    return () => { cancelled = true; };
+  }, [imageUrl]);
+
   if (!node) return null;
 
   const handleSave = () => {
     onUpdate(node.id, {
-  label,
-      // githubUrl,
+      label,
       imageUrl,
       description,
       style: {
@@ -40,71 +58,105 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
         backgroundColor,
         borderColor,
         border: `2px solid ${borderColor}`,
-      }
+      },
     });
     onClose();
   };
-  // Render modal via portal to avoid nesting inside transformed/zoomed containers
-  const modal = (
-    <div
-      onClick={(e) => { e.stopPropagation(); }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ minWidth: 350, maxWidth: 500, background: 'var(--card)', borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', padding: 16 }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <h5 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Edit {node.type === 'group' ? 'Subgraph' : 'Node'}</h5>
-        </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: 'block', marginBottom: 6 }}>Label</label>
-            <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }} />
+  return (
+    <Dialog open={!!node} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit {node.type === 'group' ? 'Subgraph' : 'Node'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4 mt-2">
+          <div>
+            <label className="block text-sm mb-1">Label</label>
+            <Input value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" />
           </div>
 
-          {node.type !== 'group' && (
-            <>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 6 }}>Image URL</label>
-                <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }} />
-                <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 6 }}>Use an image URL to display an image as the node content</div>
+          <div className="flex gap-4">
+            <div className="flex flex-col" style={{ flex: '1 1 65%', minWidth: 0 }}>
+              <label className="block text-sm mb-1">Description</label>
+              <Textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Add a description..."
+                className="h-40 resize-none overflow-y-auto custom-scrollbar"
+                style={{ resize: 'none' }}
+              />
+            </div>
+
+            {node.type !== 'group' && (
+              <div className="flex flex-col items-start" style={{ width: '260px', minWidth: 160 }}>
+                <label className="block text-sm mb-1">Image URL</label>
+                <Input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
+                <div className="mt-2">
+                  {imageValid === true ? (
+                    <img src={imageUrl} alt="Preview" className="h-28 w-28 rounded-md object-cover border" />
+                  ) : imageValid === false && imageUrl ? (
+                    <div className="h-28 w-28 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border">Invalid image</div>
+                  ) : null}
+                </div>
               </div>
-            </>
-          )}
-
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: 'block', marginBottom: 6 }}>Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Add a description..." rows={3} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }} />
+            )}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 12 }}>Background</label>
-              <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} title="Choose background color" />
+          <div className="flex gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <label className="text-sm">Background</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick background color">
+                    <span className="block h-5 w-5 rounded-sm border" style={{ background: backgroundColor }} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent sideOffset={6} align="start" className="w-56">
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
+                    <Input value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="w-28" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-7 gap-2">
+                    {['#ffffff','#f8fafc','#fde68a','#bfdbfe','#fecaca','#d1fae5','#ddd6fe'].map(c => (
+                      <button key={c} type="button" onClick={() => setBackgroundColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set background ${c}`} />
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 12 }}>Border</label>
-              <input type="color" value={borderColor} onChange={e => setBorderColor(e.target.value)} title="Choose border color" />
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm">Border</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick border color">
+                    <span className="block h-5 w-5 rounded-sm border" style={{ background: borderColor }} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent sideOffset={6} align="start" className="w-56">
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={borderColor} onChange={e => setBorderColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
+                    <Input value={borderColor} onChange={e => setBorderColor(e.target.value)} className="w-28" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-7 gap-2">
+                    {['#222222','#000000','#64748b','#fb7185','#f59e0b','#34d399','#7c3aed'].map(c => (
+                      <button key={c} type="button" onClick={() => setBorderColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set border ${c}`} />
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button type="submit" style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--primary)', color: '#fff', border: 'none' }}>Save</button>
-            <button type="button" onClick={onClose} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'transparent' }}>Cancel</button>
-          </div>
+          <DialogFooter>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" onClick={onClose} type="button">Cancel</Button>
+              <Button type="submit">Save</Button>
+            </div>
+          </DialogFooter>
         </form>
-      </div>
-      {/* backdrop */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-
-  try {
-    return ReactDOM.createPortal(modal, document.body);
-  } catch (e) {
-    // If portal fails (SSR or other), fall back to inline render
-    return modal;
-  }
 }

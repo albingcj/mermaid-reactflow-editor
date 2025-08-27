@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Separator } from "./ui/separator";
-import { Sparkles, Wand2, AlertTriangle, Info, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { Sparkles, Wand2, AlertTriangle, Info, Trash2, Eye, EyeOff, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -67,6 +69,10 @@ export default function GeminiMermaidGenerator({
   const [userInputState, setUserInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [isErrorExpanded, setIsErrorExpanded] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const serviceOptions = [
     { value: "google", label: "Google (Gemini)" },
@@ -552,18 +558,36 @@ export default function GeminiMermaidGenerator({
 
 
 return (
-  <Card className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300">
+  <Card className="p-4 border-primary/20 animate-in slide-in-from-top-2 duration-300">
     <div className="flex flex-col sm:flex-row gap-3">
-      <Input
-        placeholder="Describe your diagram..."
-        value={displayUserInput}
-        onChange={(e) => {
-          if (onUserInputChange) onUserInputChange(e.target.value);
-          else setUserInput(e.target.value);
-        }}
-        className="flex-1 hover:border-primary/50 focus:border-primary transition-colors"
-        onKeyDown={(e) => e.key === "Enter" && generateMermaid()}
-      />
+      <div className="flex-1 relative">
+        <Textarea
+          placeholder="Describe your diagram..."
+          value={displayUserInput}
+          onChange={(e) => {
+            if (onUserInputChange) onUserInputChange(e.target.value);
+            else setUserInput(e.target.value);
+          }}
+          className="flex-1 hover:border-primary/50 focus:border-primary transition-colors pr-10 resize-none overflow-y-auto custom-scrollbar"
+          style={{ height: '40px', minHeight: '40px', resize: 'none' }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              generateMermaid();
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
+          onClick={() => setIsModalOpen(true)}
+          title="Expand editor"
+        >
+          <Maximize2 className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </div>
       <div className="flex gap-2">
         <Button
           onClick={generateMermaid}
@@ -582,16 +606,35 @@ return (
     </div>
 
     <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-3 border-t border-primary/20">
-      <Input
-        placeholder="API Key"
-        type="password"
-        value={displayApiKey}
-        onChange={(e) => {
-          if (onApiKeyChange) onApiKeyChange(e.target.value);
-          else setApiKey(e.target.value);
-        }}
-        className="flex-1"
-      />
+      <div className="flex-1 relative">
+        <Input
+          placeholder="API Key"
+          type={showApiKey ? "text" : "password"}
+          value={displayApiKey}
+          onChange={(e) => {
+            if (onApiKeyChange) onApiKeyChange(e.target.value);
+            else setApiKey(e.target.value);
+          }}
+          className={cn(
+            "hover:border-primary/50 focus:border-primary transition-colors pr-10",
+            error && (error.includes("API key not valid") || error.includes("API_KEY_INVALID")) && "border-destructive focus:border-destructive"
+          )}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
+          onClick={() => setShowApiKey(!showApiKey)}
+          title={showApiKey ? "Hide API Key" : "Show API Key"}
+        >
+          {showApiKey ? (
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Eye className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      </div>
       <div className="flex items-center gap-2">
         <Input
           placeholder="Model id (Gemini models only, e.g. gemini-2.0-flash)"
@@ -600,7 +643,7 @@ return (
             if (onModelChange) onModelChange(e.target.value);
             else setModel(e.target.value);
           }}
-          className="px-3 py-2 bg-background border border-border rounded text-sm hover:border-primary/50 transition-colors"
+          className="hover:border-primary/50 focus:border-primary transition-colors"
         />
         <Popover>
           <PopoverTrigger asChild>
@@ -631,13 +674,74 @@ return (
 
     {/* Error Display */}
     {error && (
-      <Alert variant="destructive" className="mt-3 py-2">
-        <div className="flex items-center">
-          <AlertTriangle className="h-4 w-4 mr-2" />
-          <span className="text-sm">{error}</span>
-        </div>
-      </Alert>
+      <div className="mt-3">
+        {error.includes("API key not valid") || error.includes("API_KEY_INVALID") ? (
+          // Special handling for API key errors
+          <Collapsible open={isErrorExpanded} onOpenChange={setIsErrorExpanded}>
+            <CollapsibleTrigger asChild>
+              <Alert variant="destructive" className="py-2 cursor-pointer hover:bg-destructive/5 transition-colors">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm">Invalid API key. Please check your API key and try again.</span>
+              </Alert>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="text-xs text-muted-foreground font-mono bg-muted p-3 rounded border overflow-auto max-h-32 custom-scrollbar">
+                {error}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : (
+          // Generic error handling
+          <Collapsible open={isErrorExpanded} onOpenChange={setIsErrorExpanded}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Click to view error details"
+              >
+                <AlertTriangle className="h-4 w-4" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="text-xs text-muted-foreground font-mono bg-muted p-3 rounded border overflow-auto max-h-32 custom-scrollbar">
+                {error}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+      </div>
     )}
+
+    {/* Expand Modal */}
+    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>Edit Diagram Description</DialogTitle>
+        </DialogHeader>
+        <div className="mt-4">
+          <Textarea
+            placeholder="Describe your diagram in detail..."
+            value={displayUserInput}
+            onChange={(e) => {
+              if (onUserInputChange) onUserInputChange(e.target.value);
+              else setUserInput(e.target.value);
+            }}
+            className="min-h-[400px] resize-none overflow-y-auto custom-scrollbar"
+            style={{ resize: 'none' }}
+            autoFocus
+          />
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => setIsModalOpen(false)}>
+            Done
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   </Card>
 );
 
