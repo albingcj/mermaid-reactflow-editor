@@ -887,7 +887,7 @@ function App() {
               onClick={() => togglePanelVisibility("canvas")}
               className="h-8 gap-2 hover:scale-105 transition-all duration-200"
             >
-              <Logo className="h-4 w-4 text-foreground" aria-hidden />
+              <Logo className="h-6 w-6 text-primary-foreground" aria-hidden />
               <span className="hidden sm:inline">Canvas</span>
             </Button>
           </div>
