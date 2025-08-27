@@ -133,7 +133,7 @@ function App() {
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [aiSettings, setAiSettings] = useState({
     apiKey: "",
-    model: "gpt-4",
+  model: "gemini-2.0-flash",
     isEditingSettings: false,
     provider: "openai",
   });
@@ -622,6 +622,16 @@ function App() {
                     <GeminiMermaidGenerator
                       onStart={() => setIsStreaming(true)}
                       onStop={() => setIsStreaming(false)}
+                      apiKey={aiSettings.apiKey}
+                      model={aiSettings.model}
+                      userInput={aiPrompt}
+                      onApiKeyChange={(v: string) => setAiSettings(s => ({ ...s, apiKey: v }))}
+                      onModelChange={(v: string) => setAiSettings(s => ({ ...s, model: v }))}
+                      onUserInputChange={(v: string) => setAiPrompt(v)}
+                      onClose={() => {
+                        setAiSettings(s => ({ ...s, apiKey: "", model: "" }));
+                        setAiPrompt("");
+                      }}
                       onChunk={(partial: string) => {
                         // update editor progressively so preview/conversion can run as content streams
                         setFlowMode('editor');
@@ -962,6 +972,16 @@ function App() {
                     <GeminiMermaidGenerator
                       onStart={() => setIsStreaming(true)}
                       onStop={() => setIsStreaming(false)}
+                      apiKey={aiSettings.apiKey}
+                      model={aiSettings.model}
+                      userInput={aiPrompt}
+                      onApiKeyChange={(v: string) => setAiSettings(s => ({ ...s, apiKey: v }))}
+                      onModelChange={(v: string) => setAiSettings(s => ({ ...s, model: v }))}
+                      onUserInputChange={(v: string) => setAiPrompt(v)}
+                      onClose={() => {
+                        setAiSettings(s => ({ ...s, apiKey: "", model: "" }));
+                        setAiPrompt("");
+                      }}
                       onChunk={(partial: string) => {
                         // update editor progressively so preview/conversion can run as content streams
                         setFlowMode('editor');
