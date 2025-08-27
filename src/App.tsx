@@ -20,6 +20,16 @@ import { Separator } from "./components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./components/ui/sheet";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./components/ui/resizable";
 import { cn } from "./lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "./components/ui/alert-dialog";
 // Import Lucide icons
 import {
   Code2,
@@ -141,6 +151,11 @@ function App() {
   const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
+  // Confirmation dialogs state
+  const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
+  // Inline confirm state for saved-diagram deletion (shows confirm/cancel inline)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -344,11 +359,19 @@ function App() {
   };
 
   const deleteSavedDiagram = (id: string) => {
-    if (!confirm('Delete this saved diagram?')) return;
-    const next = savedDiagrams.filter((d) => d.id !== id);
+  // show inline confirm buttons next to the clicked item
+  setConfirmDeleteId(id);
+  };
+
+  const confirmDeleteSavedDiagram = () => {
+  const idToDelete = deleteDialogId || confirmDeleteId;
+  if (!idToDelete) return;
+  const next = savedDiagrams.filter((d) => d.id !== idToDelete);
     setSavedDiagrams(next);
     persistSavedDiagrams(next);
     showToast('Deleted saved diagram', 'info');
+  setDeleteDialogId(null);
+  setConfirmDeleteId(null);
   };
 
   const toggleAccordion = (section: AccordionSection) => {
@@ -367,11 +390,15 @@ function App() {
   };
 
   const clearAll = () => {
-    if (confirm("Are you sure you want to clear all content?")) {
-      setMermaidSource("");
-      setFlowData({ nodes: [], edges: [] });
-      setActiveAccordion("editor");
-    }
+    // open confirmation dialog for clearing all content
+    setClearDialogOpen(true);
+  };
+
+  const confirmClearAll = () => {
+    setMermaidSource("");
+    setFlowData({ nodes: [], edges: [] });
+    setActiveAccordion("editor");
+    setClearDialogOpen(false);
   };
 
   const handleGenerate = useCallback(() => {
@@ -1196,19 +1223,50 @@ function App() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="p-0"
-                            title="Delete saved diagram"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSavedDiagram(diagram.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          {confirmDeleteId === diagram.id ? (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // perform delete immediately
+                                  // also clear any modal-based deleteDialogId
+                                  setDeleteDialogId(null);
+                                  setConfirmDeleteId(diagram.id);
+                                  confirmDeleteSavedDiagram();
+                                }}
+                              >
+                                Delete
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDeleteId(null);
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="p-0"
+                                title="Delete saved diagram"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteSavedDiagram(diagram.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1469,6 +1527,21 @@ function App() {
       </div>
 
       {/* Toasts */}
+  {/* Confirmation dialogs (clear-all still uses modal) */}
+
+      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all content</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to clear the editor and canvas? This will remove all unsaved changes.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setClearDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClearAll}>Clear</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Toasts toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
