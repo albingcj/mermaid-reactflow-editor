@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Separator } from "./ui/separator";
-import { Sparkles, Wand2, X, AlertTriangle, Info, Trash2 } from "lucide-react";
+import { Sparkles, Wand2, AlertTriangle, Info, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -577,15 +577,7 @@ return (
           )}
           {loading ? "Generating..." : "Generate"}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setError("")}
-          className="hover:scale-105 transition-transform"
-          title="Clear"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+  {/* top-right clear button removed to avoid duplicate clear actions; use the trash button below to clear AI inputs */}
       </div>
     </div>
 
