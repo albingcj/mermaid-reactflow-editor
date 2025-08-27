@@ -1,6 +1,10 @@
 // @ts-nocheck
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import mermaid from 'mermaid';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+import { Button } from './ui/button';
+import { Info } from 'lucide-react';
+// AlertTriangle import removed; using inline error block now
 
 export interface MermaidRendererProps {
   code: string;
@@ -11,10 +15,13 @@ export interface MermaidRendererProps {
 export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, className, style }) => {
   const ref = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const baseScaleRef = useRef(1);
+  const [fitTick, setFitTick] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const uniqueId = useRef(`mermaid-svg-${Math.random().toString(36).substr(2, 9)}`).current;
 
@@ -154,6 +161,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
     ref.current.innerHTML = '';
     
     if (!code || code.trim() === '') {
+      // clear any previous error and show empty placeholder
+      setErrorMessage(null);
       ref.current.innerHTML = '<span style="color: #888;">No Mermaid code to render.</span>';
       return;
     }
@@ -174,43 +183,107 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
       }
     };
 
+    const fitToContainer = () => {
+      if (!containerRef.current || !ref.current) return;
+      const svgEl = ref.current.querySelector('svg') as SVGSVGElement | null;
+      if (!svgEl) return;
+
+      // Read natural size from viewBox when available
+      let svgW = 0;
+      let svgH = 0;
+      const vb = svgEl.viewBox && typeof svgEl.viewBox.baseVal !== 'undefined' ? svgEl.viewBox.baseVal : null;
+      if (vb && vb.width && vb.height) {
+        svgW = vb.width;
+        svgH = vb.height;
+      } else {
+        try {
+          const bbox = svgEl.getBBox();
+          svgW = bbox.width;
+          svgH = bbox.height;
+        } catch {
+          const rect = svgEl.getBoundingClientRect();
+          svgW = rect.width || 1;
+          svgH = rect.height || 1;
+        }
+      }
+
+      const cw = containerRef.current.clientWidth || 1;
+      const ch = containerRef.current.clientHeight || 1;
+      // Guard values; if invalid sizes, keep scale 1
+      if (!isFinite(svgW) || !isFinite(svgH) || svgW <= 0 || svgH <= 0) {
+        baseScaleRef.current = 1;
+        return;
+      }
+  const scale = Math.max(0.05, Math.min(cw / svgW, ch / svgH));
+  baseScaleRef.current = scale;
+  // trigger a re-render so outer transform picks up the new base scale
+  setFitTick((t) => t + 1);
+
+  // Do not force huge intrinsic layout sizes; rely on outer transform and max constraints
+      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  svgEl.style.display = 'block';
+  ;(svgEl as any).style.margin = 'auto';
+  svgEl.style.width = 'auto';
+  svgEl.style.height = 'auto';
+  svgEl.style.maxWidth = '100%';
+  svgEl.style.maxHeight = '100%';
+    };
+
     const renderDiagram = async () => {
+      // reset any prior error
+      setErrorMessage(null);
       try {
         // cleanup any previous injected nodes before rendering
         removeInjectedMermaidDivs();
         const { svg } = await mermaid.render(uniqueId, code);
         if (ref.current) {
           ref.current.innerHTML = svg;
+          // Fit after render and layout
+          requestAnimationFrame(() => fitToContainer());
         }
+        // Successful render -> clear any previous error message
+        setErrorMessage(null);
         // cleanup any stray injected nodes created outside this container
         removeInjectedMermaidDivs();
       } catch (err) {
-        console.error('MermaidRenderer: Error rendering diagram', err);
+        // console.error('MermaidRenderer: Error rendering diagram', err);
+        // clear content and capture error message
         if (ref.current) {
-          ref.current.innerHTML = `<pre style='color:red; font-size: 12px; padding: 8px;'>Mermaid Error: ${String(err)}</pre>`;
-          // ensure we don't leave stray mermaid helper divs in the document
+          ref.current.innerHTML = '';
           removeInjectedMermaidDivs();
         }
+        setErrorMessage(String(err));
       }
     };
 
     renderDiagram();
+    // Recompute fit on container resize
+  const ro = new ResizeObserver(() => {
+      fitToContainer();
+    });
+    if (containerRef.current) ro.observe(containerRef.current);
+  // Also observe the SVG element itself for late size changes
+  const svgEl = ref.current?.querySelector('svg') as SVGSVGElement | null;
+  if (svgEl) ro.observe(svgEl);
+    return () => {
+      try { ro.disconnect(); } catch {}
+    };
   }, [code, isInitialized, uniqueId]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (zoom <= 1) return; // Only allow panning when zoomed in
+    // allow panning at any zoom level (user expects to be able to grab/move)
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     e.preventDefault();
-  }, [zoom, pan.x, pan.y]);
+  }, [pan.x, pan.y]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || zoom <= 1) return;
+    if (!isDragging) return;
     setPan({
       x: e.clientX - dragStart.x,
       y: e.clientY - dragStart.y,
     });
-  }, [isDragging, dragStart.x, dragStart.y, zoom]);
+  }, [isDragging, dragStart.x, dragStart.y]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -239,37 +312,71 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   };
 
   return (
-    <div 
+  <div
       ref={containerRef}
-      className={className} 
-      style={{ 
-        ...style, 
-        position: 'relative', 
-        overflow: 'hidden', 
-        width: '100%', 
+      className={className}
+      style={{
+        ...style,
+        position: 'relative',
+        overflow: 'hidden',
+        width: '100%',
         height: '100%',
-        cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
+    cursor: isDragging ? 'grabbing' : 'grab',
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div 
-        style={{ 
-          transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`, 
-          transformOrigin: 'center center', 
+      <div
+        style={{
+          transform: (() => {
+            const scale = Math.max(0.05, (baseScaleRef.current || 1) * zoom);
+            return `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`;
+          })(),
+          transformOrigin: 'center center',
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          pointerEvents: zoom > 1 ? 'none' : 'auto', // Prevent SVG interactions when panning
+          pointerEvents: zoom > 1 ? 'none' : 'auto',
         }}
       >
-        <div ref={ref} style={{ pointerEvents: 'auto' }} />
+    {/* make the inner container a flexbox so the injected SVG can be centered */}
+        <div
+          ref={ref}
+          style={{
+            pointerEvents: 'auto',
+      width: '100%',
+      height: '100%',
+      maxWidth: '100%',
+      maxHeight: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+      overflow: 'hidden',
+  contain: 'layout paint size style',
+          }}
+        />
       </div>
+
+      {/* Error overlay: absolute over the preview so ref remains mounted and mermaid can update it */}
+      {errorMessage && (
+        <div
+          className="bg-destructive/10 text-destructive rounded-md p-4 m-4 overflow-auto text-sm whitespace-pre-wrap"
+          style={{
+            position: 'absolute',
+            inset: '1rem',
+            zIndex: 50,
+            pointerEvents: 'auto',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
       
       {/* Fixed position zoom controls */}
       <div style={{
@@ -346,23 +453,22 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         </div>
       )}
 
-      {/* Help text */}
-      <div style={{
-        position: 'absolute',
-        bottom: '10px',
-        left: '10px',
-        zIndex: 1000,
-        background: 'rgba(255, 255, 255, 0.9)',
-        padding: '6px 10px',
-        borderRadius: '6px',
-        fontSize: '11px',
-        color: '#666',
-        maxWidth: '180px',
-        lineHeight: '1.3'
-      }}>
-        <div><strong>Scroll:</strong> Zoom in/out</div>
-        <div><strong>Drag:</strong> Pan when zoomed</div>
-        <div><strong>Ctrl +/-:</strong> Zoom shortcuts</div>
+      {/* Help tooltip */}
+      <div style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 1000 }}>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Info className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent sideOffset={6} align="center">
+            <div style={{ fontSize: 12, lineHeight: 1.4 }}>
+              <div><strong>Scroll:</strong> Zoom in/out</div>
+              <div><strong>Drag:</strong> Pan when zoomed</div>
+              <div><strong>Ctrl +/-:</strong> Zoom shortcuts</div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );

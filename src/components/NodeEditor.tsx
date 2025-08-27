@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Node } from 'reactflow';
 
 interface NodeEditorProps {
@@ -27,7 +28,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   }, [node]);
   
   if (!node) return null;
-  
+
   const handleSave = () => {
     onUpdate(node.id, {
   label,
@@ -43,64 +44,67 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
     });
     onClose();
   };
-  
-  return (
-    <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center" style={{zIndex: 1050}}>
-      <div className="card shadow-lg" style={{minWidth: 350, maxWidth: 500}}>
-        <div className="card-body">
-          <h5 className="card-title mb-3">Edit {node.type === 'group' ? 'Subgraph' : 'Node'}</h5>
-          <form>
-            <div className="mb-3">
-              <label className="form-label">Label</label>
-              <input type="text" className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" />
-            </div>
-            {node.type !== 'group' && (
-              <>
-                <div className="mb-3">
-                  <label className="form-label">Image URL</label>
-                  <input type="url" className="form-control" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
-                  <div className="form-text">Use an image URL to display an image as the node content</div>
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Description</label>
-                  <textarea className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Add a description..." rows={3} />
-                </div>
-              </>
-            )}
-            
-            <div className="mb-3">
-              <label className="form-label">Description</label>
-              <textarea className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Add a description..." rows={3} />
-            </div>
-            <div className="mb-3 row g-2 align-items-center">
-              <div className="col-auto">
-                <label className="form-label mb-0">Background</label>
-              </div>
-              <div className="col-auto">
-                <input type="color" className="form-control form-control-color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} title="Choose background color" />
-              </div>
-              <div className="col">
-                <input type="text" className="form-control" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} placeholder="#ffffff" />
-              </div>
-            </div>
-            <div className="mb-3 row g-2 align-items-center">
-              <div className="col-auto">
-                <label className="form-label mb-0">Border</label>
-              </div>
-              <div className="col-auto">
-                <input type="color" className="form-control form-control-color" value={borderColor} onChange={e => setBorderColor(e.target.value)} title="Choose border color" />
-              </div>
-              <div className="col">
-                <input type="text" className="form-control" value={borderColor} onChange={e => setBorderColor(e.target.value)} placeholder="#222222" />
-              </div>
-            </div>
-            <div className="d-flex justify-content-end gap-2">
-              <button type="button" onClick={handleSave} className="btn btn-primary">Save</button>
-              <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
-            </div>
-          </form>
+  // Render modal via portal to avoid nesting inside transformed/zoomed containers
+  const modal = (
+    <div
+      onClick={(e) => { e.stopPropagation(); }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ minWidth: 350, maxWidth: 500, background: 'var(--card)', borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', padding: 16 }}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <h5 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Edit {node.type === 'group' ? 'Subgraph' : 'Node'}</h5>
         </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Label</label>
+            <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }} />
+          </div>
+
+          {node.type !== 'group' && (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Image URL</label>
+                <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }} />
+                <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 6 }}>Use an image URL to display an image as the node content</div>
+              </div>
+            </>
+          )}
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Description</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Add a description..." rows={3} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 12 }}>Background</label>
+              <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} title="Choose background color" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 12 }}>Border</label>
+              <input type="color" value={borderColor} onChange={e => setBorderColor(e.target.value)} title="Choose border color" />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="submit" style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--primary)', color: '#fff', border: 'none' }}>Save</button>
+            <button type="button" onClick={onClose} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'transparent' }}>Cancel</button>
+          </div>
+        </form>
       </div>
+      {/* backdrop */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
     </div>
   );
+
+  try {
+    return ReactDOM.createPortal(modal, document.body);
+  } catch (e) {
+    // If portal fails (SSR or other), fall back to inline render
+    return modal;
+  }
 }
