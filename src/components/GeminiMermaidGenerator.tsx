@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Separator } from "./ui/separator";
-import { Sparkles, Wand2, AlertTriangle, Info, Trash2 } from "lucide-react";
+import { Sparkles, Wand2, AlertTriangle, Info, Trash2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -67,6 +67,7 @@ export default function GeminiMermaidGenerator({
   const [userInputState, setUserInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const serviceOptions = [
     { value: "google", label: "Google (Gemini)" },
@@ -582,16 +583,32 @@ return (
     </div>
 
     <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-3 border-t border-primary/20">
-      <Input
-        placeholder="API Key"
-        type="password"
-        value={displayApiKey}
-        onChange={(e) => {
-          if (onApiKeyChange) onApiKeyChange(e.target.value);
-          else setApiKey(e.target.value);
-        }}
-        className="flex-1 hover:border-primary/50 focus:border-primary transition-colors"
-      />
+      <div className="flex-1 relative">
+        <Input
+          placeholder="API Key"
+          type={showApiKey ? "text" : "password"}
+          value={displayApiKey}
+          onChange={(e) => {
+            if (onApiKeyChange) onApiKeyChange(e.target.value);
+            else setApiKey(e.target.value);
+          }}
+          className="hover:border-primary/50 focus:border-primary transition-colors pr-10"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
+          onClick={() => setShowApiKey(!showApiKey)}
+          title={showApiKey ? "Hide API Key" : "Show API Key"}
+        >
+          {showApiKey ? (
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Eye className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      </div>
       <div className="flex items-center gap-2">
         <Input
           placeholder="Model id (Gemini models only, e.g. gemini-2.0-flash)"
