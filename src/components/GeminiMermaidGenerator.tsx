@@ -552,7 +552,7 @@ export default function GeminiMermaidGenerator({
 
 
 return (
-  <Card className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 animate-in slide-in-from-top-2 duration-300">
+  <Card className="p-4 border-primary/20 animate-in slide-in-from-top-2 duration-300">
     <div className="flex flex-col sm:flex-row gap-3">
       <Input
         placeholder="Describe your diagram..."
@@ -590,7 +590,7 @@ return (
           if (onApiKeyChange) onApiKeyChange(e.target.value);
           else setApiKey(e.target.value);
         }}
-        className="flex-1"
+        className="flex-1 hover:border-primary/50 focus:border-primary transition-colors"
       />
       <div className="flex items-center gap-2">
         <Input
@@ -600,7 +600,7 @@ return (
             if (onModelChange) onModelChange(e.target.value);
             else setModel(e.target.value);
           }}
-          className="px-3 py-2 bg-background border border-border rounded text-sm hover:border-primary/50 transition-colors"
+          className="hover:border-primary/50 focus:border-primary transition-colors"
         />
         <Popover>
           <PopoverTrigger asChild>
