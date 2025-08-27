@@ -154,6 +154,8 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
+  const [importedDiagram, setImportedDiagram] = useState<SavedDiagram | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Confirmation dialogs state
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
   // Inline confirm state for saved-diagram deletion (shows confirm/cancel inline)
@@ -371,10 +373,16 @@ function App() {
   const confirmDeleteSavedDiagram = () => {
   const idToDelete = deleteDialogId || confirmDeleteId;
   if (!idToDelete) return;
-  const next = savedDiagrams.filter((d) => d.id !== idToDelete);
+  if (idToDelete === 'imported' && importedDiagram) {
+    // clear imported diagram only
+    setImportedDiagram(null);
+    showToast('Removed imported diagram', 'info');
+  } else {
+    const next = savedDiagrams.filter((d) => d.id !== idToDelete);
     setSavedDiagrams(next);
     persistSavedDiagrams(next);
     showToast('Deleted saved diagram', 'info');
+  }
   setDeleteDialogId(null);
   setConfirmDeleteId(null);
   };
@@ -579,6 +587,96 @@ function App() {
     } else {
       showToast('Export not available', 'info');
     }
+  };
+
+  const exportToJSON = () => {
+    // export current mermaid + nodes/edges as single JSON file
+    const now = Date.now();
+    const payload: SavedDiagram = {
+      id: `export-${now}`,
+      name: `diagram-${new Date(now).toISOString()}`,
+      mermaid: mermaidSource,
+      nodes: flowData.nodes || [],
+      edges: flowData.edges || [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${payload.name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Exported diagram JSON', 'success');
+  };
+
+  const handleUploadFile = (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const txt = String(e.target?.result || '');
+        const parsed = JSON.parse(txt);
+        // Accept either a single diagram object or an array
+        if (Array.isArray(parsed)) {
+          // Merge into savedDiagrams (prepend)
+          const items = parsed.filter((p) => p && p.mermaid && Array.isArray(p.nodes));
+          if (items.length === 0) throw new Error('No valid diagrams found in file');
+          const casted = items as SavedDiagram[];
+          const next = [...casted, ...savedDiagrams];
+          setSavedDiagrams(next);
+          persistSavedDiagrams(next);
+          showToast('Imported diagrams into saved list', 'success');
+        } else if (parsed && parsed.mermaid !== undefined && Array.isArray(parsed.nodes)) {
+          const imported: SavedDiagram = {
+            id: 'imported',
+            name: parsed.name || 'Imported diagram',
+            mermaid: parsed.mermaid,
+            nodes: parsed.nodes,
+            edges: parsed.edges || [],
+            createdAt: parsed.createdAt || Date.now(),
+            updatedAt: parsed.updatedAt || Date.now(),
+          };
+          setImportedDiagram(imported);
+          setSelectedPreviewId('imported');
+          showToast('Imported diagram ready to preview', 'success');
+        } else {
+          throw new Error('Invalid diagram JSON');
+        }
+      } catch (err: any) {
+        showToast(`Import failed: ${err?.message || String(err)}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files && e.target.files[0];
+    handleUploadFile(f ?? null);
+    // reset input so same file can be re-uploaded if needed
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const loadImportedDiagram = () => {
+    if (!importedDiagram) {
+      showToast('No imported diagram to load', 'info');
+      return;
+    }
+    // apply to main view
+    setFlowMode('loaded');
+    lastAppliedMermaidRef.current = importedDiagram.mermaid;
+    setFlowData({ nodes: importedDiagram.nodes || [], edges: importedDiagram.edges || [] });
+    setMermaidSource(importedDiagram.mermaid);
+    setActiveAccordion('editor');
+    setSidebarCollapsed(true);
+    showToast(`Loaded "${importedDiagram.name}"`, 'success');
+    setShowLoadDialog(false);
+    // clear imported after load
+    setImportedDiagram(null);
   };
 
   // UI tools definitions
@@ -856,7 +954,7 @@ function App() {
             <Button
               variant="outline"
               size="sm"
-              onClick={exportToPNG}
+              onClick={exportToJSON}
               className="gap-2 hover:bg-muted/80 transition-colors bg-transparent"
             >
               <Download className="h-4 w-4" />
@@ -1205,92 +1303,104 @@ function App() {
                       <FolderOpen className="h-5 w-5" />
                       <h3 className="font-semibold text-lg">Saved Diagrams</h3>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowLoadDialog(false)}
-                        className="whitespace-nowrap"
-                      >
-                        Close
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => { if (selectedPreviewId) loadSavedDiagram(selectedPreviewId); }}
-                        disabled={!selectedPreviewId}
-                        className="whitespace-nowrap"
-                      >
-                        Load
-                      </Button>
-                    </div>
+                        <div className="flex items-center gap-2">
+                          <input ref={fileInputRef} type="file" accept="application/json" onChange={onFileInputChange} className="hidden" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            Upload JSON
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowLoadDialog(false)}
+                            className="whitespace-nowrap"
+                          >
+                            Close
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              if (selectedPreviewId === 'imported') loadImportedDiagram();
+                              else if (selectedPreviewId) loadSavedDiagram(selectedPreviewId);
+                            }}
+                            disabled={!selectedPreviewId}
+                            className="whitespace-nowrap"
+                          >
+                            Load
+                          </Button>
+                        </div>
                   </div>
 
                   {/* Modal Body: left list and right preview. Only body scrolls. */}
                   <div className="flex-1 flex overflow-hidden">
                     {/* Left: list */}
                     <div className="w-1/2 border-r p-4 overflow-y-auto custom-scrollbar">
-                      {savedDiagrams.length === 0 ? (
-                        <div className="text-center p-4 text-muted-foreground">
-                          <p>No saved diagrams found</p>
-                        </div>
-                      ) : (
-                        savedDiagrams.map((diagram) => (
-                          <div
-                            key={diagram.id}
-                            className={cn(
-                              "p-3 border rounded-lg cursor-pointer transition-colors mb-2 flex items-center justify-between",
-                              selectedPreviewId === diagram.id ? "bg-accent/30 border-primary" : "hover:bg-accent"
-                            )}
-                            onClick={() => setSelectedPreviewId(diagram.id)}
-                          >
-                            <div>
-                              <h4 className="font-medium text-sm">{diagram.name}</h4>
-                              <p className="text-xs text-muted-foreground">{new Date(diagram.createdAt).toLocaleDateString()}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {confirmDeleteId === diagram.id ? (
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      confirmDeleteSavedDiagram();
-                                      if (selectedPreviewId === diagram.id) setSelectedPreviewId(null);
-                                    }}
-                                  >
-                                    Delete
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConfirmDeleteId(null);
-                                    }}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
-                              ) : (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="p-0"
-                                    title="Delete saved diagram"
-                                    onClick={(e) => { e.stopPropagation(); deleteSavedDiagram(diagram.id); }}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                </>
-                              )}
-                            </div>
+                        {/* Include importedDiagram at the top of the list when present */}
+                        {(importedDiagram ? [importedDiagram, ...savedDiagrams] : savedDiagrams).length === 0 ? (
+                          <div className="text-center p-4 text-muted-foreground">
+                            <p>No saved diagrams found</p>
                           </div>
-                        ))
-                      )}
+                        ) : (
+                          (importedDiagram ? [importedDiagram, ...savedDiagrams] : savedDiagrams).map((diagram) => (
+                            <div
+                              key={diagram.id}
+                              className={cn(
+                                "p-3 border rounded-lg cursor-pointer transition-colors mb-2 flex items-center justify-between",
+                                selectedPreviewId === diagram.id ? "bg-accent/30 border-primary" : "hover:bg-accent"
+                              )}
+                              onClick={() => setSelectedPreviewId(diagram.id)}
+                            >
+                              <div>
+                                <h4 className="font-medium text-sm">{diagram.name}</h4>
+                                <p className="text-xs text-muted-foreground">{new Date(diagram.createdAt || Date.now()).toLocaleDateString()}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {confirmDeleteId === diagram.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        confirmDeleteSavedDiagram();
+                                        if (selectedPreviewId === diagram.id) setSelectedPreviewId(null);
+                                      }}
+                                    >
+                                      Delete
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setConfirmDeleteId(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="p-0"
+                                      title="Delete saved diagram"
+                                      onClick={(e) => { e.stopPropagation(); deleteSavedDiagram(diagram.id); }}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
                     </div>
 
                     {/* Right: preview */}
@@ -1298,7 +1408,9 @@ function App() {
                       <div className="flex-1 border rounded p-3 bg-muted/10 overflow-auto">
                         {selectedPreviewId ? (
                           (() => {
-                            const item = savedDiagrams.find((d) => d.id === selectedPreviewId);
+                            let item = null as SavedDiagram | null;
+                            if (selectedPreviewId === 'imported' && importedDiagram) item = importedDiagram;
+                            if (!item) item = savedDiagrams.find((d) => d.id === selectedPreviewId) ?? null;
                             return item ? (
                               <MermaidRenderer code={item.mermaid} className="w-full h-full min-h-[300px]" />
                             ) : (
