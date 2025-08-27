@@ -1216,7 +1216,7 @@ function App() {
               if (e.currentTarget === e.target) setShowLoadDialog(false);
             }}
           >
-                <div className="bg-card rounded-lg shadow-inner dark:ring-1 dark:ring-primary/40 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                <div className="bg-card rounded-lg shadow-inner dark:ring-1 dark:ring-primary/40 max-w-4xl w-full max-h-[80vh] min-h-[480px] overflow-hidden flex flex-col">
                   {/* Modal Header - common fixed header for both columns */}
                   <div className="flex items-center justify-between p-4 border-b bg-muted/5">
                     <div className="flex items-center gap-3">
