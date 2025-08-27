@@ -1155,8 +1155,14 @@ function App() {
 
         {/* Load Dialog */}
         {showLoadDialog && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-card rounded-lg shadow-xl max-w-md w-full max-h-96 overflow-hidden">
+          <div
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onMouseDown={(e) => {
+              // close when clicking on the backdrop (but not when clicking inside the modal)
+              if (e.currentTarget === e.target) setShowLoadDialog(false);
+            }}
+          >
+            <div className="bg-card rounded-lg shadow-inner dark:ring-1 dark:ring-primary/40 max-w-md w-full max-h-96 overflow-hidden">
               <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold flex items-center gap-2">
