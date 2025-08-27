@@ -318,8 +318,10 @@ function App() {
   };
 
   const handleSaveDiagram = () => {
-    if (!mermaidSource || mermaidSource.trim() === '') {
-      showToast('Nothing to save', 'info');
+    const src = mermaidSource?.trim();
+    const hasNodes = (flowData.nodes || []).length > 0;
+    if (!src || src === '' || !hasNodes) {
+      showToast('Cannot save: please provide Mermaid code and at least one node', 'info');
       return;
     }
 
