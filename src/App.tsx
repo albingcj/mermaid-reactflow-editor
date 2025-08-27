@@ -1195,7 +1195,21 @@ function App() {
                             {new Date(diagram.createdAt).toLocaleDateString()}
                           </p>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0"
+                            title="Delete saved diagram"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSavedDiagram(diagram.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
                       </div>
                     </div>
                   ))
