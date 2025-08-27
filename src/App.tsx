@@ -7,6 +7,7 @@ import {
 import { Node, Edge } from "reactflow";
 import "./App.css";
 import { MermaidRenderer } from "./components/MermaidRenderer";
+import Logo from "./components/Logo";
 import { Toasts, ToastItem } from "./components/Toasts";
 import MermaidEditor from "./components/MermaidEditor";
 import GeminiMermaidGenerator from "./components/GeminiMermaidGenerator";
@@ -72,7 +73,6 @@ import {
   MoveUp,
   Info,
   MoveDown,
-  GitBranch,
   FolderOpen,
   ChevronRight,
   AlignVerticalJustifyStart,
@@ -892,8 +892,8 @@ function App() {
       <header className="border-b bg-card px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-              <GitBranch className="h-4 w-4 text-primary-foreground" />
+            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+              <Logo className="h-6 w-6 text-primary-foreground" aria-hidden />
             </div>
             <h1 className="font-semibold text-lg">Mermaid Editor</h1>
           </div>
@@ -923,7 +923,7 @@ function App() {
               onClick={() => togglePanelVisibility("canvas")}
               className="h-8 gap-2 hover:scale-105 transition-all duration-200"
             >
-              <GitBranch className="h-4 w-4" />
+              <Logo className="h-4 w-4 text-foreground" aria-hidden />
               <span className="hidden sm:inline">Canvas</span>
             </Button>
           </div>
@@ -1216,7 +1216,7 @@ function App() {
               {/* Canvas Header (uniform with other panels) */}
               <div className="p-2 border-b flex items-center justify-between bg-muted/30">
                 <div className="flex items-center gap-2">
-                  <GitBranch className="h-4 w-4" />
+                  <Logo className="h-4 w-4 text-foreground" aria-hidden />
                   <span className="font-medium text-sm">React Flow Canvas</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -1261,7 +1261,9 @@ function App() {
                   ) : (
                     <div className="flex items-center justify-center h-full text-center">
                       <div>
-                        <GitBranch className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <div className="mx-auto mb-4 opacity-50">
+                          <Logo className="h-12 w-12 mx-auto text-muted-foreground" aria-hidden />
+                        </div>
                         <h4 className="text-lg font-normal text-muted-foreground mb-2">
                           No diagram to display
                         </h4>
