@@ -13,6 +13,7 @@ import GeminiMermaidGenerator from "./components/GeminiMermaidGenerator";
 // Import UI components with relative paths
 import { Button } from "./components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
+import { Select, SelectTrigger, SelectContent, SelectItem } from "./components/ui/select";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
@@ -62,6 +63,9 @@ import {
   Palette,
   Menu,
   Hand,
+  Sun,
+  Moon,
+  Monitor,
   ArrowRight,
   AlignHorizontalJustifyCenter,
   AlignVerticalJustifyCenter,
@@ -879,16 +883,36 @@ function App() {
           </div>
 
           {/* Theme selector */}
-          <select
-            className="px-2 py-1 text-sm rounded border bg-background"
-            value={themePref}
-            onChange={(e) => setThemePref(e.target.value as any)}
-            aria-label="Theme preference"
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+          <Select value={themePref} onValueChange={(v) => setThemePref(v as any)}>
+            <SelectTrigger size="sm" className="h-8">
+              {/* Icon-only trigger (screen-reader label present via aria) */}
+              <div className="flex items-center">
+                {themePref === 'light' && <Sun className="h-4 w-4" aria-hidden />}
+                {themePref === 'dark' && <Moon className="h-4 w-4" aria-hidden />}
+                {themePref === 'system' && <Monitor className="h-4 w-4" aria-hidden />}
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">
+                <div className="flex items-center gap-2">
+                  <Monitor className="h-4 w-4" aria-hidden />
+                  <span className="text-sm">System</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="light">
+                <div className="flex items-center gap-2">
+                  <Sun className="h-4 w-4" aria-hidden />
+                  <span className="text-sm">Light</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="dark">
+                <div className="flex items-center gap-2">
+                  <Moon className="h-4 w-4" aria-hidden />
+                  <span className="text-sm">Dark</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
 
           {/* Mobile menu button */}
           <Button
