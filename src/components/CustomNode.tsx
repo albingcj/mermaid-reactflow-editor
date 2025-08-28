@@ -24,7 +24,7 @@ function CustomNodeInner({ data, isConnectable, selected }: NodeProps) {
     if (data.imageUrl) className += ' has-image';
     if (data.shape === 'diamond') className += ' diamond-node';
     if (selected) className += ' selected';
-    if (data.locked) className += ' locked';
+  if (data.locked) className += ' locked';
     return className;
   };
 
@@ -43,16 +43,19 @@ function CustomNodeInner({ data, isConnectable, selected }: NodeProps) {
     }
   }, [data.imageUrl, isImageNode]);
   
+  // Merge any node-level style (set via node.style or data.style) with defaults
+  const mergedStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+    ...(data?.style || {}),
+  };
+
   return (
     <div 
       className={getNodeClassName()}
       onDoubleClick={data.onEdit}
-      style={isImageNode && imageAspect ? {
-        width: '100%',
-        height: '100%',
-        aspectRatio: `${imageAspect}`,
-        position: 'relative'
-      } : { width: '100%', height: '100%', position: 'relative' }}
+      style={isImageNode && imageAspect ? { ...mergedStyle, aspectRatio: `${imageAspect}` } : mergedStyle}
     >
       {/* User-friendly node resizer with clear visual feedback */}
       {!data.isDragging && (

@@ -826,6 +826,9 @@ textarea {
   text-overflow: ellipsis;
 }
 
+/* Textbox nodes: minimal, transparent by default */
+
+
 /* Special styling for diamond nodes */
 .diamond-node {
   position: relative;

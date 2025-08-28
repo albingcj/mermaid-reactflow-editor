@@ -38,6 +38,7 @@ import { CustomNode } from './CustomNode';
 import { NodeEditor } from './NodeEditor';
 import { SubgraphNode } from './SubgraphNode';
 import { EditingToolbar } from './EditingToolbar';
+import PaletteToolbar from './PaletteToolbar';
 import { SearchControl } from './SearchControl';
 
 interface FlowDiagramProps {
@@ -423,18 +424,25 @@ function FlowDiagramInternal({
       ref={reactFlowWrapper}
       className={`${isDragging ? 'dragging' : ''} ${interactive ? '' : 'streaming-mode'} ${theme === 'dark' ? 'dark' : ''} relative flex flex-col`.trim()}
     >
-        <EditingToolbar
-          selectedNodes={selectedNodes}
-          selectedEdges={selectedEdges}
-          onAlignNodes={onAlignNodes}
-          onDistributeNodes={onDistributeNodes}
-          onDuplicateNodes={onDuplicateNodes}
-          onDeleteSelected={onDeleteSelected}
-          onLockNodes={onLockNodes}
-          onUnlockNodes={onUnlockNodes}
-          onSelectSubgraphContents={onSelectSubgraphContents}
-          placement="inline"
-        />
+        <div className="p-2">
+          <div className="flex items-center gap-3">
+            <EditingToolbar
+              selectedNodes={selectedNodes}
+              selectedEdges={selectedEdges}
+              onAlignNodes={onAlignNodes}
+              onDistributeNodes={onDistributeNodes}
+              onDuplicateNodes={onDuplicateNodes}
+              onDeleteSelected={onDeleteSelected}
+              onLockNodes={onLockNodes}
+              onUnlockNodes={onUnlockNodes}
+              onSelectSubgraphContents={onSelectSubgraphContents}
+              placement="inline"
+            />
+          </div>
+          <div className="mt-2">
+            <PaletteToolbar />
+          </div>
+        </div>
         <div className="flex-1 min-h-0">
         <ReactFlow
           minZoom={0.05}
