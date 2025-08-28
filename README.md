@@ -44,7 +44,11 @@ The app reads Mermaid code blocks from Markdown or pasted text, converts the Mer
 <a id="demo"></a>
 ## Demo
 
-- examples/demo.mp4
+
+https://github.com/user-attachments/assets/c2e29d34-8712-40ee-b89e-70d4da5821f3
+
+
+
 
 <a id="quick-start"></a>
 ## Quick start
