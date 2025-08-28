@@ -15,6 +15,7 @@
 ## Table of contents
 - [Overview](#overview)
 - [Features](#features)
+- [Demo](#demo)
 - [Quick start](#quick-start)
 - [Project layout](#project-layout)
 - [Internals & behavior notes](#internals--behavior-notes)
@@ -39,6 +40,11 @@ The app reads Mermaid code blocks from Markdown or pasted text, converts the Mer
 - Export current canvas bounding box to PNG using `html-to-image` (configurable pixelRatio). NOTE: exporting to images is still buggy in some scenarios (external images, bounding box calculation, and pixel ratio issues are common).
 - Save/load diagrams to browser `localStorage` with basic metadata.
 - Simple Mermaid SVG preview component with zoom/pan controls.
+
+<a id="demo"></a>
+## Demo
+
+- examples/demo.mp4
 
 <a id="quick-start"></a>
 ## Quick start
