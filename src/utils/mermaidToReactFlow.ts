@@ -314,11 +314,22 @@ export function parseMermaidCode(code: string): {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-+|-+$/g, '') || `sg-${i}`;
       } else {
-        // Otherwise, split on whitespace to get possible id, and look for bracket/title or trailing quoted title
+        // Otherwise, try to extract an id and an optional bracketed title first
         const bracketMatch = rest.match(/^([^\s\[]+)(?:\s*\[(.+?)\])?/);
         if (bracketMatch) {
           subgraphId = bracketMatch[1];
           if (bracketMatch[2]) subgraphTitle = bracketMatch[2];
+        }
+
+        // If no explicit bracketed/quoted title was found and the rest contains spaces,
+        // treat the entire `rest` as the subgraph title (this supports `subgraph Component C`).
+        if (!subgraphTitle && rest.indexOf(' ') !== -1) {
+          subgraphTitle = rest;
+          // Generate a slug id from the title
+          subgraphId = subgraphTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || `sg-${i}`;
         }
 
         // Also check for an explicit quoted title after the id: e.g. subgraph id "Title"
@@ -439,27 +450,35 @@ export function parseMermaidCode(code: string): {
       const rest = line.slice('subgraph'.length).trim();
 
       let subgraphId: string | undefined;
+
       // If rest starts with quote, generate id from title
-      const quoteMatch = rest.match(/^(["'])(.*?)\1/);
+      const quoteMatch = rest.match(/^(?:["'])(.*?)(?:["'])/);
       if (quoteMatch) {
-        const title = quoteMatch[2];
+        const title = quoteMatch[1];
         subgraphId = title
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-+|-+$/g, '') || `sg-${i}`;
       } else {
+        // First try id with optional bracketed title
         const bracketMatch = rest.match(/^([^\s\[]+)(?:\s*\[(.+?)\])?/);
         if (bracketMatch) {
-          subgraphId = bracketMatch[1];
-        }
-
-        // Also support: subgraph id "Title"
-        if (!subgraphId) {
-          const alt = rest.match(/^[^\s]+\s+(["'])(.*?)\1/);
-          if (alt) subgraphId = alt[2]
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '') || `sg-${i}`;
+          const idToken = bracketMatch[1];
+          const bracketTitle = bracketMatch[2];
+          // If there was an explicit bracketed title use the id token as-is
+          if (bracketTitle) {
+            subgraphId = idToken;
+          } else if (rest.indexOf(' ') !== -1) {
+            // If rest contains spaces (e.g. `subgraph Component C`) treat the whole rest as the title
+            const title = rest;
+            subgraphId = title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-+|-+$/g, '') || `sg-${i}`;
+          } else {
+            // Simple single-token id
+            subgraphId = idToken;
+          }
         }
       }
 
@@ -1916,6 +1935,70 @@ function layoutGraph(
     standalonePositions,
     direction
   );
+}
+
+// Debug helper: run full conversion but return intermediate structures for inspection
+export async function debugConvertMermaid(
+  mermaidCode: string
+): Promise<any> {
+  const { nodes, edges, subgraphs, direction } = parseMermaidCode(mermaidCode);
+
+  const subgraphLayouts = layoutSubgraphs(nodes, edges, subgraphs, direction);
+  const { subgraphPositions, standalonePositions } = layoutMetaGraph(
+    nodes,
+    edges,
+    subgraphLayouts,
+    direction
+  );
+
+  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
+  adjustParentSizesAfterPositioning(
+    subgraphLayouts,
+    subgraphPositions,
+    orderedSubgraphs,
+    direction
+  );
+
+  const reactFlowData = createReactFlowElements(
+    nodes,
+    edges,
+    subgraphs,
+    subgraphLayouts,
+    subgraphPositions,
+    standalonePositions,
+    direction
+  );
+
+  // Convert Maps to plain objects/arrays for JSON-friendly output
+  const subgraphLayoutsPlain: Record<string, any> = {};
+  subgraphLayouts.forEach((v, k) => {
+    subgraphLayoutsPlain[k] = {
+      id: v.id,
+      title: v.title,
+      width: v.width,
+      height: v.height,
+      parentId: v.parentId,
+      nodes: Array.from(v.nodes.entries()).map(([nid, pos]) => ({ id: nid, ...pos })),
+    };
+  });
+
+  const subgraphPositionsPlain = Object.fromEntries(
+    Array.from(subgraphPositions.entries())
+  );
+  const standalonePositionsPlain = Object.fromEntries(
+    Array.from(standalonePositions.entries())
+  );
+
+  return {
+    nodes,
+    edges,
+    subgraphs,
+    direction,
+    subgraphLayouts: subgraphLayoutsPlain,
+    subgraphPositions: subgraphPositionsPlain,
+    standalonePositions: standalonePositionsPlain,
+    reactFlowData,
+  };
 }
 
 export async function convertMermaidToReactFlow(
