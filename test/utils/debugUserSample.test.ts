@@ -1,7 +1,7 @@
-import { it } from 'vitest';
+import { it, expect, describe } from 'vitest';
 import { debugConvertMermaid } from '../../src/utils/mermaidToReactFlow';
-
-it('debug user failing sample', async () => {
+describe('user sample conversion', () => {
+it('preserves multi-word subgraph titles and assigns parents/positions', async () => {
   const code = `graph TD
     subgraph Overall System
         direction TB
@@ -36,18 +36,31 @@ it('debug user failing sample', async () => {
 
         A1 -- Edge 7 --> C1
     end`;
-
   const result = await debugConvertMermaid(code);
-  console.log('\n=== USER SAMPLE DEBUG ===');
-  console.log('subgraphLayouts:');
-  Object.keys(result.subgraphLayouts).forEach(k => {
-    const v = result.subgraphLayouts[k];
-    console.log(`  ${k}: parent=${v.parentId} size=${v.width}x${v.height} nodes=${v.nodes.map((n:any)=>n.id).join(',')}`);
-  });
-  console.log('subgraphs parsed:', result.subgraphs.map((s: any) => ({ id: s.id, title: s.title, parentId: s.parentId })));
-  console.log('parsed nodes (id -> subgraph):', result.nodes.map((n:any)=>({ id: n.id, subgraph: n.subgraph })));
-  console.log('reactFlow nodes (id,parent,position,label):');
-  result.reactFlowData.nodes.forEach((n: any) => {
-    console.log(`  ${n.id} parent=${n.parentNode || 'none'} pos=${JSON.stringify(n.position)} title=${n.data?.label || n.data?.title || ''}`);
-  });
+  const titles = new Map(result.subgraphs.map((s:any)=>[s.id,s.title]));
+  expect(Array.from(titles.values())).toEqual(
+    expect.arrayContaining(['Overall System','Component A','Subcomponent B','Component C','Subcomponent D'])
+  );
+  const nodes = result.reactFlowData.nodes;
+  const ids = nodes.map((n:any)=>n.id);
+  // All expected subgraphs and leaf nodes exist
+  expect(ids).toEqual(expect.arrayContaining([
+    'subgraph-overall-system','subgraph-component-a','subgraph-subcomponent-b','subgraph-component-c','subgraph-subcomponent-d',
+    'A1','A2','B1','B2','C1','C2','D1','D2'
+  ]));
+  // Parent chain checks
+  const compA = nodes.find((n:any)=>n.id==='subgraph-component-a');
+  const compC = nodes.find((n:any)=>n.id==='subgraph-component-c');
+  expect(compA?.parentNode).toBe('subgraph-overall-system');
+  expect(compC?.parentNode).toBe('subgraph-overall-system');
+  const subB = nodes.find((n:any)=>n.id==='subgraph-subcomponent-b');
+  expect(subB?.parentNode).toBe('subgraph-component-a');
+  const subD = nodes.find((n:any)=>n.id==='subgraph-subcomponent-d');
+  expect(subD?.parentNode).toBe('subgraph-component-c');
+  // Position sanity: left alignment for TB subgraphs -> small x for children
+  const a1 = nodes.find((n:any)=>n.id==='A1');
+  const b1 = nodes.find((n:any)=>n.id==='B1');
+  expect((a1?.position.x ?? 999)).toBeGreaterThanOrEqual(0);
+  expect((b1?.position.x ?? 999)).toBeGreaterThanOrEqual(0);
+});
 });

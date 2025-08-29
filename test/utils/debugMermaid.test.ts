@@ -1,7 +1,8 @@
-import { it } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { debugConvertMermaid } from '../../src/utils/mermaidToReactFlow';
 
-it('debug nested/multiple subgraphs layout', async () => {
+describe('nested/multiple subgraphs layout', () => {
+  it('lays out parent and child subgraphs with relative positions', async () => {
   const code = `graph TB
   subgraph ParentA[Parent A]
     A1[Node A1]
@@ -19,17 +20,19 @@ it('debug nested/multiple subgraphs layout', async () => {
   A1 --> C1
   C2 --> B1
   `;
-
   const result = await debugConvertMermaid(code);
-  // Print a compact summary to aid debugging in CI or local runs
-  // Note: Vitest will capture console output; inspect test run logs
-  console.log('\n=== DEBUG MERMAID LAYOUT ===');
-  console.log('direction:', result.direction);
-  console.log('subgraphLayouts keys:', Object.keys(result.subgraphLayouts));
-  console.log('subgraphPositions:', result.subgraphPositions);
-  console.log('standalonePositions:', result.standalonePositions);
-  console.log('reactFlow nodes (id,parentNode,position):');
-  result.reactFlowData.nodes.forEach((n: any) => {
-    console.log(`  ${n.id} parent=${n.parentNode || 'none'} pos=${JSON.stringify(n.position)}`);
+  const ids = result.reactFlowData.nodes.map((n:any) => n.id);
+  expect(ids).toEqual(expect.arrayContaining([
+    'subgraph-ParentA', 'subgraph-ParentB', 'subgraph-ChildA1', 'A1','A2','B1','C1','C2'
+  ]));
+  const child = result.reactFlowData.nodes.find((n:any)=>n.id==='subgraph-ChildA1');
+  expect(child?.parentNode).toBe('subgraph-ParentA');
+  const a1 = result.reactFlowData.nodes.find((n:any)=>n.id==='A1');
+  expect(a1?.parentNode).toBe('subgraph-ParentA');
+  // TB left alignment: x should be small positive
+  expect((a1?.position.x ?? 999)).toBeGreaterThanOrEqual(0);
+  // ParentB is separate top-level container
+  const parentB = result.reactFlowData.nodes.find((n:any)=>n.id==='subgraph-ParentB');
+  expect(parentB?.parentNode).toBeUndefined();
   });
 });

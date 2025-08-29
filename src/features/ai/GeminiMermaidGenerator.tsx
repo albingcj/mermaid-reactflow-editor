@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sparkles, Wand2, AlertTriangle, Info, Trash2, Eye, EyeOff, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { extractMermaidFromFences, sanitizeMermaidLabels } from "@/utils/mermaidSanitizer";
 
 interface Props {
   onComplete: (mermaidCode: string) => void;
@@ -195,41 +196,7 @@ export default function GeminiMermaidGenerator({
       return single;
     }
 
-    // Extract mermaid code from fenced blocks or raw text. Returns inner code if fences found,
-    // otherwise attempts to locate a mermaid diagram start keyword and returns from there.
-    function extractMermaidFromFences(content: string) {
-      if (!content) return content;
-      const fencedRegex = /```(?:\s*mermaid\b)?\s*\n([\s\S]*?)```/im;
-      const m = content.match(fencedRegex);
-      if (m && m[1]) return m[1].trim();
-
-      // Generic fenced block without language
-      const genericFenced = /```([\s\S]*?)```/m;
-      const mg = content.match(genericFenced);
-      if (mg && mg[1]) {
-        const inner = mg[1].trim();
-        if (/\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i.test(inner)) {
-          return inner;
-        }
-      }
-
-      // Fallback: locate first mermaid keyword and return from there
-      const rawStartRegex = /\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i;
-      const mr = content.match(rawStartRegex);
-      if (mr) {
-        const idx = content.indexOf(mr[0]);
-        if (idx !== -1) {
-          // stop before next fenced block if present
-          const nextFence = content.indexOf('```', idx);
-          if (nextFence !== -1) return content.slice(idx, nextFence).trim();
-          return content.slice(idx).trim();
-        }
-      }
-
-      return content.trim();
-    }
-
-    messages.push({ role: "user", content: USER_PROMPT_TEMPLATE });
+  messages.push({ role: "user", content: USER_PROMPT_TEMPLATE });
 
     const config = {
       service: service,
@@ -240,114 +207,19 @@ export default function GeminiMermaidGenerator({
       stream: true,
     };
 
-    // Helper: create a parser that extracts mermaid code between ```mermaid and ```
-    function createMermaidStreamParser(
-      onPartial: (s: string) => void,
-      onDone: (s: string) => void
-    ) {
-      let buffer = "";
-      let mermaid = "";
-      let inCode = false;
-      let finished = false;
-      const startMarker = "```mermaid";
-      const endMarker = "```";
-      const rawStartRegex =
-        /\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i;
-
-      const append = (chunk: string) => {
-        if (finished) return;
-        buffer += chunk;
-
-        while (buffer.length && !finished) {
-          if (!inCode) {
-            // Look for fenced code block
-            const si = buffer.indexOf(startMarker);
-            if (si !== -1) {
-              const after = si + startMarker.length;
-              if (buffer.length > after && buffer[after] === "\n") {
-                buffer = buffer.slice(after + 1);
-              } else {
-                buffer = buffer.slice(after);
-              }
-              inCode = true;
-              continue;
-            }
-
-            // Look for raw mermaid start
-            const m = buffer.match(rawStartRegex);
-            if (m) {
-              const idx = buffer.indexOf(m[0]);
-              if (idx !== -1) {
-                inCode = true;
-                mermaid += buffer.slice(idx);
-                buffer = "";
-                onPartial(mermaid);
-                break;
-              }
-            }
-
-            // Keep buffer from getting too large
-            if (buffer.length > 2048) {
-              buffer = buffer.slice(-2048);
-            }
-            break;
-          } else {
-            // We're inside code block, look for end marker
-            const ei = buffer.indexOf(endMarker);
-            if (ei === -1) {
-              // No end marker yet, add everything to mermaid
-              mermaid += buffer;
-              buffer = "";
-              onPartial(mermaid);
-              break;
-            } else {
-              // Found end marker
-              mermaid += buffer.slice(0, ei);
-              finished = true;
-              onDone(mermaid);
-              buffer = buffer.slice(ei + endMarker.length);
-              break;
-            }
-          }
-        }
-      };
-
-      const finish = () => {
-        if (finished) return;
-
-        if (!inCode) {
-          // Try to find raw mermaid in remaining buffer
-          const m = buffer.match(rawStartRegex);
-          if (m) {
-            const idx = buffer.indexOf(m[0]);
-            if (idx !== -1) {
-              mermaid += buffer.slice(idx);
-            }
-          }
-        } else {
-          // Add remaining buffer to mermaid
-          mermaid += buffer;
-        }
-
-        finished = true;
-        onDone(mermaid);
-      };
-
-      return { append, finish };
-    }
+  // Use shared streaming parser util instead of inline copy
+  const { createMermaidStreamParser } = await import('@/utils/streamingParser');
 
     // Create parser
-    const parser = createMermaidStreamParser(
-        (partial) => {
-        if (onChunk) onChunk(partial);
-      },
-      (finalStr) => {
+    const parser = createMermaidStreamParser({
+      onPartial: (partial: string) => onChunk && onChunk(partial),
+      onDone: (finalStr: string) => {
         const cleaned = finalStr.trim();
         const extracted = extractMermaidFromFences(cleaned);
         const sanitized = sanitizeMermaidLabels(extracted);
         if (onComplete) onComplete(sanitized);
-      }
-    );
+      },
+    });
 
     try {
       console.log("[LLMJSMermaidGenerator] Starting stream with config:", {
