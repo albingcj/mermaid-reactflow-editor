@@ -22,8 +22,8 @@ import ReactFlow, {
   useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import '../selected-edge.css';
-import { exportReactFlowImage } from '../utils/exportImage';
+import '@/selected-edge.css';
+import { exportReactFlowImage } from '@/utils/exportImage';
 import {
   alignNodes,
   bringToFront,
@@ -33,13 +33,13 @@ import {
   lockNodes,
   sendToBack,
   unlockNodes,
-} from '../utils/diagramEditingUtils';
-import { CustomNode } from './CustomNode';
-import { NodeEditor } from './NodeEditor';
-import { SubgraphNode } from './SubgraphNode';
-import { EditingToolbar } from './EditingToolbar';
-import PaletteToolbar from './PaletteToolbar';
-import { SearchControl } from './SearchControl';
+} from '@/utils/diagramEditingUtils';
+import { CustomNode } from '@/features/canvas/CustomNode';
+import { NodeEditor } from '@/components/NodeEditor';
+import { SubgraphNode } from '@/features/canvas/SubgraphNode';
+import { EditingToolbar } from '@/components/EditingToolbar';
+import PaletteToolbar from '@/components/PaletteToolbar';
+import { SearchControl } from '@/components/SearchControl';
 
 interface FlowDiagramProps {
   nodes: Node[];
@@ -250,7 +250,7 @@ function FlowDiagramInternal({
     (nodeId: string, data: any) => {
       setNodes((nds) => {
         const updated = nds.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, ...data }, style: { ...n.style, ...data?.style } } : n
+          n.id === nodeId ? { ...n, data: { ...n.data, ...data, style: { ...n.data?.style, ...data?.style } } } : n
         );
         if (onNodesChangeCallback) onNodesChangeCallback(updated);
         return updated;

@@ -25,8 +25,9 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
       setLabel(node.data.label || '');
       setImageUrl(node.data.imageUrl || '');
       setDescription(node.data.description || '');
-      setBackgroundColor(node.style?.backgroundColor || '#ffffff');
-      setBorderColor(node.style?.borderColor || '#222222');
+  // Read visual style from node.data.style preferentially; fallback to node.style
+  setBackgroundColor(node.data?.style?.backgroundColor || node.style?.backgroundColor || '#ffffff');
+  setBorderColor(node.data?.style?.borderColor || node.style?.borderColor || '#222222');
     }
   }, [node]);
 
@@ -54,7 +55,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
       imageUrl,
       description,
       style: {
-        ...node.style,
+        ...(node.data?.style || {}),
         backgroundColor,
         borderColor,
         border: `2px solid ${borderColor}`,

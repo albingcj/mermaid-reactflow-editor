@@ -1,8 +1,8 @@
 // @ts-nocheck
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import mermaid from 'mermaid';
-import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
-import { Button } from './ui/button';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { Info } from 'lucide-react';
 // AlertTriangle import removed; using inline error block now
 

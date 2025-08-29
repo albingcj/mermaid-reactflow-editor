@@ -1774,7 +1774,12 @@ function createReactFlowElements(
   const sourcePos = isHorizontal ? Position.Right : Position.Bottom;
   const targetPos = isHorizontal ? Position.Left : Position.Top;
 
-  reactFlowNodes.push({
+    // Split visual vs layout styles. Visuals should live in node.data.style so the
+    // inner `.custom-node` element can own appearance while the wrapper keeps layout props.
+    const { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow, ...layoutStyle } = nodeStyle;
+    const visualStyle = { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow };
+
+    reactFlowNodes.push({
       id: node.id,
       type: "custom",
       position: position,
@@ -1785,10 +1790,12 @@ function createReactFlowElements(
         description: "",
         shape: node.shape,
         colors,
+        style: visualStyle,
       },
-      style: nodeStyle,
-  sourcePosition: sourcePos,
-  targetPosition: targetPos,
+      // keep layout-only style on the node wrapper (usually empty here)
+      style: layoutStyle,
+      sourcePosition: sourcePos,
+      targetPosition: targetPos,
       parentNode: parentNode,
       extent: parentNode ? "parent" : undefined,
       draggable: true,

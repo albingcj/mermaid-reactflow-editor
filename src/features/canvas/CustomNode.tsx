@@ -1,8 +1,10 @@
-
 import React from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 
-function CustomNodeInner({ data, isConnectable, selected }: NodeProps) {
+function CustomNodeInner(props: NodeProps) {
+  const { data, isConnectable, selected } = props;
+  // style isn't declared on NodeProps in the reactflow types used here, so read it dynamically
+  const style = (props as any).style as React.CSSProperties | undefined;
   // const handleClick = () => {
   //   if (data.githubUrl) {
   //     window.open(data.githubUrl, '_blank');
@@ -43,19 +45,37 @@ function CustomNodeInner({ data, isConnectable, selected }: NodeProps) {
     }
   }, [data.imageUrl, isImageNode]);
   
-  // Merge any node-level style (set via node.style or data.style) with defaults
+  // Merge any node-level style (React Flow node.style) and data.style with defaults.
+  // Many code paths set styles on the top-level node (node.style) while others use data.style.
+  // Ensure we respect both so dropped nodes and converter-generated nodes render identically.
   const mergedStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
     position: 'relative',
+    ...(style || {}),
     ...(data?.style || {}),
   };
+
+  // Split merged style into visual vs layout props. We prefer visual styles provided in
+  // `data.style` (converter/editor) and apply them to the inner `.custom-node` element
+  // so the class-based defaults are overridden correctly. Layout-only props stay on
+  // the wrapper via node.style (React Flow handles wrapper styles separately).
+  const mergedAny = mergedStyle as any;
+  const visualKeys = ['background', 'backgroundColor', 'border', 'borderColor', 'borderRadius', 'boxShadow', 'outline'];
+  const visualStyle: Record<string, any> = {};
+  const layoutOnlyStyle: Record<string, any> = { ...mergedAny };
+  visualKeys.forEach((k) => {
+    if (mergedAny[k] !== undefined) {
+      visualStyle[k] = mergedAny[k];
+      delete layoutOnlyStyle[k];
+    }
+  });
 
   return (
     <div 
       className={getNodeClassName()}
       onDoubleClick={data.onEdit}
-      style={isImageNode && imageAspect ? { ...mergedStyle, aspectRatio: `${imageAspect}` } : mergedStyle}
+    style={isImageNode && imageAspect ? { ...layoutOnlyStyle, ...visualStyle, aspectRatio: `${imageAspect}` } : { ...layoutOnlyStyle, ...visualStyle }}
     >
       {/* User-friendly node resizer with clear visual feedback */}
       {!data.isDragging && (
