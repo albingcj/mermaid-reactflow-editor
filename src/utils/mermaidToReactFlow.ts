@@ -39,6 +39,7 @@ interface SubgraphInfo {
   nodes: string[];
   parentId?: string; // For nested subgraphs
   childrenIds: string[]; // For nested subgraphs
+  direction?: string; // Optional per-subgraph layout direction (TB/LR/BT/RL)
 }
 
 interface SubgraphLayout {
@@ -53,7 +54,7 @@ interface SubgraphLayout {
 
 // Layout spacing constants - Fine-tune these for better visual separation
 const SUBGRAPH_HEADER_HEIGHT = 35; // Increased for proper title clearance
-const SUBGRAPH_PADDING = 15; // Base padding around subgraph edges
+const SUBGRAPH_PADDING = 8; // Base padding around subgraph edges (reduced to tighten layout)
 const SUBGRAPH_CONTENT_TOP_MARGIN = 10; // Additional space below title before content
 
 // Node spacing within subgraphs - controls minimum distance between nodes
@@ -61,8 +62,8 @@ const NODE_SEPARATION_HORIZONTAL = 80; // Minimum horizontal distance between no
 const NODE_SEPARATION_VERTICAL = 100; // Minimum vertical distance between different ranks
 
 // Container spacing for meta-graph layout - controls distance between top-level elements
-const CONTAINER_SEPARATION_HORIZONTAL = 150; // Distance between top-level subgraphs/nodes horizontally
-const CONTAINER_SEPARATION_VERTICAL = 180; // Distance between top-level subgraphs/nodes vertically
+const CONTAINER_SEPARATION_HORIZONTAL = 120; // Distance between top-level subgraphs/nodes horizontally (reduced)
+const CONTAINER_SEPARATION_VERTICAL = 160; // Distance between top-level subgraphs/nodes vertically (slightly reduced)
 
 // Nested subgraph spacing - controls spacing of child subgraphs within parents
 const NESTED_SUBGRAPH_SEPARATION_HORIZONTAL = 120; // Distance between sibling subgraphs (increased)
@@ -298,7 +299,7 @@ export function parseMermaidCode(code: string): {
     // - subgraph id [Title]
     // - subgraph id "Title with spaces"
     // - subgraph "Title with spaces" (no id)
-    if (line.startsWith('subgraph')) {
+  if (line.startsWith('subgraph')) {
       const rest = line.slice('subgraph'.length).trim();
 
       let subgraphId: string | undefined;
@@ -372,6 +373,17 @@ export function parseMermaidCode(code: string): {
         }
 
         subgraphs.push(newSubgraph);
+      }
+    } else if (line.toLowerCase().startsWith('direction ')) {
+      // Capture per-subgraph direction if inside a subgraph
+      const dirMatch = line.match(/^direction\s+(TB|TD|BT|RL|LR)$/i);
+      if (dirMatch && subgraphStack.length > 0) {
+        const top = subgraphStack[subgraphStack.length - 1];
+        const sg = subgraphMap.get(top);
+        if (sg) {
+          const d = dirMatch[1].toUpperCase();
+          sg.direction = d === 'TD' ? 'TB' : d;
+        }
       }
     } else if (line === "end" && subgraphStack.length > 0) {
       subgraphStack.pop();
@@ -502,8 +514,8 @@ export function parseMermaidCode(code: string): {
     }
 
     // Skip various non-edge lines
-    if (line.startsWith("direction ") || 
-        line.startsWith("flowchart ") || 
+  if (line.startsWith("direction ") || 
+    line.startsWith("flowchart ") || 
         line.startsWith("graph ") ||
         line.startsWith("%%")) {
       debugLog(`Skipping line: ${line}`);
@@ -920,7 +932,7 @@ function layoutSubgraphs(
     // Create a new graph for this subgraph with proper node spacing
     const g = new dagre.graphlib.Graph();
     g.setGraph({
-      rankdir: direction,
+      rankdir: subgraph.direction || direction,
       // Node separation settings - ensure minimum distance between nodes
       nodesep: NODE_SEPARATION_HORIZONTAL, // Horizontal spacing between nodes in same rank
       ranksep: NODE_SEPARATION_VERTICAL,   // Vertical spacing between different ranks
@@ -943,7 +955,7 @@ function layoutSubgraphs(
       g.setEdge(edge.source, edge.target);
     });
 
-    // Layout this subgraph
+  // Layout this subgraph
     dagre.layout(g);
 
     // Calculate bounding box
@@ -1023,9 +1035,9 @@ function layoutSubgraphs(
     const baseWidth = maxX - minX + SUBGRAPH_PADDING * 2;
     const baseHeight = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN;
 
-    // Use only a small fixed buffer for width/height (no multipliers)
-    const width = baseWidth + 10; // Small buffer
-    const height = baseHeight + 10;
+  // Use only a small fixed buffer for width/height (no multipliers)
+  const width = baseWidth + 4; // Small buffer (reduced)
+  const height = baseHeight + 4;
 
     subgraphLayouts.set(subgraph.id, {
       id: subgraph.id,
@@ -1229,7 +1241,7 @@ function adjustParentSizesAfterPositioning(
       const requiredWidth = contentMaxRight + (isHorizontal ? SUBGRAPH_PADDING * 4 : SUBGRAPH_PADDING * 3);
       const requiredHeight = contentMaxBottom + SUBGRAPH_PADDING * 3;
 
-      const newWidth = Math.max(layout.width, requiredWidth, isHorizontal ? 600 : 300);
+  const newWidth = Math.max(layout.width, requiredWidth, isHorizontal ? 600 : 240);
       const newHeight = Math.max(layout.height, requiredHeight, 200);
 
       if (newWidth > layout.width || newHeight > layout.height) {
@@ -1405,6 +1417,16 @@ function layoutMetaGraph(
   });
 
   // Dagre-based positioning for nested subgraphs within each parent container
+  // Access ordered subgraphs to read per-subgraph direction
+  const orderedForMeta = processSubgraphsInHierarchicalOrder(
+    Array.from(new Set(
+      Array.from(subgraphLayouts.keys()).map(id => ({
+        id,
+        parentId: subgraphLayouts.get(id)?.parentId,
+        title: subgraphLayouts.get(id)?.title || id,
+      }))
+    )) as any
+  );
   const processedSubgraphs = new Set<string>();
 
   function layoutChildrenWithinParent(parentId: string): boolean {
@@ -1431,8 +1453,10 @@ function layoutMetaGraph(
 
   // Build a dagre graph for child subgraphs with proper nested spacing
     const cg = new dagre.graphlib.Graph();
+  // We didn't carry direction through here; default to global direction for meta stage
+  const parentDir = direction;
     cg.setGraph({
-      rankdir: direction,
+      rankdir: parentDir,
       // Nested subgraph separation - spacing between sibling subgraphs within parent
       nodesep: NESTED_SUBGRAPH_SEPARATION_HORIZONTAL,   // Horizontal spacing between sibling subgraphs
       ranksep: NESTED_SUBGRAPH_SEPARATION_VERTICAL,     // Vertical spacing between subgraph ranks
@@ -1496,7 +1520,7 @@ function layoutMetaGraph(
   let contentOriginY = parentPos.y + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING;
 
     // CRITICAL: If parent has nodes, position child subgraphs below them with adequate spacing
-    const isHorizontal = direction === 'LR' || direction === 'RL';
+  const isHorizontal = parentDir === 'LR' || parentDir === 'RL';
     if (isHorizontal) {
       // In horizontal flow, keep children near the top content band and shift X if parent has wide nodes
       const parentNodesMaxRight = Array.from(parentLayout.nodes.values()).reduce((acc, n) => Math.max(acc, n.x + n.width / 2), 0);
@@ -1525,8 +1549,9 @@ function layoutMetaGraph(
     const contentWidth = maxRight - minLeft;
     const contentHeight = maxBottom - minTop;
     
-    // Center the children's bounding box within the available parent space
-  const centerOffsetX = Math.max(0, (availableWidth - contentWidth) / 2);
+  // Align children within the available parent space
+  // For vertical flows (TB/BT), left-align to avoid excess right whitespace; center only horizontally oriented layouts
+  const centerOffsetX = isHorizontal ? Math.max(0, (availableWidth - contentWidth) / 2) : 0;
   const centerOffsetY = isHorizontal ? 0 : Math.max(0, (availableHeight - contentHeight) / 2);
 
     // Position children with centering offset
