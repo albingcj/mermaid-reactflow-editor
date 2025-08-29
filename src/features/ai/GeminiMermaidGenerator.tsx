@@ -377,12 +377,8 @@ export default function GeminiMermaidGenerator({
             parser.append(txt);
           });
 
-          // Ensure parser finishes and emit final result
+          // Ensure parser finishes; onDone will emit final sanitized code
           parser.finish();
-          const cleaned = (final || "").trim();
-          const extracted = extractMermaidFromFences(cleaned);
-          const sanitizedFinal = sanitizeMermaidLabels(extracted);
-          if (onComplete) onComplete(sanitizedFinal);
           return;
         } catch (gErr) {
           console.error("[LLMJSMermaidGenerator] Google stream error:", gErr);

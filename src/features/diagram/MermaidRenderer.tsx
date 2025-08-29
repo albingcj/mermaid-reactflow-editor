@@ -167,15 +167,14 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
       return;
     }
 
+    // Scope cleanup to the specific temp div Mermaid may create for this id ("d" + uniqueId)
     const removeInjectedMermaidDivs = () => {
       try {
-        const injected = document.querySelectorAll('[id^="dmermaid-svg-"]');
-        injected.forEach((el) => {
-          // avoid removing any nodes that are inside our renderer container
-          if (!ref.current || !ref.current.contains(el)) {
-            el.remove();
-          }
-        });
+        const tempId = `d${uniqueId}`;
+        const injected = document.getElementById(tempId);
+        if (injected && (!ref.current || !ref.current.contains(injected))) {
+          injected.remove();
+        }
       } catch (e) {
         // defensive: ignore DOM errors
         // eslint-disable-next-line no-console
@@ -229,14 +228,16 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   svgEl.style.maxHeight = '100%';
     };
 
-    const renderDiagram = async () => {
+  let cancelled = false;
+  const renderDiagram = async () => {
       // reset any prior error
       setErrorMessage(null);
       try {
         // cleanup any previous injected nodes before rendering
         removeInjectedMermaidDivs();
-        const { svg } = await mermaid.render(uniqueId, code);
-        if (ref.current) {
+  // Render into our own container to avoid Mermaid creating global temp nodes
+  const { svg } = await mermaid.render(uniqueId, code, undefined, ref.current || undefined);
+    if (!cancelled && ref.current) {
           ref.current.innerHTML = svg;
           // Fit after render and layout
           requestAnimationFrame(() => fitToContainer());
@@ -248,7 +249,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
       } catch (err) {
         // console.error('MermaidRenderer: Error rendering diagram', err);
         // clear content and capture error message
-        if (ref.current) {
+    if (!cancelled && ref.current) {
           ref.current.innerHTML = '';
           removeInjectedMermaidDivs();
         }
@@ -266,6 +267,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   const svgEl = ref.current?.querySelector('svg') as SVGSVGElement | null;
   if (svgEl) ro.observe(svgEl);
     return () => {
+      cancelled = true;
       try { ro.disconnect(); } catch {}
     };
   }, [code, isInitialized, uniqueId]);
