@@ -12,55 +12,42 @@ interface SubgraphNodeProps extends NodeProps {
 
 const HANDLE_STYLES = {
   target: {
-    background: '#555',
-    width: 12,
-    height: 12,
+    background: '#64748b',
+    width: 10,
+    height: 10,
     borderRadius: '50%',
     border: '2px solid white',
     zIndex: 10,
+    opacity: 0.8,
   },
   source: {
-    background: '#1976D2',
-    width: 12,
-    height: 12,
+    background: '#2563eb',
+    width: 10,
+    height: 10,
     borderRadius: '50%',
     border: '2px solid white',
     zIndex: 11,
+    opacity: 0.8,
   },
 };
 
 const RESIZER_STYLES = {
   handle: {
-    backgroundColor: '#1976D2',
+    backgroundColor: '#2563eb',
     border: '2px solid white',
-    width: 8,
-    height: 8,
-    borderRadius: '2px',
+    width: 12,
+    height: 12,
+    borderRadius: '3px',
+    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
   },
   line: {
-    borderColor: '#1976D2',
+    borderColor: '#2563eb',
     borderWidth: 2,
+    opacity: 0.6,
   },
 };
 
-// Custom resize handle component that only shows corner handles
-const CornerResizeHandle = ({ position }: { position: string }) => {
-  const isCorner = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(position);
-  
-  if (!isCorner) return null;
-  
-  return (
-    <div
-      style={{
-        ...RESIZER_STYLES.handle,
-        position: 'absolute',
-        zIndex: 20,
-      }}
-    />
-  );
-};
-
-// Reusable handle component
+// Reusable handle component with enhanced UX
 const ConnectionHandle = ({ 
   type, 
   position, 
@@ -71,7 +58,7 @@ const ConnectionHandle = ({
   id: string; 
 }) => {
   const positionStyles = useMemo(() => {
-    const offset = 20;
+    const offset = 18;
     
     switch (position) {
       case Position.Top:
@@ -96,6 +83,7 @@ const ConnectionHandle = ({
         ...HANDLE_STYLES[type],
         ...positionStyles,
       }}
+      className="subgraph-connection-handle"
       isConnectable={true}
     />
   );
@@ -119,22 +107,21 @@ function SubgraphNodeInner({ data, selected, isConnectable }: SubgraphNodeProps)
   ], []);
 
   return (
-    <div className={nodeClassName}>
-      {/* Node Resizer with only corner handles */}
+    <div className={nodeClassName} title={selected ? "Drag corners to resize in any direction" : undefined}>
+      {/* Node Resizer with enhanced corner handles */}
       {!data.isDragging && (
         <NodeResizer
           isVisible={selected}
-          minWidth={40}
-          minHeight={30}
-          maxWidth={500}
-          maxHeight={400}
-          handleComponent={CornerResizeHandle}
+          minWidth={60}
+          minHeight={40}
+          maxWidth={600}
+          maxHeight={500}
           handleStyle={RESIZER_STYLES.handle}
           lineStyle={RESIZER_STYLES.line}
         />
       )}
 
-      {/* Connection Handles */}
+      {/* Connection Handles - slightly reduced opacity when selected */}
       {!data.isDragging && isConnectable && 
         handlePositions.map(({ type, position, id }) => (
           <ConnectionHandle
