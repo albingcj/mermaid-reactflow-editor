@@ -39,6 +39,7 @@ import { DiamondNode } from '@/features/canvas/DiamondNode';
 import { NodeEditor } from '@/components/NodeEditor';
 import { SubgraphNode } from '@/features/canvas/SubgraphNode';
 import { EditingToolbar } from '@/components/EditingToolbar';
+import { EdgeLabelEditor } from '@/components/EdgeLabelEditor';
 import PaletteToolbar from '@/components/PaletteToolbar';
 import { SearchControl } from '@/components/SearchControl';
 
@@ -530,21 +531,15 @@ function FlowDiagramInternal({
   {/* Inspector removed per user request */}
 
       {edgeLabelEditor && (
-        <div className="edge-label-editor" style={{ left: edgeLabelEditor.x, top: edgeLabelEditor.y }}>
-          <input
-            autoFocus
-            value={edgeLabelEditor.text}
-            onChange={(e) => setEdgeLabelEditor({ ...edgeLabelEditor, text: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') saveEdgeLabel(edgeLabelEditor.edgeId, edgeLabelEditor.text);
-              if (e.key === 'Escape') cancelEdgeLabelEdit();
-            }}
-          />
-          <div className="edge-label-editor-actions">
-            <button onClick={() => saveEdgeLabel(edgeLabelEditor.edgeId, edgeLabelEditor.text)}>Save</button>
-            <button onClick={cancelEdgeLabelEdit}>Cancel</button>
-          </div>
-        </div>
+        <EdgeLabelEditor
+          open={true}
+          x={edgeLabelEditor.x}
+          y={edgeLabelEditor.y}
+          text={edgeLabelEditor.text}
+          onChange={(t) => setEdgeLabelEditor({ ...edgeLabelEditor, text: t })}
+          onSave={() => saveEdgeLabel(edgeLabelEditor.edgeId, edgeLabelEditor.text)}
+          onCancel={cancelEdgeLabelEdit}
+        />
       )}
 
       {showNodeEditor && (
