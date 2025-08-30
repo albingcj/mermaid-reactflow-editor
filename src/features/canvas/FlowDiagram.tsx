@@ -23,7 +23,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '@/selected-edge.css';
-import { exportReactFlowImage } from '@/utils/exportImage';
+import { exportReactFlowImage } from './exportImage';
 import {
   alignNodes,
   bringToFront,
@@ -33,16 +33,17 @@ import {
   lockNodes,
   sendToBack,
   unlockNodes,
-} from '@/utils/diagramEditingUtils';
-import { CustomNode } from '@/features/canvas/CustomNode';
-import { DiamondNode } from '@/features/canvas/DiamondNode';
+} from './diagramEditingUtils';
+import { CustomNode } from './nodes/CustomNode';
+import { DiamondNode } from './nodes/DiamondNode';
 import { NodeEditor } from '@/components/NodeEditor';
-import { SubgraphNode } from '@/features/canvas/SubgraphNode';
+import { SubgraphNode } from './nodes/SubgraphNode';
 import { EditingToolbar } from '@/components/EditingToolbar';
 import { EdgeLabelEditor } from '@/components/EdgeLabelEditor';
 import PaletteToolbar from '@/components/PaletteToolbar';
 import { SearchControl } from '@/components/SearchControl';
 import { NodeSearchDialog } from '@/components/NodeSearchDialog';
+import { ALIGNMENT_TYPES, DISTRIBUTION_TYPES, AlignmentType, DistributionType } from '@/constants';
 
 interface FlowDiagramProps {
   nodes: Node[];
@@ -289,7 +290,7 @@ function FlowDiagramInternal({
 
   // toolbar actions
   const onAlignNodes = useCallback(
-    (alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical') => {
+    (alignment: AlignmentType) => {
       const newNodes = alignNodes(nodes, selectedNodes, alignment);
       setNodes(newNodes);
       if (onNodesChangeCallback) onNodesChangeCallback(newNodes);
@@ -298,7 +299,7 @@ function FlowDiagramInternal({
   );
 
   const onDistributeNodes = useCallback(
-    (direction: 'horizontal' | 'vertical') => {
+    (direction: DistributionType) => {
       const newNodes = distributeNodes(nodes, selectedNodes, direction);
       setNodes(newNodes);
       if (onNodesChangeCallback) onNodesChangeCallback(newNodes);

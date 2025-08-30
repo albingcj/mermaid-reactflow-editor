@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
+import { FULLSCREEN_PANELS, FullscreenPanel } from "@/constants";
 
 export const useFullscreen = () => {
-  const [fullscreenPanel, setFullscreenPanel] = useState<"code" | "preview" | "canvas" | null>(null);
+  const [fullscreenPanel, setFullscreenPanel] = useState<FullscreenPanel | null>(null);
 
-  const toggleFullscreen = useCallback((panel: "code" | "preview" | "canvas") => {
+  const toggleFullscreen = useCallback((panel: FullscreenPanel) => {
     setFullscreenPanel(fullscreenPanel === panel ? null : panel);
   }, [fullscreenPanel]);
 

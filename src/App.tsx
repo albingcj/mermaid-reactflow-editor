@@ -8,6 +8,7 @@ import { useFullscreen } from "@/hooks/useFullscreen";
 import { useDialog } from "@/hooks/useDialog";
 import { useNodeSelection } from "@/hooks/useNodeSelection";
 import { AppUI } from "@/components/AppUI";
+import { DEFAULT_AI_SETTINGS } from "@/constants";
 
 function App() {
   // Custom hooks for state management
@@ -21,12 +22,7 @@ function App() {
   const nodeSelection = useNodeSelection();
   
   // AI settings state
-  const [aiSettings, setAiSettings] = useState({
-    apiKey: "",
-    model: "gemini-2.0-flash",
-    isEditingSettings: false,
-    provider: "google",
-  });
+  const [aiSettings, setAiSettings] = useState(DEFAULT_AI_SETTINGS);
   
   const [aiPrompt, setAiPrompt] = useState("");
 

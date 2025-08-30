@@ -1,9 +1,10 @@
 import { Node, Edge } from 'reactflow';
+import { ALIGNMENT_TYPES, DISTRIBUTION_TYPES, AlignmentType, DistributionType } from '@/constants';
 
 export function alignNodes(
   nodes: Node[],
   selectedNodes: Node[],
-  alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical'
+  alignment: AlignmentType
 ): Node[] {
   if (selectedNodes.length < 2) return nodes;
   const bounds = selectedNodes.map(node => ({
@@ -15,7 +16,7 @@ export function alignNodes(
   }));
   let newNodes = [...nodes];
   switch (alignment) {
-    case 'left':
+    case ALIGNMENT_TYPES.LEFT:
       const leftX = Math.min(...bounds.map(b => b.x));
       bounds.forEach(bound => {
         const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
@@ -24,7 +25,7 @@ export function alignNodes(
         }
       });
       break;
-    case 'right':
+    case ALIGNMENT_TYPES.RIGHT:
       const rightX = Math.max(...bounds.map(b => b.x + b.width));
       bounds.forEach(bound => {
         const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
@@ -33,7 +34,7 @@ export function alignNodes(
         }
       });
       break;
-    case 'top':
+    case ALIGNMENT_TYPES.TOP:
       const topY = Math.min(...bounds.map(b => b.y));
       bounds.forEach(bound => {
         const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
@@ -42,7 +43,7 @@ export function alignNodes(
         }
       });
       break;
-    case 'bottom':
+    case ALIGNMENT_TYPES.BOTTOM:
       const bottomY = Math.max(...bounds.map(b => b.y + b.height));
       bounds.forEach(bound => {
         const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
@@ -52,7 +53,7 @@ export function alignNodes(
       });
       break;
     // Center nodes horizontally (align their centers on the X axis)
-    case 'center-horizontal': {
+    case ALIGNMENT_TYPES.CENTER_HORIZONTAL: {
       const avgX = bounds.reduce((sum, b) => sum + b.x + b.width / 2, 0) / bounds.length;
       bounds.forEach(bound => {
         const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
@@ -64,7 +65,7 @@ export function alignNodes(
       break;
 
     // Center nodes vertically (align their centers on the Y axis)
-    case 'center-vertical': {
+    case ALIGNMENT_TYPES.CENTER_VERTICAL: {
       const avgY = bounds.reduce((sum, b) => sum + b.y + b.height / 2, 0) / bounds.length;
       bounds.forEach(bound => {
         const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
@@ -81,7 +82,7 @@ export function alignNodes(
 export function distributeNodes(
   nodes: Node[],
   selectedNodes: Node[],
-  direction: 'horizontal' | 'vertical'
+  direction: DistributionType
 ): Node[] {
   if (selectedNodes.length < 3) return nodes;
   const bounds = selectedNodes.map(node => ({
@@ -95,7 +96,7 @@ export function distributeNodes(
     centerY: node.position.y + (node.height || 50) / 2,
   }));
   let newNodes = [...nodes];
-  if (direction === 'horizontal') {
+  if (direction === DISTRIBUTION_TYPES.HORIZONTAL) {
     // Sort by left edge
     bounds.sort((a, b) => a.x - b.x);
     const leftEdge = bounds[0].x;

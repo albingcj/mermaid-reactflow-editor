@@ -1,1 +1,1 @@
-// This directory is reserved for storage-related components and hooks
+export * from "./diagramStorage";

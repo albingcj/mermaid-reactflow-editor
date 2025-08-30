@@ -38,22 +38,22 @@ export function extractMermaidFromFences(content: string) {
 export function sanitizeMermaidLabels(src: string) {
   if (!src) return src;
   // Replace unquoted square-bracket node labels that contain punctuation
-  const replaced = src.replace(/([A-Za-z0-9_]+)\[((?:(?!["']).)*?)\]/g, (m, id, label) => {
-    if (/^["']/.test(label)) return m;
-    if (/[()"\[\],:;]/.test(label)) {
-      const esc = String(label).replace(/\\/g, "\\\\").replace(/\"/g, '\\"');
-      return `${id}["${esc}"]`;
+  const replaced = src.replace(/([A-Za-z0-9_]+)\[((?:(?![\"']).)*?)\]/g, (m, id, label) => {
+    if (/^[\"']/.test(label)) return m;
+    if (/[()\"\[\],:;]/.test(label)) {
+      const esc = String(label).replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
+      return `${id}[\"${esc}\"]`;
     }
     return m;
   });
 
   // Sanitize subgraph titles like: subgraph Frontend (Global)
-  const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)([^|\n\r]+)(\|[^\n\r]*)?$/gmi, (m, pre, title, rest) => {
+  const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)([^\n\r]+)(\|[^\n\r]*)?$/gmi, (m, pre, title, rest) => {
     let t = String(title).trim();
-    if (/^["']/.test(t)) return m;
-    if (/[()"\[\],:;]/.test(t)) {
-      const esc = t.replace(/\\/g, "\\\\").replace(/\"/g, '\\"');
-      return `${pre}"${esc}"${rest || ""}`;
+    if (/^[\"']/.test(t)) return m;
+    if (/[()\"\[\],:;]/.test(t)) {
+      const esc = t.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
+      return `${pre}\"${esc}\"${rest || ""}`;
     }
     return m;
   });

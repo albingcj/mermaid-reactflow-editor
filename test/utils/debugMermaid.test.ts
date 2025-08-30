@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { debugConvertMermaid } from '../../src/utils/mermaidToReactFlow';
+import { debugConvertMermaid } from '../../src/features/diagram/converter/mermaidToReactFlow';
 
 describe('nested/multiple subgraphs layout', () => {
   it('lays out parent and child subgraphs with relative positions', async () => {

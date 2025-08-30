@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Node, Edge } from "reactflow";
-import { convertMermaidToReactFlow, ReactFlowData } from "@/utils/mermaidToReactFlow";
+import { convertMermaidToReactFlow, ReactFlowData } from "@/features/diagram/converter";
+import { DEFAULT_AI_SETTINGS } from "@/constants";
 
 export interface SavedDiagram {
   id: string;
@@ -12,14 +13,29 @@ export interface SavedDiagram {
   updatedAt: number;
 }
 
-export const useDiagram = () => {
-  const [mermaidSource, setMermaidSource] = useState("");
+export interface UseDiagramReturn {
+  mermaidSource: string;
+  setMermaidSource: (source: string) => void;
+  flowData: ReactFlowData;
+  setFlowData: (data: ReactFlowData) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+  isStreaming: boolean;
+  setIsStreaming: (streaming: boolean) => void;
+  savedDiagrams: SavedDiagram[];
+  setSavedDiagrams: (diagrams: SavedDiagram[]) => void;
+  lastAppliedMermaidRef: React.MutableRefObject<string>;
+  convertMermaid: (source: string) => Promise<void>;
+}
+
+export const useDiagram = (): UseDiagramReturn => {
+  const [mermaidSource, setMermaidSource] = useState<string>("");
   const [flowData, setFlowData] = useState<ReactFlowData>({
     nodes: [],
     edges: [],
   });
-  const [loading, setLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>([]);
   const lastAppliedMermaidRef = useRef<string>("");
 

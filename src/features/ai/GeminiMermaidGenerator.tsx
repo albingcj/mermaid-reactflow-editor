@@ -1,6 +1,6 @@
 import { useState } from "react";
 import LLM from "@themaximalist/llm.js";
-import { streamGemini } from "@/utils/geminiStream";
+import { streamGemini } from "./streaming/geminiStream";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sparkles, Wand2, AlertTriangle, Info, Trash2, Eye, EyeOff, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { extractMermaidFromFences, sanitizeMermaidLabels } from "@/utils/mermaidSanitizer";
+import { extractMermaidFromFences, sanitizeMermaidLabels } from "@/features/diagram/converter";
 
 interface Props {
   onComplete: (mermaidCode: string) => void;
@@ -208,7 +208,7 @@ export default function GeminiMermaidGenerator({
     };
 
   // Use shared streaming parser util instead of inline copy
-  const { createMermaidStreamParser } = await import('@/utils/streamingParser');
+  const { createMermaidStreamParser } = await import('./streaming/streamingParser');
 
     // Create parser
     const parser = createMermaidStreamParser({

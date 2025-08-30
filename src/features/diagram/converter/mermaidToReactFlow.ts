@@ -1,6 +1,9 @@
 import { Node, Edge, MarkerType, Position } from "reactflow";
 import mermaid from "mermaid";
 import dagre from "dagre";
+import { LAYOUT_SPACING } from "@/constants/layout";
+import { LAYOUT_DIRECTIONS } from "@/constants/alignment";
+import { NODE_SHAPES } from "@/constants/nodeShapes";
 
 export interface ReactFlowData {
   nodes: Node[];
@@ -53,27 +56,27 @@ interface SubgraphLayout {
 }
 
 // Layout spacing constants - Fine-tune these for better visual separation
-const SUBGRAPH_HEADER_HEIGHT = 35; // Increased for proper title clearance
-const SUBGRAPH_PADDING = 8; // Base padding around subgraph edges (reduced to tighten layout)
-const SUBGRAPH_CONTENT_TOP_MARGIN = 10; // Additional space below title before content
+const SUBGRAPH_HEADER_HEIGHT = LAYOUT_SPACING.SUBGRAPH_HEADER_HEIGHT; // Increased for proper title clearance
+const SUBGRAPH_PADDING = LAYOUT_SPACING.SUBGRAPH_PADDING; // Base padding around subgraph edges (reduced to tighten layout)
+const SUBGRAPH_CONTENT_TOP_MARGIN = LAYOUT_SPACING.SUBGRAPH_CONTENT_TOP_MARGIN; // Additional space below title before content
 
 // Node spacing within subgraphs - controls minimum distance between nodes
-const NODE_SEPARATION_HORIZONTAL = 80; // Minimum horizontal distance between nodes in same rank
-const NODE_SEPARATION_VERTICAL = 100; // Minimum vertical distance between different ranks
+const NODE_SEPARATION_HORIZONTAL = LAYOUT_SPACING.NODE_SEPARATION_HORIZONTAL; // Minimum horizontal distance between nodes in same rank
+const NODE_SEPARATION_VERTICAL = LAYOUT_SPACING.NODE_SEPARATION_VERTICAL; // Minimum vertical distance between different ranks
 
 // Container spacing for meta-graph layout - controls distance between top-level elements
-const CONTAINER_SEPARATION_HORIZONTAL = 120; // Distance between top-level subgraphs/nodes horizontally (reduced)
-const CONTAINER_SEPARATION_VERTICAL = 160; // Distance between top-level subgraphs/nodes vertically (slightly reduced)
+const CONTAINER_SEPARATION_HORIZONTAL = LAYOUT_SPACING.CONTAINER_SEPARATION_HORIZONTAL; // Distance between top-level subgraphs/nodes horizontally (reduced)
+const CONTAINER_SEPARATION_VERTICAL = LAYOUT_SPACING.CONTAINER_SEPARATION_VERTICAL; // Distance between top-level subgraphs/nodes vertically (slightly reduced)
 
 // Nested subgraph spacing - controls spacing of child subgraphs within parents
-const NESTED_SUBGRAPH_SEPARATION_HORIZONTAL = 120; // Distance between sibling subgraphs (increased)
-const NESTED_SUBGRAPH_SEPARATION_VERTICAL = 140; // Distance between nested subgraph ranks (increased)
+const NESTED_SUBGRAPH_SEPARATION_HORIZONTAL = LAYOUT_SPACING.NESTED_SUBGRAPH_SEPARATION_HORIZONTAL; // Distance between sibling subgraphs (increased)
+const NESTED_SUBGRAPH_SEPARATION_VERTICAL = LAYOUT_SPACING.NESTED_SUBGRAPH_SEPARATION_VERTICAL; // Distance between nested subgraph ranks (increased)
 
 // Margin constants for different layout contexts
-const META_GRAPH_MARGIN = 100; // Outer margin for the entire diagram
-const NESTED_CONTENT_MARGIN = 40; // Margin around content within nested subgraphs (increased)
-const MIXED_CONTENT_VERTICAL_SPACING = 100; // Extra spacing between nodes and nested subgraphs in same parent (increased)
-const MIXED_CONTENT_HORIZONTAL_SPACING = 120; // Extra spacing when laying out children beside nodes (LR/RL)
+const META_GRAPH_MARGIN = LAYOUT_SPACING.META_GRAPH_MARGIN; // Outer margin for the entire diagram
+const NESTED_CONTENT_MARGIN = LAYOUT_SPACING.NESTED_CONTENT_MARGIN; // Margin around content within nested subgraphs (increased)
+const MIXED_CONTENT_VERTICAL_SPACING = LAYOUT_SPACING.MIXED_CONTENT_VERTICAL_SPACING; // Extra spacing between nodes and nested subgraphs in same parent (increased)
+const MIXED_CONTENT_HORIZONTAL_SPACING = LAYOUT_SPACING.MIXED_CONTENT_HORIZONTAL_SPACING; // Extra spacing when laying out children beside nodes (LR/RL)
 const DAGRE_RANKER: 'network-simplex' | 'tight-tree' | 'longest-path' = 'tight-tree';
 
 const DEBUG = (typeof process !== 'undefined' && typeof process.env !== 'undefined' && process.env.DEBUG_MERMAID === 'true');

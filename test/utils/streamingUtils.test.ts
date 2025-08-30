@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createMermaidStreamParser } from '../../src/utils/streamingParser';
-import { extractMermaidFromFences, sanitizeMermaidLabels } from '../../src/utils/mermaidSanitizer';
+import { createMermaidStreamParser } from '../../src/features/ai/streaming/streamingParser';
+import { extractMermaidFromFences, sanitizeMermaidLabels } from '../../src/features/diagram/converter/mermaidSanitizer';
 
 describe('streaming parser', () => {
 	it('collects fenced mermaid chunks and emits final on ```', () => {

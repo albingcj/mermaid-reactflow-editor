@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-
-type PanelType = "code" | "preview" | "canvas";
+import { PANEL_TYPES, PanelType } from "@/constants";
 
 export const usePanelVisibility = () => {
   const [visiblePanels, setVisiblePanels] = useState({
-    code: true,
-    preview: true,
-    canvas: true,
+    [PANEL_TYPES.CODE]: true,
+    [PANEL_TYPES.PREVIEW]: true,
+    [PANEL_TYPES.CANVAS]: true,
   });
 
   const togglePanelVisibility = useCallback((panel: PanelType) => {
@@ -23,7 +22,7 @@ export const usePanelVisibility = () => {
       const base = Math.floor(100 / visiblePanelCount);
       if (visiblePanelCount === 3) {
         // prefer canvas to be slightly larger to avoid a 99% total
-        return panel === "canvas" ? base + 1 : base;
+        return panel === PANEL_TYPES.CANVAS ? base + 1 : base;
       }
       return base;
     },

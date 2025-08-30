@@ -1,5 +1,5 @@
 import { it, expect, describe } from 'vitest';
-import { debugConvertMermaid } from '../../src/utils/mermaidToReactFlow';
+import { debugConvertMermaid } from '../../src/features/diagram/converter/mermaidToReactFlow';
 describe('user sample conversion', () => {
 it('preserves multi-word subgraph titles and assigns parents/positions', async () => {
   const code = `graph TD
