@@ -42,6 +42,7 @@ import { EditingToolbar } from '@/components/EditingToolbar';
 import { EdgeLabelEditor } from '@/components/EdgeLabelEditor';
 import PaletteToolbar from '@/components/PaletteToolbar';
 import { SearchControl } from '@/components/SearchControl';
+import { NodeSearchDialog } from '@/components/NodeSearchDialog';
 
 interface FlowDiagramProps {
   nodes: Node[];
@@ -420,7 +421,17 @@ function FlowDiagramInternal({
         </div>
       )}
 
-      <SearchControl nodes={nodes} onFocusNode={handleFocusNode} onClose={() => setShowSearch(false)} isVisible={showSearch} />
+      {/* Legacy floating search retained for now (optional). The new dialog offers better UI. */}
+      {/* <SearchControl nodes={nodes} onFocusNode={handleFocusNode} onClose={() => setShowSearch(false)} isVisible={showSearch} /> */}
+      <NodeSearchDialog
+        open={showSearch}
+        nodes={nodes}
+        onOpenChange={(o) => setShowSearch(o)}
+        onSelectNode={(id) => {
+          handleFocusNode(id);
+          setShowSearch(false);
+        }}
+      />
 
   <div
       style={{ width: '100%', height: '100%' }}
@@ -439,6 +450,7 @@ function FlowDiagramInternal({
               onLockNodes={onLockNodes}
               onUnlockNodes={onUnlockNodes}
               onSelectSubgraphContents={onSelectSubgraphContents}
+              onOpenSearch={() => setShowSearch(true)}
               placement="inline"
             />
           </div>
