@@ -1129,26 +1129,27 @@ textarea {
   box-shadow: 0 0 0 2px #1976D2 !important;
 }
 
-.custom-node.locked:hover {
-  border-style: dashed;
-  border-color: #f59e0b;
+/* Reset locked node styles - no visual indication on nodes themselves */
+.custom-node.locked {
+  /* Remove all visual styling for locked nodes */
+  border-style: solid;
+  border-color: inherit;
+  background-color: inherit;
 }
 
-/* Style for the lock icon that appears on hover */
-.custom-node.locked:hover::before {
-  content: "🔒";
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  z-index: 10;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+/* Remove lock icon and animations */
+.custom-node.locked::after {
+  display: none !important;
+}
+
+.custom-node.locked.selected {
+  animation: none !important;
+}
+
+@keyframes pulseLock {
+  /* Remove animation */
+  0% { box-shadow: inherit; }
+  100% { box-shadow: inherit; }
 }
 
 

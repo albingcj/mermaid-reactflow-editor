@@ -338,12 +338,26 @@ function FlowDiagramInternal({
   const onLockNodes = useCallback(() => {
     const newNodes = lockNodes(nodes, selectedNodes);
     setNodes(newNodes);
+    // Update selectedNodes to reflect the new locked state
+    setSelectedNodes(prevSelected => 
+      prevSelected.map(selectedNode => {
+        const updatedNode = newNodes.find(n => n.id === selectedNode.id);
+        return updatedNode || selectedNode;
+      })
+    );
     if (onNodesChangeCallback) onNodesChangeCallback(newNodes);
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 
   const onUnlockNodes = useCallback(() => {
     const newNodes = unlockNodes(nodes, selectedNodes);
     setNodes(newNodes);
+    // Update selectedNodes to reflect the new unlocked state
+    setSelectedNodes(prevSelected => 
+      prevSelected.map(selectedNode => {
+        const updatedNode = newNodes.find(n => n.id === selectedNode.id);
+        return updatedNode || selectedNode;
+      })
+    );
     if (onNodesChangeCallback) onNodesChangeCallback(newNodes);
   }, [selectedNodes, nodes, onNodesChangeCallback]);
 

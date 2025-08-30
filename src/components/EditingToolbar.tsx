@@ -169,11 +169,21 @@ export function EditingToolbar({
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
           <Copy className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Lock" onClick={onLockNodes} disabled={!hasSelectedNodes}>
+        <Button 
+          variant={selectedNodes.some(node => node.data?.locked) ? "default" : "ghost"} 
+          size="sm" 
+          className="h-8 w-8 p-0" 
+          title={selectedNodes.some(node => node.data?.locked) ? "Unlock selected nodes" : "Lock selected nodes"} 
+          onClick={() => {
+            if (selectedNodes.some(node => node.data?.locked)) {
+              onUnlockNodes();
+            } else {
+              onLockNodes();
+            }
+          }} 
+          disabled={!hasSelectedNodes}
+        >
           <Lock className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Unlock" onClick={onUnlockNodes} disabled={!hasSelectedNodes}>
-          <Unlock className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" title="Delete" onClick={onDeleteSelected} disabled={!hasSelectedElements}>
           <Trash2 className="h-4 w-4" />
