@@ -1530,68 +1530,96 @@ textarea {
 .custom-node .react-flow__resize-control {
   background: #2563eb !important;
   border: 2px solid white !important;
-  width: 10px !important;
-  height: 10px !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 3px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
   opacity: 1 !important;
-  pointer-events: all !important;
-  z-index: 10 !important;
-  border-radius: 2px !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 .custom-node .react-flow__resize-control:hover {
   background: #1d4ed8 !important;
-  transform: scale(1.2) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  width: 14px !important;
+  height: 14px !important;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4) !important;
 }
 
+/* Hide side resize handles and border lines - only show corners for custom nodes */
+.custom-node .react-flow__resize-control[data-position="top"],
+.custom-node .react-flow__resize-control[data-position="bottom"],
+.custom-node .react-flow__resize-control[data-position="left"],
+.custom-node .react-flow__resize-control[data-position="right"],
+.custom-node .react-flow__resize-control.top.line,
+.custom-node .react-flow__resize-control.bottom.line,
+.custom-node .react-flow__resize-control.left.line,
+.custom-node .react-flow__resize-control.right.line {
+  display: none !important;
+}
+
+/* Enhanced corner resize handles with directional cursors for custom nodes */
+.custom-node .react-flow__resize-control[data-position="top-left"],
+.custom-node .react-flow__resize-control.top.left.handle {
+  cursor: nw-resize !important;
+}
+
+.custom-node .react-flow__resize-control[data-position="top-right"],
+.custom-node .react-flow__resize-control.top.right.handle {
+  cursor: ne-resize !important;
+}
+
+.custom-node .react-flow__resize-control[data-position="bottom-left"],
+.custom-node .react-flow__resize-control.bottom.left.handle {
+  cursor: sw-resize !important;
+}
+
+.custom-node .react-flow__resize-control[data-position="bottom-right"],
+.custom-node .react-flow__resize-control.bottom.right.handle {
+  cursor: se-resize !important;
+}
+
+/* Hide resize border lines for custom nodes */
 .custom-node .react-flow__resize-control-line {
-  border-color: #2563eb !important;
-  border-width: 2px !important;
+  display: none !important;
+}
+
+/* Enhanced custom node selection and connection handles */
+.custom-node.selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.custom-node.selected:hover {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+/* Custom node connection handles styling */
+.custom-node .react-flow__handle {
+  background: #64748b !important;
+  border: 2px solid white !important;
+  width: 8px !important;
+  height: 8px !important;
+  opacity: 0.7 !important;
+}
+
+.custom-node .react-flow__handle.source {
+  background: #2563eb !important;
+}
+
+.custom-node .react-flow__handle:hover {
   opacity: 1 !important;
-  border-style: solid !important;
+  width: 10px !important;
+  height: 10px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
 }
 
-.custom-node .react-flow__resize-control-line:hover {
-  border-color: #1d4ed8 !important;
-  border-width: 3px !important;
+/* Reduce connection handle opacity when custom node is selected */
+.custom-node.selected .react-flow__handle {
+  opacity: 0.4 !important;
 }
 
-/* Simple cursor styles for resize directions */
-.custom-node .react-flow__resize-control {
-  cursor: nw-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="top"] {
-  cursor: ns-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="bottom"] {
-  cursor: ns-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="left"] {
-  cursor: ew-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="right"] {
-  cursor: ew-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="top-left"] {
-  cursor: nw-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="top-right"] {
-  cursor: ne-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="bottom-left"] {
-  cursor: sw-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="bottom-right"] {
-  cursor: se-resize;
+.custom-node.selected .react-flow__handle:hover {
+  opacity: 1 !important;
 }
 
 /* ReactFlow Dark Mode Styles */

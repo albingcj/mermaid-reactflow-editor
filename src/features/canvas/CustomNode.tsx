@@ -24,28 +24,20 @@ const HANDLE_STYLES = {
   borderRadius: '2px',
 };
 
-const RESIZER_LINE_STYLE = {
-  borderColor: '#2563eb',
-  borderWidth: 2,
-};
-
-// Custom resize handle component that only shows corner handles
-const CornerResizeHandle = ({ position }: { position: string }) => {
-  const isCorner = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(position);
-  
-  if (!isCorner) return null;
-  
-  return (
-    <div
-      style={{
-        ...HANDLE_STYLES,
-        position: 'absolute',
-        zIndex: 20,
-        display: 'block !important', // Force display to override CSS
-      }}
-      className="corner-resize-handle"
-    />
-  );
+const RESIZER_STYLES = {
+  handle: {
+    backgroundColor: '#2563eb',
+    border: '2px solid white',
+    width: 12,
+    height: 12,
+    borderRadius: '3px',
+    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+  },
+  line: {
+    borderColor: '#2563eb',
+    borderWidth: 2,
+    opacity: 0.6,
+  },
 };
 
 function CustomNodeInner(props: CustomNodeProps) {
@@ -144,7 +136,7 @@ function CustomNodeInner(props: CustomNodeProps) {
       onDoubleClick={data.onEdit}
       style={mergedStyle}
     >
-      {/* Node Resizer with only corner handles */}
+      {/* Node Resizer with enhanced corner handles */}
       {!data.isDragging && (
         <NodeResizer 
           isVisible={selected}
@@ -153,9 +145,8 @@ function CustomNodeInner(props: CustomNodeProps) {
           maxWidth={500}
           maxHeight={400}
           keepAspectRatio={data.shape === 'circle' || isImageNode}
-          handleComponent={CornerResizeHandle}
-          handleStyle={HANDLE_STYLES}
-          lineStyle={RESIZER_LINE_STYLE}
+          handleStyle={RESIZER_STYLES.handle}
+          lineStyle={RESIZER_STYLES.line}
         />
       )}
       
