@@ -1,15 +1,16 @@
 import React from 'react';
-import { Square, Layers } from 'lucide-react';
+import { Square, Layers, Diamond } from 'lucide-react';
 
 type PaletteItem = {
   id: string;
-  type: 'node' | 'subgraph';
+  type: 'node' | 'subgraph' | 'diamond';
   label: string;
   Icon?: React.ComponentType<any>;
 };
 
 const ITEMS: PaletteItem[] = [
   { id: 'node', type: 'node', label: 'Node', Icon: Square },
+  { id: 'diamond', type: 'diamond', label: 'Conditional', Icon: Diamond },
   { id: 'subgraph', type: 'subgraph', label: 'Subgraph', Icon: Layers },
 ];
 

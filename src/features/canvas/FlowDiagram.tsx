@@ -523,6 +523,8 @@ function FlowDiagramInternal({
               newNode = { id, type: 'custom', position, data: { label: 'New Node' }, style: { width: 150, height: 50 } };
             } else if (type === 'subgraph') {
               newNode = { id, type: 'group', position, data: { label: 'New Subgraph' }, style: { width: 220, height: 120, background: '#e3f2fd', border: '2px dashed #1976D2' } };
+            } else if (type === 'diamond') {
+              newNode = { id, type: 'diamond', position, data: { label: 'Conditional' }, style: { width: 120, height: 120, backgroundColor: '#FFF3E0', borderColor: '#F57C00' } };
             }
             if (newNode) {
               setNodes((nds) => {
