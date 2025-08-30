@@ -90,36 +90,46 @@ export function distributeNodes(
     y: node.position.y,
     width: node.width || 150,
     height: node.height || 50,
+    // keep centers available if needed elsewhere
     centerX: node.position.x + (node.width || 150) / 2,
     centerY: node.position.y + (node.height || 50) / 2,
   }));
   let newNodes = [...nodes];
   if (direction === 'horizontal') {
-    bounds.sort((a, b) => a.centerX - b.centerX);
-    const leftmostCenter = bounds[0].centerX;
-    const rightmostCenter = bounds[bounds.length - 1].centerX;
-    const totalSpace = rightmostCenter - leftmostCenter;
-    const spacing = totalSpace / (bounds.length - 1);
-    bounds.forEach((bound, index) => {
+    // Sort by left edge
+    bounds.sort((a, b) => a.x - b.x);
+    const leftEdge = bounds[0].x;
+    const rightEdge = bounds[bounds.length - 1].x + bounds[bounds.length - 1].width;
+    const totalWidths = bounds.reduce((s, b) => s + b.width, 0);
+    // available space between outer edges minus widths
+    const available = rightEdge - leftEdge - totalWidths;
+    // spacing between adjacent node edges (clamp to 0 to avoid negative spacing)
+    const spacing = Math.max(0, available / (bounds.length - 1));
+    // place nodes sequentially starting from leftEdge
+    let cursor = leftEdge;
+    bounds.forEach((bound) => {
       const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
       if (nodeIndex !== -1) {
-        const newCenterX = leftmostCenter + spacing * index;
-        const newX = newCenterX - bound.width / 2;
+        const newX = cursor;
         newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: { ...newNodes[nodeIndex].position, x: newX } };
+        cursor += bound.width + spacing;
       }
     });
   } else {
-    bounds.sort((a, b) => a.centerY - b.centerY);
-    const topmostCenter = bounds[0].centerY;
-    const bottommostCenter = bounds[bounds.length - 1].centerY;
-    const totalSpace = bottommostCenter - topmostCenter;
-    const spacing = totalSpace / (bounds.length - 1);
-    bounds.forEach((bound, index) => {
+    // Sort by top edge
+    bounds.sort((a, b) => a.y - b.y);
+    const topEdge = bounds[0].y;
+    const bottomEdge = bounds[bounds.length - 1].y + bounds[bounds.length - 1].height;
+    const totalHeights = bounds.reduce((s, b) => s + b.height, 0);
+    const available = bottomEdge - topEdge - totalHeights;
+    const spacing = Math.max(0, available / (bounds.length - 1));
+    let cursor = topEdge;
+    bounds.forEach((bound) => {
       const nodeIndex = newNodes.findIndex(n => n.id === bound.id);
       if (nodeIndex !== -1) {
-        const newCenterY = topmostCenter + spacing * index;
-        const newY = newCenterY - bound.height / 2;
+        const newY = cursor;
         newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: { ...newNodes[nodeIndex].position, y: newY } };
+        cursor += bound.height + spacing;
       }
     });
   }
