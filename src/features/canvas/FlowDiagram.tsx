@@ -35,6 +35,7 @@ import {
   unlockNodes,
 } from '@/utils/diagramEditingUtils';
 import { CustomNode } from '@/features/canvas/CustomNode';
+import { DiamondNode } from '@/features/canvas/DiamondNode';
 import { NodeEditor } from '@/components/NodeEditor';
 import { SubgraphNode } from '@/features/canvas/SubgraphNode';
 import { EditingToolbar } from '@/components/EditingToolbar';
@@ -94,6 +95,7 @@ function FlowDiagramInternal({
   const nodeTypes = useMemo(
     () => ({
       custom: CustomNode,
+  diamond: DiamondNode,
       group: SubgraphNode,
     }),
     []

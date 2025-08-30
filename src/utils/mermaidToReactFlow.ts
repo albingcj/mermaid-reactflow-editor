@@ -1823,9 +1823,28 @@ function createReactFlowElements(
     const { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow, ...layoutStyle } = nodeStyle;
     const visualStyle = { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow };
 
+    // Determine concrete width/height for the React Flow node wrapper:
+    // - For nodes inside subgraphs, use the subgraph layout node dimensions
+    // - For standalone nodes, compute based on label/shape (same as used for Dagre)
+    let wrapperWidth = 150;
+    let wrapperHeight = 60;
+    if (node.subgraph) {
+      const subgraphLayout = subgraphLayouts.get(node.subgraph);
+      const nodeLayout = subgraphLayout?.nodes.get(node.id);
+      if (nodeLayout) {
+        wrapperWidth = Math.max(20, Math.round(nodeLayout.width));
+        wrapperHeight = Math.max(20, Math.round(nodeLayout.height));
+      }
+    } else {
+      const size = calculateNodeSize(node.label, node.shape, !!imageUrl);
+      wrapperWidth = Math.max(20, Math.round(size.width));
+      wrapperHeight = Math.max(20, Math.round(size.height));
+    }
+
+    const nodeType = node.shape === "diamond" ? "diamond" : "custom";
     reactFlowNodes.push({
       id: node.id,
-      type: "custom",
+      type: nodeType,
       position: position,
       data: {
         label: imageUrl ? cleanLabel : node.label,
@@ -1836,8 +1855,8 @@ function createReactFlowElements(
         colors,
         style: visualStyle,
       },
-      // keep layout-only style on the node wrapper (usually empty here)
-      style: layoutStyle,
+  // Keep layout-only style on the node wrapper and ensure width/height are explicit
+  style: { ...layoutStyle, width: wrapperWidth, height: wrapperHeight },
       sourcePosition: sourcePos,
       targetPosition: targetPos,
       parentNode: parentNode,
