@@ -1,83 +1,150 @@
-import React from 'react';
+import React, { useEffect, useState, useMemo, memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 
-function CustomNodeInner(props: NodeProps) {
+interface CustomNodeData {
+  label: string;
+  description?: string;
+  imageUrl?: string;
+  shape?: 'rect' | 'circle' | 'diamond';
+  style?: React.CSSProperties;
+  isDragging?: boolean;
+  locked?: boolean;
+  onEdit?: () => void;
+}
+
+interface CustomNodeProps extends NodeProps {
+  data: CustomNodeData;
+}
+
+const HANDLE_STYLES = {
+  backgroundColor: '#2563eb',
+  border: '2px solid white',
+  width: 10,
+  height: 10,
+  borderRadius: '2px',
+};
+
+const RESIZER_LINE_STYLE = {
+  borderColor: '#2563eb',
+  borderWidth: 2,
+};
+
+// Custom resize handle component that only shows corner handles
+const CornerResizeHandle = ({ position }: { position: string }) => {
+  const isCorner = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(position);
+  
+  if (!isCorner) return null;
+  
+  return (
+    <div
+      style={{
+        ...HANDLE_STYLES,
+        position: 'absolute',
+        zIndex: 20,
+        display: 'block !important', // Force display to override CSS
+      }}
+      className="corner-resize-handle"
+    />
+  );
+};
+
+function CustomNodeInner(props: CustomNodeProps) {
   const { data, isConnectable, selected } = props;
-  // style isn't declared on NodeProps in the reactflow types used here, so read it dynamically
   const style = (props as any).style as React.CSSProperties | undefined;
-  // const handleClick = () => {
-  //   if (data.githubUrl) {
-  //     window.open(data.githubUrl, '_blank');
-  //   }
-  // };
   
-  const renderLabel = (label: string) => {
-    if (label.includes('\n')) {
-      return label.split('\n').map((line, index) => (
-        <div key={index}>{line}</div>
-      ));
-    }
-    return label;
-  };
+  const [imageAspect, setImageAspect] = useState<number | null>(null);
   
-  const getNodeClassName = () => {
-    let className = `custom-node shape-${data.shape || 'rect'}`;
-    // if (data.githubUrl) className += ' has-link';
-    if (data.imageUrl) className += ' has-image';
-    if (data.shape === 'diamond') className += ' diamond-node';
-    if (selected) className += ' selected';
-  if (data.locked) className += ' locked';
-    return className;
-  };
+  const isImageNode = useMemo(() => 
+    Boolean(data.imageUrl?.trim()), 
+    [data.imageUrl]
+  );
 
-  const isImageNode = data.imageUrl && data.imageUrl.trim() !== '';
-  const [imageAspect, setImageAspect] = React.useState<number | null>(null);
-
-  React.useEffect(() => {
-    if (isImageNode) {
-      const img = new window.Image();
-      img.onload = () => {
-        setImageAspect(img.naturalWidth / img.naturalHeight);
-      };
-      img.src = data.imageUrl;
-    } else {
+  // Load image and calculate aspect ratio
+  useEffect(() => {
+    if (!isImageNode) {
       setImageAspect(null);
+      return;
     }
+
+    const img = new Image();
+    img.onload = () => setImageAspect(img.naturalWidth / img.naturalHeight);
+    img.onerror = () => setImageAspect(null);
+    img.src = data.imageUrl!;
+    
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
   }, [data.imageUrl, isImageNode]);
-  
-  // Merge any node-level style (React Flow node.style) and data.style with defaults.
-  // Many code paths set styles on the top-level node (node.style) while others use data.style.
-  // Ensure we respect both so dropped nodes and converter-generated nodes render identically.
-  const mergedStyle: React.CSSProperties = {
+
+  // Memoize class name calculation
+  const nodeClassName = useMemo(() => {
+    const classes = ['custom-node', `shape-${data.shape || 'rect'}`];
+    
+    if (data.imageUrl) classes.push('has-image');
+    if (data.shape === 'diamond') classes.push('diamond-node');
+    if (selected) classes.push('selected');
+    if (data.locked) classes.push('locked');
+    
+    return classes.join(' ');
+  }, [data.shape, data.imageUrl, data.locked, selected]);
+
+  // Memoize merged styles
+  const mergedStyle = useMemo<React.CSSProperties>(() => ({
     width: '100%',
     height: '100%',
     position: 'relative',
     ...(style || {}),
     ...(data?.style || {}),
+    ...(isImageNode && imageAspect ? { aspectRatio: `${imageAspect}` } : {}),
+  }), [style, data?.style, isImageNode, imageAspect]);
+
+  // Render multiline labels
+  const renderLabel = (label: string) => {
+    if (!label.includes('\n')) return label;
+    
+    return label.split('\n').map((line, index) => (
+      <div key={index}>{line}</div>
+    ));
   };
 
-  // Split merged style into visual vs layout props. We prefer visual styles provided in
-  // `data.style` (converter/editor) and apply them to the inner `.custom-node` element
-  // so the class-based defaults are overridden correctly. Layout-only props stay on
-  // the wrapper via node.style (React Flow handles wrapper styles separately).
-  const mergedAny = mergedStyle as any;
-  const visualKeys = ['background', 'backgroundColor', 'border', 'borderColor', 'borderRadius', 'boxShadow', 'outline'];
-  const visualStyle: Record<string, any> = {};
-  const layoutOnlyStyle: Record<string, any> = { ...mergedAny };
-  visualKeys.forEach((k) => {
-    if (mergedAny[k] !== undefined) {
-      visualStyle[k] = mergedAny[k];
-      delete layoutOnlyStyle[k];
-    }
-  });
+  // Handle component for connection points
+  const ConnectionHandle = ({ 
+    type, 
+    position, 
+    id 
+  }: { 
+    type: 'source' | 'target'; 
+    position: Position; 
+    id: string; 
+  }) => (
+    <Handle
+      type={type}
+      position={position}
+      isConnectable={isConnectable}
+      id={id}
+      className={`handle-${position.toLowerCase()}`}
+      style={{
+        left: position === Position.Left ? 0 : position === Position.Right ? undefined : '50%',
+        right: position === Position.Right ? 0 : undefined,
+        top: position === Position.Top ? 0 : position === Position.Bottom ? undefined : '50%',
+        bottom: position === Position.Bottom ? 0 : undefined,
+        transform: 
+          position === Position.Top ? 'translate(-50%, -50%)' :
+          position === Position.Bottom ? 'translate(-50%, 50%)' :
+          position === Position.Left ? 'translate(-50%, -50%)' :
+          'translate(50%, -50%)',
+      }}
+    />
+  );
 
   return (
     <div 
-      className={getNodeClassName()}
+      className={nodeClassName}
       onDoubleClick={data.onEdit}
-    style={isImageNode && imageAspect ? { ...layoutOnlyStyle, ...visualStyle, aspectRatio: `${imageAspect}` } : { ...layoutOnlyStyle, ...visualStyle }}
+      style={mergedStyle}
     >
-      {/* User-friendly node resizer with clear visual feedback */}
+      {/* Node Resizer with only corner handles */}
       {!data.isDragging && (
         <NodeResizer 
           isVisible={selected}
@@ -86,42 +153,34 @@ function CustomNodeInner(props: NodeProps) {
           maxWidth={500}
           maxHeight={400}
           keepAspectRatio={data.shape === 'circle' || isImageNode}
-          handleStyle={{
-            backgroundColor: '#2563eb',
-            border: '2px solid white',
-            width: 10,
-            height: 10,
-            borderRadius: '2px',
-          }}
-          lineStyle={{
-            borderColor: '#2563eb',
-            borderWidth: 2,
-          }}
+          handleComponent={CornerResizeHandle}
+          handleStyle={HANDLE_STYLES}
+          lineStyle={RESIZER_LINE_STYLE}
         />
       )}
       
-      {/* Top handles */}
+      {/* Connection Handles - only render when not dragging */}
       {!data.isDragging && (
         <>
-          <Handle
-            type="target"
-            position={Position.Top}
-            isConnectable={isConnectable}
-            id="top-target"
-            className="handle-top"
-            style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
-          />
-          <Handle
-            type="source"
-            position={Position.Top}
-            isConnectable={isConnectable}
-            id="top-source"
-            className="handle-top"
-            style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
-          />
+          {/* Top handles */}
+          <ConnectionHandle type="target" position={Position.Top} id="top-target" />
+          <ConnectionHandle type="source" position={Position.Top} id="top-source" />
+          
+          {/* Bottom handles */}
+          <ConnectionHandle type="target" position={Position.Bottom} id="bottom-target" />
+          <ConnectionHandle type="source" position={Position.Bottom} id="bottom-source" />
+          
+          {/* Left handles */}
+          <ConnectionHandle type="target" position={Position.Left} id="left-target" />
+          <ConnectionHandle type="source" position={Position.Left} id="left-source" />
+          
+          {/* Right handles */}
+          <ConnectionHandle type="target" position={Position.Right} id="right-target" />
+          <ConnectionHandle type="source" position={Position.Right} id="right-source" />
         </>
       )}
       
+      {/* Node Content */}
       <div className="node-content">
         {isImageNode ? (
           <>
@@ -139,7 +198,6 @@ function CustomNodeInner(props: NodeProps) {
                   borderRadius: '8px'
                 }}
                 onError={(e) => {
-                  // Fallback to text label if image fails to load
                   e.currentTarget.style.display = 'none';
                   const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback');
                   if (fallback) {
@@ -147,13 +205,23 @@ function CustomNodeInner(props: NodeProps) {
                   }
                 }}
               />
-              <div className="image-fallback" style={{ display: 'none', width: '100%', height: '100%', background: 'transparent' }}>
+              <div 
+                className="image-fallback" 
+                style={{ 
+                  display: 'none', 
+                  width: '100%', 
+                  height: '100%', 
+                  background: 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
                 <div className="node-label" style={{ fontSize: '10px' }}>
                   {renderLabel(data.label)}
                 </div>
               </div>
             </div>
-            {data.label && data.label.trim() !== '' && (
+            {data.label?.trim() && (
               <div className="image-caption" title={data.label}>
                 {data.label}
               </div>
@@ -172,76 +240,8 @@ function CustomNodeInner(props: NodeProps) {
           </>
         )}
       </div>
-
-  {/* Locked styling is applied via the .locked class and CSS in App.css to avoid extra DOM elements that would appear in exported images */}
-      
-      {/* Bottom handles */}
-      {!data.isDragging && (
-        <>
-          <Handle
-            type="target"
-            position={Position.Bottom}
-            isConnectable={isConnectable}
-            id="bottom-target"
-            className="handle-bottom"
-            style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
-          />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            isConnectable={isConnectable}
-            id="bottom-source"
-            className="handle-bottom"
-            style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
-          />
-        </>
-      )}
-      
-      {/* Left handles */}
-      {!data.isDragging && (
-        <>
-          <Handle
-            type="target"
-            position={Position.Left}
-            isConnectable={isConnectable}
-            id="left-target"
-            className="handle-left"
-            style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
-          />
-          <Handle
-            type="source"
-            position={Position.Left}
-            isConnectable={isConnectable}
-            id="left-source"
-            className="handle-left"
-            style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
-          />
-        </>
-      )}
-
-      {/* Right handles */}
-      {!data.isDragging && (
-        <>
-          <Handle
-            type="target"
-            position={Position.Right}
-            isConnectable={isConnectable}
-            id="right-target"
-            className="handle-right"
-            style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
-          />
-          <Handle
-            type="source"
-            position={Position.Right}
-            isConnectable={isConnectable}
-            id="right-source"
-            className="handle-right"
-            style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
-          />
-        </>
-      )}
     </div>
   );
 }
 
-export const CustomNode = React.memo(CustomNodeInner);
+export const CustomNode = memo(CustomNodeInner);
