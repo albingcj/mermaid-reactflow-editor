@@ -20,13 +20,17 @@ export function PaletteToolbar({ className = '' }: { className?: string }) {
   };
 
   return (
-    <div className={`palette-toolbar ${className}`} role="toolbar" aria-label="Palette toolbar">
+    <div
+      className={`palette-toolbar ${className} w-full flex flex-row items-stretch gap-2 overflow-x-auto flex-nowrap sm:flex-wrap`}
+      role="toolbar"
+      aria-label="Palette toolbar"
+    >
       {ITEMS.map((it) => {
         const Icon = it.Icon;
         return (
           <div
             key={it.id}
-            className="draggable-palette-item p-2 rounded cursor-grab select-none flex items-center gap-2"
+            className="draggable-palette-item p-2 rounded cursor-grab select-none flex items-center gap-2 border bg-card hover:bg-accent transition-colors flex-none shrink-0 min-w-[44px] sm:flex-1 sm:basis-0 sm:min-w-[160px] justify-center sm:justify-start"
             draggable
             onDragStart={(e) => onDragStart(e, it)}
             title={`Drag ${it.label} onto canvas`}
@@ -34,7 +38,7 @@ export function PaletteToolbar({ className = '' }: { className?: string }) {
             aria-label={`Drag ${it.label}`}
           >
             {Icon && <Icon className="h-4 w-4" />}
-            <div className="text-sm font-medium">{it.label}</div>
+            <div className="text-sm font-medium hidden sm:block">{it.label}</div>
           </div>
         );
       })}
