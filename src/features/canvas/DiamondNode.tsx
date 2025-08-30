@@ -45,9 +45,9 @@ function DiamondNodeInner(props: DiamondNodeProps) {
     width: '100%',
     height: '100%',
     position: 'relative',
-    ...(style || {}),
-    ...(data?.style || {}),
-  }), [style, data?.style]);
+    background: 'transparent',
+    border: 'none',
+  }), []);
 
   const ConnectionHandle = ({ 
     type, 
@@ -80,7 +80,15 @@ function DiamondNodeInner(props: DiamondNodeProps) {
   // Extract visual colors from style to paint the diamond polygon
   const bgColor = (data?.style as any)?.backgroundColor || '#FFF3E0';
   const borderColor = (data?.style as any)?.borderColor || '#F57C00';
-  const borderWidth = 2;
+  // Try to infer stroke width from style if present
+  const borderWidth = (data?.style as any)?.borderWidth
+    ? Number((data?.style as any)?.borderWidth) || 2
+    : (() => {
+        const b = (data?.style as any)?.border as string | undefined;
+        if (!b) return 2;
+        const m = b.match(/(\d+(?:\.\d+)?)px/);
+        return m ? Number(m[1]) : 2;
+      })();
 
   return (
     <div className={nodeClassName} onDoubleClick={data.onEdit} style={mergedStyle}>
@@ -99,7 +107,7 @@ function DiamondNodeInner(props: DiamondNodeProps) {
       )}
 
       {/* SVG diamond shape fills the container; wrapper remains rectangular for layout */}
-      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }}>
+  <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         <polygon
           points="50,2 98,50 50,98 2,50"
           fill={bgColor}
@@ -118,7 +126,11 @@ function DiamondNodeInner(props: DiamondNodeProps) {
         justifyContent: 'center',
         padding: '6px',
         textAlign: 'center',
-        pointerEvents: 'none'
+        pointerEvents: 'none',
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        borderRadius: 0
       }}>
         {data.label && (
           <div className="node-label" title={data.label} style={{

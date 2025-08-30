@@ -1821,7 +1821,11 @@ function createReactFlowElements(
     // Split visual vs layout styles. Visuals should live in node.data.style so the
     // inner `.custom-node` element can own appearance while the wrapper keeps layout props.
     const { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow, ...layoutStyle } = nodeStyle;
-    const visualStyle = { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow };
+    const nodeType = node.shape === "diamond" ? "diamond" : "custom";
+    // For diamond nodes, keep the wrapper clean (no background/border). Only pass colors into data.style.
+    const visualStyle = nodeType === 'diamond'
+      ? { backgroundColor, borderColor, borderWidth }
+      : { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow };
 
     // Determine concrete width/height for the React Flow node wrapper:
     // - For nodes inside subgraphs, use the subgraph layout node dimensions
@@ -1841,7 +1845,6 @@ function createReactFlowElements(
       wrapperHeight = Math.max(20, Math.round(size.height));
     }
 
-    const nodeType = node.shape === "diamond" ? "diamond" : "custom";
     reactFlowNodes.push({
       id: node.id,
       type: nodeType,

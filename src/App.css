@@ -622,6 +622,20 @@ textarea {
   /* border: none !important; */
 }
 
+.react-flow__node-diamond {
+  /* Remove default RF node box styling so only the diamond is visible */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-diamond.react-flow__node-selected {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 .react-flow__node-custom.react-flow__node-selected {
   box-shadow: none !important;
   outline: none !important;
