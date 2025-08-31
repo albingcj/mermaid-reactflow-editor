@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseMermaidCode } from '../../src/utils/mermaidToReactFlow';
+import { parseMermaidCode } from '../../src/features/diagram/converter/mermaidToReactFlow';
 
 describe('mermaidToReactFlow parsing', () => {
   it('should parse simple node definitions', () => {

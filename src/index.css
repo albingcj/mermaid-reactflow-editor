@@ -269,6 +269,25 @@ select.form-select option,
 	border: 1px solid var(--border) !important;
 }
 
+/* Palette toolbar */
+.palette-toolbar {
+	display: flex;
+	flex-direction: row;
+	gap: 8px;
+	padding: 6px;
+	align-items: center;
+}
+.palette-toolbar .draggable-palette-item {
+	min-width: 88px;
+	text-align: left;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+}
+.palette-toolbar .draggable-palette-item:active {
+	cursor: grabbing;
+}
+
 /* Make native select arrow and menu blend better */
 select.form-select,
 .form-select {

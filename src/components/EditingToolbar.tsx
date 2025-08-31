@@ -9,8 +9,8 @@ import {
   AlignVerticalJustifyStart,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
-  ArrowLeftRight,
-  ArrowUpDown,
+  // ArrowLeftRight,
+  // ArrowUpDown,
   Copy,
   Lock,
   Unlock,
@@ -29,6 +29,7 @@ interface EditingToolbarProps {
   onLockNodes: () => void;
   onUnlockNodes: () => void;
   onSelectSubgraphContents?: (subgraphNodeId?: string) => void;
+  onOpenSearch?: () => void;
   placement?: 'floating' | 'inline';
 }
 
@@ -43,11 +44,13 @@ export function EditingToolbar({
   onLockNodes,
   onUnlockNodes,
   onSelectSubgraphContents,
+  onOpenSearch,
   placement = 'inline',
 }: EditingToolbarProps) {
   const hasSelectedNodes = selectedNodes.length > 0;
   // const hasMultipleNodes intentionally removed (grouping not supported)
   const hasSelectedElements = selectedNodes.length > 0 || selectedEdges.length > 0;
+  
 
   return (
     <div
@@ -77,6 +80,25 @@ export function EditingToolbar({
       </Badge>
 
       <div className="w-px h-5 bg-border mx-1" />
+
+      {/* Search */}
+      <div className="flex items-center gap-1" aria-label="Search">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          title="Search (Ctrl+F)"
+          onClick={onOpenSearch}
+        >
+          {/* simple magnifier icon via SVG to avoid adding new deps */}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="2" />
+            <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </Button>
+      </div>
+
+  {/* Palette handled in PaletteToolbar (avoids duplicate drag sources) */}
 
       {/* Align (H) */}
       <div className="flex items-center gap-1" aria-label="Align horizontally">
@@ -110,11 +132,33 @@ export function EditingToolbar({
 
       {/* Distribute */}
       <div className="flex items-center gap-1" aria-label="Distribute">
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Distribute Horizontally" onClick={() => onDistributeNodes('horizontal')}>
-          <ArrowLeftRight className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          title="Distribute Horizontally"
+          onClick={() => onDistributeNodes('horizontal')}
+        >
+          {/* three vertical bars = distribute horizontally */}
+          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+            <rect x="2" y="3" width="2" height="10" rx="0.5" fill="currentColor" />
+            <rect x="7" y="1" width="2" height="14" rx="0.5" fill="currentColor" />
+            <rect x="12" y="4" width="2" height="8" rx="0.5" fill="currentColor" />
+          </svg>
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Distribute Vertically" onClick={() => onDistributeNodes('vertical')}>
-          <ArrowUpDown className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          title="Distribute Vertically"
+          onClick={() => onDistributeNodes('vertical')}
+        >
+          {/* three horizontal bars = distribute vertically */}
+          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+            <rect x="2" y="2" width="12" height="2" rx="0.5" fill="currentColor" />
+            <rect x="2" y="7" width="12" height="2" rx="0.5" fill="currentColor" />
+            <rect x="2" y="12" width="12" height="2" rx="0.5" fill="currentColor" />
+          </svg>
         </Button>
       </div>
 
@@ -125,11 +169,21 @@ export function EditingToolbar({
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Duplicate" onClick={onDuplicateNodes} disabled={!hasSelectedNodes}>
           <Copy className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Lock" onClick={onLockNodes} disabled={!hasSelectedNodes}>
+        <Button 
+          variant={selectedNodes.some(node => node.data?.locked) ? "default" : "ghost"} 
+          size="sm" 
+          className="h-8 w-8 p-0" 
+          title={selectedNodes.some(node => node.data?.locked) ? "Unlock selected nodes" : "Lock selected nodes"} 
+          onClick={() => {
+            if (selectedNodes.some(node => node.data?.locked)) {
+              onUnlockNodes();
+            } else {
+              onLockNodes();
+            }
+          }} 
+          disabled={!hasSelectedNodes}
+        >
           <Lock className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Unlock" onClick={onUnlockNodes} disabled={!hasSelectedNodes}>
-          <Unlock className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" title="Delete" onClick={onDeleteSelected} disabled={!hasSelectedElements}>
           <Trash2 className="h-4 w-4" />

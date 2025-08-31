@@ -586,7 +586,7 @@ textarea {
   background-color: white;
   border: 2px solid #e5e7eb;
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px; /* slightly reduced so node-content padding can breathe */
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -597,8 +597,13 @@ textarea {
   overflow: hidden;
   width: 100%;
   height: 100%;
+  color: #1f2937; /* dark text to avoid plain white text issue */
   /* Single, clean transition */
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  /* Ensure proper text wrapping */
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .custom-node:hover {
@@ -615,6 +620,20 @@ textarea {
   box-shadow: none !important;
   outline: none !important;
   /* border: none !important; */
+}
+
+.react-flow__node-diamond {
+  /* Remove default RF node box styling so only the diamond is visible */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-diamond.react-flow__node-selected {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .react-flow__node-custom.react-flow__node-selected {
@@ -672,9 +691,8 @@ textarea {
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  /* Allow text to wrap properly */
-  word-wrap: break-word;
-  text-overflow: ellipsis;
+  padding: 14px; /* improved inner padding for label spacing */
+  box-sizing: border-box;
 }
 
 
@@ -684,10 +702,15 @@ textarea {
   margin-bottom: 4px;
   line-height: 1.4;
   word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
   max-width: 100%;
   color: #2D3748;
+  text-align: center;
   /* Responsive font sizing */
   font-size: clamp(10px, 2vw, 13px);
+  /* Add max width to prevent overly wide nodes */
+  max-width: 200px;
 }
 
 /* Image Node Styles */
@@ -807,6 +830,9 @@ textarea {
 
 .node-label div {
   margin: 2px 0;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .node-description {
@@ -816,6 +842,8 @@ textarea {
   line-height: 1.3;
   max-width: 100%;
   word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
   opacity: 0.9;
   /* Responsive font sizing */
   font-size: clamp(9px, 1.5vw, 12px);
@@ -824,7 +852,12 @@ textarea {
   /* Allow text to adjust to container size */
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Add max width to prevent overly wide nodes */
+  max-width: 200px;
 }
+
+/* Textbox nodes: minimal, transparent by default */
+
 
 /* Special styling for diamond nodes */
 .diamond-node {
@@ -851,27 +884,100 @@ textarea {
 }
 
 .subgraph-node.selected {
-  outline: 2px solid #1976D2;
-  outline-offset: -2px;
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
-/* Resize handles styling for subgraphs */
+/* Enhanced hover state for better resize UX */
+.subgraph-node.selected:hover {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+/* Slightly reduce drag handle opacity when selected for cleaner resize experience */
+.subgraph-node.selected .subgraph-drag-handle {
+  opacity: 0.7;
+}
+
+.subgraph-node.selected .subgraph-drag-handle:hover {
+  opacity: 1;
+}
+
+/* Enhanced resize handles styling for subgraphs - only corners visible */
 .subgraph-node .react-flow__resize-control {
-  background: #1976D2 !important;
+  background: #2563eb !important;
   border: 2px solid white !important;
-  width: 10px !important;
-  height: 10px !important;
-  border-radius: 50% !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 3px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
+  opacity: 1 !important;
 }
 
 .subgraph-node .react-flow__resize-control:hover {
-  background: #1565C0 !important;
-  transform: scale(1.2);
+  background: #1d4ed8 !important;
+  width: 14px !important;
+  height: 14px !important;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4) !important;
 }
 
+/* Hide side resize handles AND border lines - only show corners */
+.subgraph-node .react-flow__resize-control[data-position="top"],
+.subgraph-node .react-flow__resize-control[data-position="bottom"],
+.subgraph-node .react-flow__resize-control[data-position="left"],
+.subgraph-node .react-flow__resize-control[data-position="right"],
+.subgraph-node .react-flow__resize-control.top.line,
+.subgraph-node .react-flow__resize-control.bottom.line,
+.subgraph-node .react-flow__resize-control.left.line,
+.subgraph-node .react-flow__resize-control.right.line {
+  display: none !important;
+}
+
+/* Enhanced corner resize handles with directional cursors */
+.subgraph-node .react-flow__resize-control[data-position="top-left"],
+.subgraph-node .react-flow__resize-control.top.left.handle {
+  cursor: nw-resize !important;
+}
+
+.subgraph-node .react-flow__resize-control[data-position="top-right"],
+.subgraph-node .react-flow__resize-control.top.right.handle {
+  cursor: ne-resize !important;
+}
+
+.subgraph-node .react-flow__resize-control[data-position="bottom-left"],
+.subgraph-node .react-flow__resize-control.bottom.left.handle {
+  cursor: sw-resize !important;
+}
+
+.subgraph-node .react-flow__resize-control[data-position="bottom-right"],
+.subgraph-node .react-flow__resize-control.bottom.right.handle {
+  cursor: se-resize !important;
+}
+
+/* Enhanced subgraph connection handles */
+.subgraph-connection-handle:hover {
+  opacity: 1 !important;
+  width: 12px !important;
+  height: 12px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Reduce connection handle opacity when subgraph is selected for cleaner resize experience */
+.subgraph-node.selected .subgraph-connection-handle {
+  opacity: 0.5 !important;
+}
+
+.subgraph-node.selected .subgraph-connection-handle:hover {
+  opacity: 1 !important;
+}
+
+/* Enhanced resize border lines - HIDDEN since we only want corner handles */
 .subgraph-node .react-flow__resize-control-line {
-  border-color: #1976D2 !important;
-  border-width: 2px !important;
+  display: none !important;
+}
+
+.subgraph-node.selected:hover .react-flow__resize-control-line {
+  display: none !important;
 }
 
 /* Editing Toolbar Styles */
@@ -1023,26 +1129,26 @@ textarea {
   box-shadow: 0 0 0 2px #1976D2 !important;
 }
 
-.custom-node.locked:hover {
-  border-style: dashed;
-  border-color: #f59e0b;
+/* Locked nodes: preserve visual appearance (do not remove background or border). */
+.custom-node.locked {
+  /* Keep styling when a node is locked. Locked state should affect behavior
+     (draggable/handles) not the node's background or border. */
+  cursor: default; /* harmless, keeps rule non-empty for linters */
 }
 
-/* Style for the lock icon that appears on hover */
-.custom-node.locked:hover::before {
-  content: "🔒";
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  z-index: 10;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+/* Remove lock icon and animations */
+.custom-node.locked::after {
+  display: none !important;
+}
+
+.custom-node.locked.selected {
+  animation: none !important;
+}
+
+@keyframes pulseLock {
+  /* Remove animation */
+  0% { box-shadow: inherit; }
+  100% { box-shadow: inherit; }
 }
 
 
@@ -1438,68 +1544,96 @@ textarea {
 .custom-node .react-flow__resize-control {
   background: #2563eb !important;
   border: 2px solid white !important;
-  width: 10px !important;
-  height: 10px !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 3px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
   opacity: 1 !important;
-  pointer-events: all !important;
-  z-index: 10 !important;
-  border-radius: 2px !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 .custom-node .react-flow__resize-control:hover {
   background: #1d4ed8 !important;
-  transform: scale(1.2) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  width: 14px !important;
+  height: 14px !important;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4) !important;
 }
 
+/* Hide side resize handles and border lines - only show corners for custom nodes */
+.custom-node .react-flow__resize-control[data-position="top"],
+.custom-node .react-flow__resize-control[data-position="bottom"],
+.custom-node .react-flow__resize-control[data-position="left"],
+.custom-node .react-flow__resize-control[data-position="right"],
+.custom-node .react-flow__resize-control.top.line,
+.custom-node .react-flow__resize-control.bottom.line,
+.custom-node .react-flow__resize-control.left.line,
+.custom-node .react-flow__resize-control.right.line {
+  display: none !important;
+}
+
+/* Enhanced corner resize handles with directional cursors for custom nodes */
+.custom-node .react-flow__resize-control[data-position="top-left"],
+.custom-node .react-flow__resize-control.top.left.handle {
+  cursor: nw-resize !important;
+}
+
+.custom-node .react-flow__resize-control[data-position="top-right"],
+.custom-node .react-flow__resize-control.top.right.handle {
+  cursor: ne-resize !important;
+}
+
+.custom-node .react-flow__resize-control[data-position="bottom-left"],
+.custom-node .react-flow__resize-control.bottom.left.handle {
+  cursor: sw-resize !important;
+}
+
+.custom-node .react-flow__resize-control[data-position="bottom-right"],
+.custom-node .react-flow__resize-control.bottom.right.handle {
+  cursor: se-resize !important;
+}
+
+/* Hide resize border lines for custom nodes */
 .custom-node .react-flow__resize-control-line {
-  border-color: #2563eb !important;
-  border-width: 2px !important;
+  display: none !important;
+}
+
+/* Enhanced custom node selection and connection handles */
+.custom-node.selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.custom-node.selected:hover {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+/* Custom node connection handles styling */
+.custom-node .react-flow__handle {
+  background: #64748b !important;
+  border: 2px solid white !important;
+  width: 8px !important;
+  height: 8px !important;
+  opacity: 0.7 !important;
+}
+
+.custom-node .react-flow__handle.source {
+  background: #2563eb !important;
+}
+
+.custom-node .react-flow__handle:hover {
   opacity: 1 !important;
-  border-style: solid !important;
+  width: 10px !important;
+  height: 10px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
 }
 
-.custom-node .react-flow__resize-control-line:hover {
-  border-color: #1d4ed8 !important;
-  border-width: 3px !important;
+/* Reduce connection handle opacity when custom node is selected */
+.custom-node.selected .react-flow__handle {
+  opacity: 0.4 !important;
 }
 
-/* Simple cursor styles for resize directions */
-.custom-node .react-flow__resize-control {
-  cursor: nw-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="top"] {
-  cursor: ns-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="bottom"] {
-  cursor: ns-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="left"] {
-  cursor: ew-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="right"] {
-  cursor: ew-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="top-left"] {
-  cursor: nw-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="top-right"] {
-  cursor: ne-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="bottom-left"] {
-  cursor: sw-resize;
-}
-
-.custom-node .react-flow__resize-control[data-position="bottom-right"] {
-  cursor: se-resize;
+.custom-node.selected .react-flow__handle:hover {
+  opacity: 1 !important;
 }
 
 /* ReactFlow Dark Mode Styles */
