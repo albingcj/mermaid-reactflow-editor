@@ -1129,12 +1129,11 @@ textarea {
   box-shadow: 0 0 0 2px #1976D2 !important;
 }
 
-/* Reset locked node styles - no visual indication on nodes themselves */
+/* Locked nodes: preserve visual appearance (do not remove background or border). */
 .custom-node.locked {
-  /* Remove all visual styling for locked nodes */
-  border-style: solid;
-  border-color: inherit;
-  background-color: inherit;
+  /* Keep styling when a node is locked. Locked state should affect behavior
+     (draggable/handles) not the node's background or border. */
+  cursor: default; /* harmless, keeps rule non-empty for linters */
 }
 
 /* Remove lock icon and animations */
