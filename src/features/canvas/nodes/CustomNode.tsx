@@ -176,17 +176,16 @@ function CustomNodeInner(props: CustomNodeProps) {
         {isImageNode ? (
           <>
             <div className="node-image-container" style={{ color: (data?.style as any)?.iconColor || undefined }}>
-              <img 
-                src={data.imageUrl} 
-                alt={data.label || 'Node image'} 
+              <img
+                src={data.imageUrl}
+                alt={data.label || 'Node image'}
                 className="node-image"
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
+                style={{
+                  width: '100%',
+                  height: '100%',
                   objectFit: 'contain',
                   display: 'block',
-                  background: 'transparent',
-                  borderRadius: '8px'
+                  background: 'transparent'
                 }}
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
