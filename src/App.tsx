@@ -6,7 +6,6 @@ import { useAccordion } from "@/hooks/useAccordion";
 import { useToast } from "@/hooks/useToast";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { useDialog } from "@/hooks/useDialog";
-import { useNodeSelection } from "@/hooks/useNodeSelection";
 import { AppUI, AISettings } from "@/components/AppUI";
 import { DEFAULT_AI_SETTINGS } from "@/constants";
 import { logger } from "@/lib/logger";
@@ -20,11 +19,9 @@ function App() {
   const toast = useToast();
   const fullscreen = useFullscreen();
   const dialog = useDialog();
-  const nodeSelection = useNodeSelection();
-  
+
   // AI settings state
   const [aiSettings, setAiSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS as AISettings);
-  
   const [aiPrompt, setAiPrompt] = useState("");
 
   // Convert mermaid when source changes
@@ -57,7 +54,6 @@ function App() {
       toast={toast}
       fullscreen={fullscreen}
       dialog={dialog}
-      nodeSelection={nodeSelection}
       aiSettings={aiSettings}
       setAiSettings={setAiSettings}
       aiPrompt={aiPrompt}

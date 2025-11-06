@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Node } from 'reactflow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
+import { COLOR_PRESETS, DEFAULT_COLORS } from '@/constants';
 
 interface NodeEditorProps {
   node: Node | null;
@@ -13,43 +14,67 @@ interface NodeEditorProps {
   onClose: () => void;
 }
 
+type AccordionState = {
+  label: boolean;
+  description: boolean;
+  image: boolean;
+  style: boolean;
+};
+
 export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   const [label, setLabel] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [imageValid, setImageValid] = useState<boolean | null>(null);
   const [description, setDescription] = useState('');
-  const [backgroundColor, setBackgroundColor] = useState('#ffffff');
-  const [borderColor, setBorderColor] = useState('#222222');
-  const [iconColor, setIconColor] = useState('#000000');
+  const [backgroundColor, setBackgroundColor] = useState(DEFAULT_COLORS.background);
+  const [borderColor, setBorderColor] = useState(DEFAULT_COLORS.border);
+  const [iconColor, setIconColor] = useState(DEFAULT_COLORS.icon);
 
-  // Accordion states
-  const [labelOpen, setLabelOpen] = useState(true);
-  const [descOpen, setDescOpen] = useState(true);
-  const [imageOpen, setImageOpen] = useState(false);
-  const [styleOpen, setStyleOpen] = useState(false);
+  // Consolidated accordion state
+  const [accordionState, setAccordionState] = useState<AccordionState>({
+    label: true,
+    description: true,
+    image: false,
+    style: false,
+  });
+
+  const toggleAccordion = (key: keyof AccordionState) => {
+    setAccordionState(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   useEffect(() => {
     if (node) {
       setLabel(node.data.label || '');
       setImageUrl(node.data.imageUrl || '');
       setDescription(node.data.description || '');
-  setBackgroundColor(node.data?.style?.backgroundColor || node.style?.backgroundColor || '#ffffff');
-  setBorderColor(node.data?.style?.borderColor || node.style?.borderColor || '#222222');
-  setIconColor(node.data?.style?.iconColor || node.data?.iconColor || '#000000');
+      setBackgroundColor(
+        node.data?.style?.backgroundColor || node.style?.backgroundColor || DEFAULT_COLORS.background
+      );
+      setBorderColor(node.data?.style?.borderColor || node.style?.borderColor || DEFAULT_COLORS.border);
+      setIconColor(node.data?.style?.iconColor || node.data?.iconColor || DEFAULT_COLORS.icon);
     }
   }, [node]);
 
-  // Validate image URL and update preview status
+  // Validate image URL - using useMemo to derive state
+  const imageValid = useMemo(() => {
+    if (!imageUrl) return null;
+
+    // We still need async validation, so we'll use state for this
+    return undefined; // Will be handled by the effect below
+  }, [imageUrl]);
+
+  // Image validation effect
+  const [imageValidState, setImageValidState] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (!imageUrl) {
-      setImageValid(null);
+      setImageValidState(null);
       return;
     }
 
     let cancelled = false;
     const img = new Image();
-    img.onload = () => { if (!cancelled) setImageValid(true); };
-    img.onerror = () => { if (!cancelled) setImageValid(false); };
+    img.onload = () => { if (!cancelled) setImageValidState(true); };
+    img.onerror = () => { if (!cancelled) setImageValidState(false); };
     img.src = imageUrl;
 
     return () => { cancelled = true; };
@@ -66,12 +91,13 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
         ...(node.data?.style || {}),
         backgroundColor,
         borderColor,
-  iconColor,
+        iconColor,
         border: `2px solid ${borderColor}`,
       },
     });
     onClose();
   };
+
 
   return (
     <Dialog open={!!node} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -82,7 +108,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
 
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4 mt-2">
           {/* Label */}
-          <Collapsible open={labelOpen} onOpenChange={(v) => setLabelOpen(v)}>
+          <Collapsible open={accordionState.label} onOpenChange={() => toggleAccordion('label')}>
             <div className="flex items-center">
               <CollapsibleTrigger asChild>
                 <button type="button" className="w-full text-left py-2 font-medium">Label</button>
@@ -96,7 +122,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
           </Collapsible>
 
           {/* Description */}
-          <Collapsible open={descOpen} onOpenChange={(v) => setDescOpen(v)}>
+          <Collapsible open={accordionState.description} onOpenChange={() => toggleAccordion('description')}>
             <div className="flex items-center">
               <CollapsibleTrigger asChild>
                 <button type="button" className="w-full text-left py-2 font-medium">Description</button>
@@ -117,7 +143,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
 
           {/* Image / Icon */}
           {node.type !== 'group' && (
-            <Collapsible open={imageOpen} onOpenChange={(v) => setImageOpen(v)}>
+            <Collapsible open={accordionState.image} onOpenChange={() => toggleAccordion('image')}>
               <div className="flex items-center">
                 <CollapsibleTrigger asChild>
                   <button type="button" className="w-full text-left py-2 font-medium">Image</button>
@@ -125,23 +151,36 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
               </div>
               <CollapsibleContent>
                 <div className="mt-2">
-                  <Input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
+                  <Input
+                    type="url"
+                    value={imageUrl}
+                    onChange={e => setImageUrl(e.target.value)}
+                    placeholder="https://example.com/image.png"
+                  />
                   <div className="mt-2">
-                    {imageValid === true ? (
+                    {imageValidState === true ? (
                       <img src={imageUrl} alt="Preview" className="h-28 w-28 rounded-md object-cover border" />
-                    ) : imageValid === false && imageUrl ? (
-                      <div className="h-28 w-28 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border">Invalid image</div>
+                    ) : imageValidState === false && imageUrl ? (
+                      <div className="h-28 w-28 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border">
+                        Invalid image
+                      </div>
                     ) : null}
                   </div>
-
-                  {/* TODO: Implement IconSearch component for icon selection */}
-                  {/* <IconSearch onSelect={(url) => setImageUrl(url)} hideTrigger={true} open={imageOpen} onOpenChange={(v) => setImageOpen(v)} /> */}
 
                   {imageUrl && (
                     <div className="mt-3 flex items-center gap-2">
                       <label className="text-sm">Icon color</label>
-                      <input type="color" value={iconColor} onChange={e => setIconColor(e.target.value)} className="h-8 w-8 p-0 border-0" />
-                      <Input value={iconColor} onChange={e => setIconColor(e.target.value)} className="w-28" />
+                      <input
+                        type="color"
+                        value={iconColor}
+                        onChange={e => setIconColor(e.target.value)}
+                        className="h-8 w-8 p-0 border-0"
+                      />
+                      <Input
+                        value={iconColor}
+                        onChange={e => setIconColor(e.target.value)}
+                        className="w-28"
+                      />
                     </div>
                   )}
                 </div>
@@ -150,7 +189,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
           )}
 
           {/* Style */}
-          <Collapsible open={styleOpen} onOpenChange={(v) => setStyleOpen(v)}>
+          <Collapsible open={accordionState.style} onOpenChange={() => toggleAccordion('style')}>
             <div className="flex items-center">
               <CollapsibleTrigger asChild>
                 <button type="button" className="w-full text-left py-2 font-medium">Style</button>
@@ -158,44 +197,96 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
             </div>
             <CollapsibleContent>
               <div className="mt-2 flex gap-4 items-center">
+                {/* Background Color */}
                 <div className="flex items-center gap-2">
                   <label className="text-sm">Background</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick background color" type="button">
-                        <span className="block h-5 w-5 rounded-sm border" style={{ background: backgroundColor }} />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="Pick background color"
+                        type="button"
+                      >
+                        <span
+                          className="block h-5 w-5 rounded-sm border"
+                          style={{ background: backgroundColor }}
+                        />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent sideOffset={6} align="start" className="w-56">
                       <div className="flex items-center gap-2">
-                        <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
-                        <Input value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="w-28" />
+                        <input
+                          type="color"
+                          value={backgroundColor}
+                          onChange={e => setBackgroundColor(e.target.value)}
+                          className="h-10 w-10 p-0 border-0"
+                        />
+                        <Input
+                          value={backgroundColor}
+                          onChange={e => setBackgroundColor(e.target.value)}
+                          className="w-28"
+                        />
                       </div>
                       <div className="mt-3 grid grid-cols-7 gap-2">
-                        {['#ffffff','#f8fafc','#fde68a','#bfdbfe','#fecaca','#d1fae5','#ddd6fe'].map(c => (
-                          <button key={c} type="button" onClick={() => setBackgroundColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set background ${c}`} />
+                        {COLOR_PRESETS.background.map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setBackgroundColor(c)}
+                            className="h-6 w-6 rounded-sm border"
+                            style={{ background: c }}
+                            aria-label={`Set background ${c}`}
+                          />
                         ))}
                       </div>
                     </PopoverContent>
                   </Popover>
                 </div>
 
+                {/* Border Color */}
                 <div className="flex items-center gap-2">
                   <label className="text-sm">Border</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick border color" type="button">
-                        <span className="block h-5 w-5 rounded-sm border" style={{ background: borderColor }} />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="Pick border color"
+                        type="button"
+                      >
+                        <span
+                          className="block h-5 w-5 rounded-sm border"
+                          style={{ background: borderColor }}
+                        />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent sideOffset={6} align="start" className="w-56">
                       <div className="flex items-center gap-2">
-                        <input type="color" value={borderColor} onChange={e => setBorderColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
-                        <Input value={borderColor} onChange={e => setBorderColor(e.target.value)} className="w-28" />
+                        <input
+                          type="color"
+                          value={borderColor}
+                          onChange={e => setBorderColor(e.target.value)}
+                          className="h-10 w-10 p-0 border-0"
+                        />
+                        <Input
+                          value={borderColor}
+                          onChange={e => setBorderColor(e.target.value)}
+                          className="w-28"
+                        />
                       </div>
                       <div className="mt-3 grid grid-cols-7 gap-2">
-                        {['#222222','#000000','#64748b','#fb7185','#f59e0b','#34d399','#7c3aed'].map(c => (
-                          <button key={c} type="button" onClick={() => setBorderColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set border ${c}`} />
+                        {COLOR_PRESETS.border.map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setBorderColor(c)}
+                            className="h-6 w-6 rounded-sm border"
+                            style={{ background: c }}
+                            aria-label={`Set border ${c}`}
+                          />
                         ))}
                       </div>
                     </PopoverContent>
