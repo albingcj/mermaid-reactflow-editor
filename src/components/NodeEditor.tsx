@@ -87,7 +87,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
 
           <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
             {/* Content Tab */}
-            <TabsContent value="content" className="space-y-4 mt-0">
+            <TabsContent value="content" className="space-y-4 mt-0 min-h-[400px]">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Label</label>
                 <Input
@@ -109,7 +109,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
             </TabsContent>
 
             {/* Image Tab */}
-            <TabsContent value="image" className="space-y-4 mt-0">
+            <TabsContent value="image" className="space-y-4 mt-0 min-h-[400px]">
               {node.type !== 'group' ? (
                 <>
                   <div className="space-y-2">
@@ -180,7 +180,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
             </TabsContent>
 
             {/* Style Tab */}
-            <TabsContent value="style" className="space-y-4 mt-0">
+            <TabsContent value="style" className="space-y-4 mt-0 min-h-[400px]">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Background Color</label>
                 <div className="flex items-center gap-2">
