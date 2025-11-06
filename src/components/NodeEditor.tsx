@@ -7,6 +7,7 @@ import { Textarea } from './ui/textarea';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
 import { COLOR_PRESETS, DEFAULT_COLORS } from '@/constants';
+import IconSearch from './IconSearch';
 
 interface NodeEditorProps {
   node: Node | null;
@@ -150,37 +151,64 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
                 </CollapsibleTrigger>
               </div>
               <CollapsibleContent>
-                <div className="mt-2">
-                  <Input
-                    type="url"
-                    value={imageUrl}
-                    onChange={e => setImageUrl(e.target.value)}
-                    placeholder="https://example.com/image.png"
-                  />
-                  <div className="mt-2">
-                    {imageValidState === true ? (
-                      <img src={imageUrl} alt="Preview" className="h-28 w-28 rounded-md object-cover border" />
-                    ) : imageValidState === false && imageUrl ? (
-                      <div className="h-28 w-28 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border">
-                        Invalid image
-                      </div>
-                    ) : null}
+                <div className="mt-2 space-y-3">
+                  {/* URL Input */}
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Image URL</label>
+                    <Input
+                      type="url"
+                      value={imageUrl}
+                      onChange={e => setImageUrl(e.target.value)}
+                      placeholder="https://example.com/image.png"
+                    />
                   </div>
 
+                  {/* Icon Search Button */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">OR</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+
+                  <IconSearch
+                    onSelect={(url) => setImageUrl(url)}
+                    hideTrigger={false}
+                  />
+
+                  {/* Image Preview */}
                   {imageUrl && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <label className="text-sm">Icon color</label>
-                      <input
-                        type="color"
-                        value={iconColor}
-                        onChange={e => setIconColor(e.target.value)}
-                        className="h-8 w-8 p-0 border-0"
-                      />
-                      <Input
-                        value={iconColor}
-                        onChange={e => setIconColor(e.target.value)}
-                        className="w-28"
-                      />
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        {imageValidState === true ? (
+                          <img
+                            src={imageUrl}
+                            alt="Preview"
+                            className="h-28 w-28 rounded-md object-contain border bg-muted/30 p-2"
+                          />
+                        ) : imageValidState === false ? (
+                          <div className="h-28 w-28 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border">
+                            Invalid image
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* Icon Color Picker */}
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-muted-foreground">Icon color</label>
+                        <input
+                          type="color"
+                          value={iconColor}
+                          onChange={e => setIconColor(e.target.value)}
+                          className="h-8 w-8 p-0 border-0 rounded cursor-pointer"
+                          title="Pick icon color"
+                        />
+                        <Input
+                          value={iconColor}
+                          onChange={e => setIconColor(e.target.value)}
+                          className="w-28"
+                          placeholder="#000000"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
