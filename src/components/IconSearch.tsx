@@ -120,7 +120,7 @@ export default function IconSearch({ onSelect }: IconSearchProps) {
                   key={`${iconId}-${idx}`}
                   type="button"
                   onClick={() => handleSelectIcon(icon)}
-                  className="group aspect-square border rounded hover:border-primary hover:bg-accent transition-all p-1 flex items-center justify-center"
+                  className="group aspect-square border rounded hover:border-primary transition-all p-1 flex items-center justify-center checkerboard-bg"
                   title={iconId}
                   aria-label={iconId}
                 >
