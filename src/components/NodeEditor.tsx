@@ -4,7 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+import { COLOR_PRESETS, DEFAULT_COLORS } from '@/constants';
+import IconSearch from './IconSearch';
 
 interface NodeEditorProps {
   node: Node | null;
@@ -15,33 +18,36 @@ interface NodeEditorProps {
 export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
   const [label, setLabel] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [imageValid, setImageValid] = useState<boolean | null>(null);
   const [description, setDescription] = useState('');
-  const [backgroundColor, setBackgroundColor] = useState('#ffffff');
-  const [borderColor, setBorderColor] = useState('#222222');
+  const [backgroundColor, setBackgroundColor] = useState(DEFAULT_COLORS.background);
+  const [borderColor, setBorderColor] = useState(DEFAULT_COLORS.border);
+  const [iconColor, setIconColor] = useState(DEFAULT_COLORS.icon);
+  const [imageValidState, setImageValidState] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (node) {
       setLabel(node.data.label || '');
       setImageUrl(node.data.imageUrl || '');
       setDescription(node.data.description || '');
-  // Read visual style from node.data.style preferentially; fallback to node.style
-  setBackgroundColor(node.data?.style?.backgroundColor || node.style?.backgroundColor || '#ffffff');
-  setBorderColor(node.data?.style?.borderColor || node.style?.borderColor || '#222222');
+      setBackgroundColor(
+        node.data?.style?.backgroundColor || node.style?.backgroundColor || DEFAULT_COLORS.background
+      );
+      setBorderColor(node.data?.style?.borderColor || node.style?.borderColor || DEFAULT_COLORS.border);
+      setIconColor(node.data?.style?.iconColor || node.data?.iconColor || DEFAULT_COLORS.icon);
     }
   }, [node]);
 
-  // Validate image URL and update preview status
+  // Image validation effect
   useEffect(() => {
     if (!imageUrl) {
-      setImageValid(null);
+      setImageValidState(null);
       return;
     }
 
     let cancelled = false;
     const img = new Image();
-    img.onload = () => { if (!cancelled) setImageValid(true); };
-    img.onerror = () => { if (!cancelled) setImageValid(false); };
+    img.onload = () => { if (!cancelled) setImageValidState(true); };
+    img.onerror = () => { if (!cancelled) setImageValidState(false); };
     img.src = imageUrl;
 
     return () => { cancelled = true; };
@@ -58,6 +64,7 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
         ...(node.data?.style || {}),
         backgroundColor,
         borderColor,
+        iconColor,
         border: `2px solid ${borderColor}`,
       },
     });
@@ -66,97 +73,229 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
 
   return (
     <Dialog open={!!node} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-xl max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Edit {node.type === 'group' ? 'Subgraph' : 'Node'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4 mt-2">
-          <div>
-            <label className="block text-sm mb-1">Label</label>
-            <Input value={label} onChange={e => setLabel(e.target.value)} placeholder="Node label" />
-          </div>
+        <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="mx-6 grid w-auto grid-cols-3 mb-4">
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="image">Image</TabsTrigger>
+            <TabsTrigger value="style">Style</TabsTrigger>
+          </TabsList>
 
-          <div className="flex gap-4">
-            <div className="flex flex-col" style={{ flex: '1 1 65%', minWidth: 0 }}>
-              <label className="block text-sm mb-1">Description</label>
-              <Textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Add a description..."
-                className="h-40 resize-none overflow-y-auto custom-scrollbar"
-                style={{ resize: 'none' }}
-              />
-            </div>
+          <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
+            {/* Content Tab */}
+            <TabsContent value="content" className="space-y-4 mt-0 min-h-[400px]">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Label</label>
+                <Input
+                  value={label}
+                  onChange={e => setLabel(e.target.value)}
+                  placeholder="Node label"
+                />
+              </div>
 
-            {node.type !== 'group' && (
-              <div className="flex flex-col items-start" style={{ width: '260px', minWidth: 160 }}>
-                <label className="block text-sm mb-1">Image URL</label>
-                <Input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.png" />
-                <div className="mt-2">
-                  {imageValid === true ? (
-                    <img src={imageUrl} alt="Preview" className="h-28 w-28 rounded-md object-cover border" />
-                  ) : imageValid === false && imageUrl ? (
-                    <div className="h-28 w-28 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground border">Invalid image</div>
-                  ) : null}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Add a description..."
+                  className="h-32 resize-none"
+                />
+              </div>
+            </TabsContent>
+
+            {/* Image Tab */}
+            <TabsContent value="image" className="space-y-4 mt-0 min-h-[400px]">
+              {node.type !== 'group' ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Image URL</label>
+                    <Input
+                      type="url"
+                      value={imageUrl}
+                      onChange={e => setImageUrl(e.target.value)}
+                      placeholder="https://example.com/image.png"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">Or search icons</span>
+                    </div>
+                  </div>
+
+                  <IconSearch onSelect={(url) => setImageUrl(url)} />
+
+                  {imageUrl && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Preview</label>
+                        {imageValidState === true ? (
+                          <div className="flex items-center justify-center p-4 border rounded-lg bg-muted/30">
+                            <img
+                              src={imageUrl}
+                              alt="Preview"
+                              className="h-24 w-24 object-contain"
+                            />
+                          </div>
+                        ) : imageValidState === false ? (
+                          <div className="flex items-center justify-center p-4 border rounded-lg bg-destructive/10 text-destructive text-sm">
+                            Invalid image URL
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Icon Color</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={iconColor}
+                            onChange={e => setIconColor(e.target.value)}
+                            className="h-10 w-16 rounded border cursor-pointer"
+                          />
+                          <Input
+                            value={iconColor}
+                            onChange={e => setIconColor(e.target.value)}
+                            className="flex-1"
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Images are not available for subgraphs</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Style Tab */}
+            <TabsContent value="style" className="space-y-4 mt-0 min-h-[400px]">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Background Color</label>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={`h-10 w-16 rounded border ${backgroundColor === 'transparent' ? 'checkerboard-bg' : ''}`}
+                        style={{ background: backgroundColor === 'transparent' ? undefined : backgroundColor }}
+                        title="Pick background color"
+                      />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={backgroundColor}
+                            onChange={e => setBackgroundColor(e.target.value)}
+                            className="h-10 w-10 rounded border-0"
+                          />
+                          <Input
+                            value={backgroundColor}
+                            onChange={e => setBackgroundColor(e.target.value)}
+                            className="flex-1"
+                          />
+                        </div>
+                        <div className="grid grid-cols-8 gap-1.5">
+                          {COLOR_PRESETS.background.map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setBackgroundColor(c)}
+                              className={`h-7 w-7 rounded border hover:scale-110 transition-transform ${c === 'transparent' ? 'checkerboard-bg' : ''}`}
+                              style={{ background: c === 'transparent' ? undefined : c }}
+                              aria-label={`Set background ${c}`}
+                              title={c === 'transparent' ? 'Transparent' : c}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Input
+                    value={backgroundColor}
+                    onChange={e => setBackgroundColor(e.target.value)}
+                    className="flex-1"
+                    placeholder="#ffffff"
+                  />
                 </div>
               </div>
-            )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Border Color</label>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={`h-10 w-16 rounded border ${borderColor === 'transparent' ? 'checkerboard-bg' : ''}`}
+                        style={{ background: borderColor === 'transparent' ? undefined : borderColor }}
+                        title="Pick border color"
+                      />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={borderColor}
+                            onChange={e => setBorderColor(e.target.value)}
+                            className="h-10 w-10 rounded border-0"
+                          />
+                          <Input
+                            value={borderColor}
+                            onChange={e => setBorderColor(e.target.value)}
+                            className="flex-1"
+                          />
+                        </div>
+                        <div className="grid grid-cols-8 gap-1.5">
+                          {COLOR_PRESETS.border.map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setBorderColor(c)}
+                              className={`h-7 w-7 rounded border hover:scale-110 transition-transform ${c === 'transparent' ? 'checkerboard-bg' : ''}`}
+                              style={{ background: c === 'transparent' ? undefined : c }}
+                              aria-label={`Set border ${c}`}
+                              title={c === 'transparent' ? 'Transparent' : c}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Input
+                    value={borderColor}
+                    onChange={e => setBorderColor(e.target.value)}
+                    className="flex-1"
+                    placeholder="#222222"
+                  />
+                </div>
+              </div>
+            </TabsContent>
           </div>
+        </Tabs>
 
-          <div className="flex gap-4 items-center">
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Background</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick background color">
-                    <span className="block h-5 w-5 rounded-sm border" style={{ background: backgroundColor }} />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent sideOffset={6} align="start" className="w-56">
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
-                    <Input value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="w-28" />
-                  </div>
-                  <div className="mt-3 grid grid-cols-7 gap-2">
-                    {['#ffffff','#f8fafc','#fde68a','#bfdbfe','#fecaca','#d1fae5','#ddd6fe'].map(c => (
-                      <button key={c} type="button" onClick={() => setBackgroundColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set background ${c}`} />
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Border</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Pick border color">
-                    <span className="block h-5 w-5 rounded-sm border" style={{ background: borderColor }} />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent sideOffset={6} align="start" className="w-56">
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={borderColor} onChange={e => setBorderColor(e.target.value)} className="h-10 w-10 p-0 border-0" />
-                    <Input value={borderColor} onChange={e => setBorderColor(e.target.value)} className="w-28" />
-                  </div>
-                  <div className="mt-3 grid grid-cols-7 gap-2">
-                    {['#222222','#000000','#64748b','#fb7185','#f59e0b','#34d399','#7c3aed'].map(c => (
-                      <button key={c} type="button" onClick={() => setBorderColor(c)} className="h-6 w-6 rounded-sm border" style={{ background: c }} aria-label={`Set border ${c}`} />
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <div className="flex gap-2 ml-auto">
-              <Button variant="outline" onClick={onClose} type="button">Cancel</Button>
-              <Button type="submit">Save</Button>
-            </div>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="px-6 pb-6 pt-4 border-t">
+          <Button variant="outline" onClick={onClose} type="button">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} type="button">
+            Save Changes
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

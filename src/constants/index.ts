@@ -5,3 +5,4 @@ export * from './panels';
 export * from './alignment';
 export * from './nodeShapes';
 export * from './layout';
+export * from './colors';

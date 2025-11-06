@@ -715,8 +715,8 @@ textarea {
 
 /* Image Node Styles */
 .custom-node.has-image {
-  padding: 8px;
-  background: transparent !important;
+  padding: 0;
+  background: transparent;
   border: none;
   overflow: visible;
   width: 100%;
@@ -730,20 +730,19 @@ textarea {
   width: 100%;
   height: 100%;
   display: block;
-  background: transparent !important;
+  background: inherit;
 }
 
 .node-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  /* border-radius: 8px; */
   transition: all 0.3s ease;
   border: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: none;
   display: block;
-  background: transparent !important;
-  border-radius: 0% !important;
+  background: transparent;
+  border-radius: 0;
 }
 
 .custom-node.has-image.selected .node-image {
@@ -816,7 +815,6 @@ textarea {
   width: 100%;
   height: 100%;
   position: relative;
-  background: transparent !important;
 }
 
 .custom-node.has-image .node-image-container {
@@ -825,7 +823,7 @@ textarea {
   left: 0;
   right: 0;
   bottom: 0;
-  background: transparent !important;
+  background: inherit;
 }
 
 .node-label div {
@@ -1708,5 +1706,26 @@ textarea {
   background-color: hsl(var(--card));
   color: hsl(var(--muted-foreground));
   border: 1px solid hsl(var(--border));
+}
+
+/* Checkerboard pattern for transparent icons */
+.checkerboard-bg {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+    linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+}
+
+.dark .checkerboard-bg {
+  background-color: #1f2937;
+  background-image:
+    linear-gradient(45deg, #374151 25%, transparent 25%),
+    linear-gradient(-45deg, #374151 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #374151 75%),
+    linear-gradient(-45deg, transparent 75%, #374151 75%);
 }
 
