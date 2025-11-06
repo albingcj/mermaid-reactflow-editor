@@ -5,7 +5,8 @@
       "Bash(tree:*)",
       "Bash(cat:*)",
       "Bash(npm run dev)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run build)"
     ],
     "deny": [],
     "ask": []

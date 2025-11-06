@@ -18,10 +18,10 @@
     "tailwindcss": "^4.1.9",
     "typescript": "^5",
     "vitest": "^0.31.0",
-    "@testing-library/react": "^14.0.0",
+    "@testing-library/react": "^16.0.1",
     "@testing-library/jest-dom": "^6.0.0",
-    "@vitest/coverage-c8": "^1.0.0",
-    "vitest-environment-jsdom": "^0.0.1"
+    "@vitest/coverage-c8": "^0.31.0",
+    "jsdom": "^22.0.0"
   },
   "keywords": [],
   "author": "",
