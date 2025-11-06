@@ -43,13 +43,6 @@ The app reads Mermaid code blocks from Markdown or pasted text, converts the Mer
 - Save/load diagrams to browser `localStorage` with basic metadata.
 - Simple Mermaid SVG preview component with zoom/pan controls.
 
-<a id="demo"></a>
-## Demo
-
-
-https://github.com/user-attachments/assets/c2e29d34-8712-40ee-b89e-70d4da5821f3
-
-
 
 
 <a id="quick-start"></a>
