@@ -4,6 +4,7 @@
 
 export const COLOR_PRESETS = {
   background: [
+    'transparent',
     '#ffffff',
     '#f8fafc',
     '#fde68a',
@@ -13,6 +14,7 @@ export const COLOR_PRESETS = {
     '#ddd6fe',
   ],
   border: [
+    'transparent',
     '#222222',
     '#000000',
     '#64748b',

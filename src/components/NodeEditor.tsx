@@ -188,8 +188,8 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="h-10 w-16 rounded border"
-                        style={{ background: backgroundColor }}
+                        className={`h-10 w-16 rounded border ${backgroundColor === 'transparent' ? 'checkerboard-bg' : ''}`}
+                        style={{ background: backgroundColor === 'transparent' ? undefined : backgroundColor }}
                         title="Pick background color"
                       />
                     </PopoverTrigger>
@@ -208,15 +208,16 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
                             className="flex-1"
                           />
                         </div>
-                        <div className="grid grid-cols-7 gap-2">
+                        <div className="grid grid-cols-8 gap-1.5">
                           {COLOR_PRESETS.background.map(c => (
                             <button
                               key={c}
                               type="button"
                               onClick={() => setBackgroundColor(c)}
-                              className="h-8 w-8 rounded border hover:scale-110 transition-transform"
-                              style={{ background: c }}
+                              className={`h-7 w-7 rounded border hover:scale-110 transition-transform ${c === 'transparent' ? 'checkerboard-bg' : ''}`}
+                              style={{ background: c === 'transparent' ? undefined : c }}
                               aria-label={`Set background ${c}`}
+                              title={c === 'transparent' ? 'Transparent' : c}
                             />
                           ))}
                         </div>
@@ -239,8 +240,8 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="h-10 w-16 rounded border"
-                        style={{ background: borderColor }}
+                        className={`h-10 w-16 rounded border ${borderColor === 'transparent' ? 'checkerboard-bg' : ''}`}
+                        style={{ background: borderColor === 'transparent' ? undefined : borderColor }}
                         title="Pick border color"
                       />
                     </PopoverTrigger>
@@ -259,15 +260,16 @@ export function NodeEditor({ node, onUpdate, onClose }: NodeEditorProps) {
                             className="flex-1"
                           />
                         </div>
-                        <div className="grid grid-cols-7 gap-2">
+                        <div className="grid grid-cols-8 gap-1.5">
                           {COLOR_PRESETS.border.map(c => (
                             <button
                               key={c}
                               type="button"
                               onClick={() => setBorderColor(c)}
-                              className="h-8 w-8 rounded border hover:scale-110 transition-transform"
-                              style={{ background: c }}
+                              className={`h-7 w-7 rounded border hover:scale-110 transition-transform ${c === 'transparent' ? 'checkerboard-bg' : ''}`}
+                              style={{ background: c === 'transparent' ? undefined : c }}
                               aria-label={`Set border ${c}`}
+                              title={c === 'transparent' ? 'Transparent' : c}
                             />
                           ))}
                         </div>
