@@ -175,7 +175,7 @@ function CustomNodeInner(props: CustomNodeProps) {
       <div className="node-content">
         {isImageNode ? (
           <>
-            <div className="node-image-container">
+            <div className="node-image-container" style={{ color: (data?.style as any)?.iconColor || undefined }}>
               <img 
                 src={data.imageUrl} 
                 alt={data.label || 'Node image'} 

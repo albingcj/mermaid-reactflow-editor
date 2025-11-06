@@ -716,7 +716,7 @@ textarea {
 /* Image Node Styles */
 .custom-node.has-image {
   padding: 8px;
-  background: transparent !important;
+  background: transparent;
   border: none;
   overflow: visible;
   width: 100%;
@@ -730,7 +730,7 @@ textarea {
   width: 100%;
   height: 100%;
   display: block;
-  background: transparent !important;
+  background: inherit;
 }
 
 .node-image {
@@ -742,8 +742,8 @@ textarea {
   border: none;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   display: block;
-  background: transparent !important;
-  border-radius: 0% !important;
+  background: transparent;
+  border-radius: 0%;
 }
 
 .custom-node.has-image.selected .node-image {
@@ -816,7 +816,6 @@ textarea {
   width: 100%;
   height: 100%;
   position: relative;
-  background: transparent !important;
 }
 
 .custom-node.has-image .node-image-container {
@@ -825,7 +824,7 @@ textarea {
   left: 0;
   right: 0;
   bottom: 0;
-  background: transparent !important;
+  background: inherit;
 }
 
 .node-label div {

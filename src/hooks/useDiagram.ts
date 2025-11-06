@@ -1,32 +1,11 @@
 import { useState, useCallback, useRef } from "react";
-import { Node, Edge } from "reactflow";
 import { convertMermaidToReactFlow, ReactFlowData } from "@/features/diagram/converter";
 import { DEFAULT_AI_SETTINGS } from "@/constants";
+import type { SavedDiagram, UseDiagramReturn } from "@/types/hooks";
+import { logger } from "@/lib/logger";
 
-export interface SavedDiagram {
-  id: string;
-  name: string;
-  mermaid: string;
-  nodes: Node[];
-  edges: Edge[];
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface UseDiagramReturn {
-  mermaidSource: string;
-  setMermaidSource: (source: string) => void;
-  flowData: ReactFlowData;
-  setFlowData: (data: ReactFlowData) => void;
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-  isStreaming: boolean;
-  setIsStreaming: (streaming: boolean) => void;
-  savedDiagrams: SavedDiagram[];
-  setSavedDiagrams: (diagrams: SavedDiagram[]) => void;
-  lastAppliedMermaidRef: React.MutableRefObject<string>;
-  convertMermaid: (source: string) => Promise<void>;
-}
+// Re-export types for backward compatibility
+export type { SavedDiagram, UseDiagramReturn } from "@/types/hooks";
 
 export const useDiagram = (): UseDiagramReturn => {
   const [mermaidSource, setMermaidSource] = useState<string>("");
@@ -48,7 +27,7 @@ export const useDiagram = (): UseDiagramReturn => {
       setFlowData(data);
       lastAppliedMermaidRef.current = source;
     } catch (err) {
-      console.error('Conversion failed', err);
+      logger.error('Conversion failed', err);
     } finally {
       setLoading(false);
     }

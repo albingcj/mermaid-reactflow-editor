@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/useToast";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { useDialog } from "@/hooks/useDialog";
 import { useNodeSelection } from "@/hooks/useNodeSelection";
-import { AppUI } from "@/components/AppUI";
+import { AppUI, AISettings } from "@/components/AppUI";
 import { DEFAULT_AI_SETTINGS } from "@/constants";
+import { logger } from "@/lib/logger";
 
 function App() {
   // Custom hooks for state management
@@ -22,7 +23,7 @@ function App() {
   const nodeSelection = useNodeSelection();
   
   // AI settings state
-  const [aiSettings, setAiSettings] = useState(DEFAULT_AI_SETTINGS);
+  const [aiSettings, setAiSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS as AISettings);
   
   const [aiPrompt, setAiPrompt] = useState("");
 
@@ -31,7 +32,7 @@ function App() {
     if (diagram.mermaidSource.trim() && diagram.mermaidSource !== diagram.lastAppliedMermaidRef.current) {
       diagram.convertMermaid(diagram.mermaidSource);
     }
-  }, [diagram.mermaidSource, diagram.convertMermaid, diagram.lastAppliedMermaidRef]);
+  }, [diagram.mermaidSource, diagram.convertMermaid]);
 
   // Load saved diagrams from sessionStorage on mount
   useEffect(() => {
@@ -42,9 +43,10 @@ function App() {
         diagram.setSavedDiagrams(parsed);
       }
     } catch (e) {
-      console.warn("Failed to load saved diagrams from sessionStorage", e);
+      logger.warn("Failed to load saved diagrams from sessionStorage", e);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   return (
     <AppUI

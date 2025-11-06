@@ -1,10 +1,9 @@
-// @ts-nocheck
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import mermaid from 'mermaid';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Info } from 'lucide-react';
-// AlertTriangle import removed; using inline error block now
+import { logger } from '@/lib/logger';
 
 export interface MermaidRendererProps {
   code: string;
@@ -87,10 +86,11 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
     container.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     // Safari/iOS gesture events (optional, fallback)
-    const handleGesture = (e: any) => {
+    const handleGesture = (e: Event) => {
       e.preventDefault();
+      const gestureEvent = e as unknown as { scale: number };
       setZoom(prev => {
-        let next = prev * e.scale;
+        let next = prev * gestureEvent.scale;
         next = Math.max(MIN_ZOOM, Math.min(next, MAX_ZOOM)); // Fixed: Use MAX_ZOOM constant
         if (next <= 1) setPan({ x: 0, y: 0 });
         return next;
@@ -177,8 +177,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         }
       } catch (e) {
         // defensive: ignore DOM errors
-        // eslint-disable-next-line no-console
-        console.warn('removeInjectedMermaidDivs failed', e);
+        logger.warn('removeInjectedMermaidDivs failed', e);
       }
     };
 
@@ -221,7 +220,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
   // Do not force huge intrinsic layout sizes; rely on outer transform and max constraints
       svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   svgEl.style.display = 'block';
-  ;(svgEl as any).style.margin = 'auto';
+  svgEl.style.margin = 'auto';
   svgEl.style.width = 'auto';
   svgEl.style.height = 'auto';
   svgEl.style.maxWidth = '100%';
@@ -236,7 +235,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, classNam
         // cleanup any previous injected nodes before rendering
         removeInjectedMermaidDivs();
   // Render into our own container to avoid Mermaid creating global temp nodes
-  const { svg } = await mermaid.render(uniqueId, code, undefined, ref.current || undefined);
+  const { svg } = await mermaid.render(uniqueId, code, ref.current || undefined);
     if (!cancelled && ref.current) {
           ref.current.innerHTML = svg;
           // Fit after render and layout

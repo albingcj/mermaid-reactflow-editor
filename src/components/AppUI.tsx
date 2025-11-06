@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { Node, Edge } from "reactflow";
 import { FlowDiagram } from "@/features/canvas/FlowDiagram";
 import MermaidEditor from "@/features/editor/MermaidEditor";
 import { MermaidRenderer } from "@/features/diagram/MermaidRenderer";
@@ -86,23 +87,35 @@ import {
   BoxSelect
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type {
+  UseDiagramReturn,
+  UseThemeReturn,
+  UsePanelVisibilityReturn,
+  UseAccordionReturn,
+  UseToastReturn,
+  UseFullscreenReturn,
+  UseDialogReturn,
+  UseNodeSelectionReturn,
+} from "@/types";
+
+export interface AISettings {
+  apiKey: string;
+  model: string;
+  isEditingSettings: boolean;
+  provider: string;
+}
 
 export interface AppUIProps {
-  diagram: any;
-  theme: any;
-  panel: any;
-  accordion: any;
-  toast: any;
-  fullscreen: any;
-  dialog: any;
-  nodeSelection: any;
-  aiSettings: {
-    apiKey: string;
-    model: string;
-    isEditingSettings: boolean;
-    provider: string;
-  };
-  setAiSettings: (settings: any) => void;
+  diagram: UseDiagramReturn;
+  theme: UseThemeReturn;
+  panel: UsePanelVisibilityReturn;
+  accordion: UseAccordionReturn;
+  toast: UseToastReturn;
+  fullscreen: UseFullscreenReturn;
+  dialog: UseDialogReturn;
+  nodeSelection: UseNodeSelectionReturn;
+  aiSettings: AISettings;
+  setAiSettings: React.Dispatch<React.SetStateAction<AISettings>>;
   aiPrompt: string;
   setAiPrompt: (prompt: string) => void;
 }
@@ -169,13 +182,13 @@ export function AppUI({
   }, []);
 
   // Handle nodes change
-  const handleNodesChange = useCallback((nodes: any[]) => {
-    diagram.setFlowData((prev: any) => ({ ...prev, nodes }));
+  const handleNodesChange = useCallback((nodes: Node[]) => {
+    diagram.setFlowData((prev) => ({ ...prev, nodes }));
   }, [diagram]);
 
   // Handle edges change
-  const handleEdgesChange = useCallback((edges: any[]) => {
-    diagram.setFlowData((prev: any) => ({ ...prev, edges }));
+  const handleEdgesChange = useCallback((edges: Edge[]) => {
+    diagram.setFlowData((prev) => ({ ...prev, edges }));
   }, [diagram]);
 
   // Handle save diagram
@@ -205,7 +218,7 @@ export function AppUI({
     diagram.lastAppliedMermaidRef.current = diagram.mermaidSource;
     toast.showToast('Diagram saved to session', 'success');
     // show saved list
-    accordion.setAccordionOpen((prev: any) => ({ ...prev, saved: true }));
+    accordion.setAccordionOpen((prev) => ({ ...prev, saved: true }));
   }, [diagram, toast, accordion]);
 
   // Handle export to JSON
@@ -289,8 +302,8 @@ export function AppUI({
                       apiKey={aiSettings.apiKey}
                       model={aiSettings.model}
                       userInput={aiPrompt}
-                      onApiKeyChange={(v: string) => setAiSettings((s: any) => ({ ...s, apiKey: v }))}
-                      onModelChange={(v: string) => setAiSettings((s: any) => ({ ...s, model: v }))}
+                      onApiKeyChange={(v: string) => setAiSettings((s) => ({ ...s, apiKey: v }))}
+                      onModelChange={(v: string) => setAiSettings((s) => ({ ...s, model: v }))}
                       onUserInputChange={(v: string) => setAiPrompt(v)}
                       onClose={() => {}}
                       onChunk={(partial: string) => {
@@ -448,7 +461,7 @@ export function AppUI({
           </div>
 
           {/* Theme selector */}
-          <Select value={theme.themePref} onValueChange={(v: string) => theme.setThemePref(v as any)}>
+          <Select value={theme.themePref} onValueChange={(v) => theme.setThemePref(v as 'light' | 'dark' | 'system')}>
             <SelectTrigger size="sm" className="h-8">
               {/* Icon-only trigger (screen-reader label present via aria) */}
               <div className="flex items-center">
@@ -592,8 +605,8 @@ export function AppUI({
                       apiKey={aiSettings.apiKey}
                       model={aiSettings.model}
                       userInput={aiPrompt}
-                      onApiKeyChange={(v: string) => setAiSettings((s: any) => ({ ...s, apiKey: v }))}
-                      onModelChange={(v: string) => setAiSettings((s: any) => ({ ...s, model: v }))}
+                      onApiKeyChange={(v: string) => setAiSettings((s) => ({ ...s, apiKey: v }))}
+                      onModelChange={(v: string) => setAiSettings((s) => ({ ...s, model: v }))}
                       onUserInputChange={(v: string) => setAiPrompt(v)}
                       onClose={() => {}}
                       onChunk={(partial: string) => {
@@ -747,7 +760,7 @@ export function AppUI({
                         </p>
                         <Button
                           onClick={() => {
-                            accordion.setAccordionOpen((prev: any) => ({ ...prev, editor: true }));
+                            accordion.setAccordionOpen((prev) => ({ ...prev, editor: true }));
                           }}
                           className="gap-2"
                         >
