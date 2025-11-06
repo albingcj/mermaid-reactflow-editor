@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { searchIconify, IconResult } from '@/lib/iconify';
@@ -9,12 +9,20 @@ interface IconSearchProps {
   onSelect: (iconUrl: string) => void;
 }
 
+const ICONS_PER_PAGE = 48;
+
 export default function IconSearch({ onSelect }: IconSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<IconResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const currentQueryRef = useRef('');
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -22,11 +30,16 @@ export default function IconSearch({ onSelect }: IconSearchProps) {
     setLoading(true);
     setError('');
     setResults([]);
+    setOffset(0);
+    setHasMore(true);
+    currentQueryRef.current = query;
 
     try {
-      const icons = await searchIconify(query, 32); // Reduced to 32 for better performance
+      const icons = await searchIconify(query, ICONS_PER_PAGE, 0);
       setResults(icons);
       setIsExpanded(true);
+      setHasMore(icons.length === ICONS_PER_PAGE);
+      setOffset(ICONS_PER_PAGE);
       if (icons.length === 0) {
         setError('No icons found. Try a different search term.');
       }
@@ -37,6 +50,26 @@ export default function IconSearch({ onSelect }: IconSearchProps) {
       setLoading(false);
     }
   };
+
+  const loadMore = useCallback(async () => {
+    if (!currentQueryRef.current || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const icons = await searchIconify(currentQueryRef.current, ICONS_PER_PAGE, offset);
+      if (icons.length > 0) {
+        setResults(prev => [...prev, ...icons]);
+        setOffset(prev => prev + ICONS_PER_PAGE);
+        setHasMore(icons.length === ICONS_PER_PAGE);
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      logger.error('Failed to load more icons:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [offset, loadingMore, hasMore]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -51,6 +84,9 @@ export default function IconSearch({ onSelect }: IconSearchProps) {
     setQuery('');
     setResults([]);
     setIsExpanded(false);
+    setOffset(0);
+    setHasMore(true);
+    currentQueryRef.current = '';
   };
 
   const handleClear = () => {
@@ -58,7 +94,24 @@ export default function IconSearch({ onSelect }: IconSearchProps) {
     setResults([]);
     setError('');
     setIsExpanded(false);
+    setOffset(0);
+    setHasMore(true);
+    currentQueryRef.current = '';
   };
+
+  // Set up intersection observer for infinite scroll
+  const lastIconRef = useCallback((node: HTMLButtonElement | null) => {
+    if (loading || loadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMore();
+      }
+    });
+
+    if (node) observerRef.current.observe(node);
+  }, [loading, loadingMore, hasMore, loadMore]);
 
   return (
     <div className="space-y-2">
@@ -114,10 +167,12 @@ export default function IconSearch({ onSelect }: IconSearchProps) {
             {results.map((icon, idx) => {
               const iconId = `${icon.prefix}:${icon.name}`;
               const iconUrl = `https://api.iconify.design/${icon.prefix}/${icon.name}.svg`;
+              const isLastIcon = idx === results.length - 1;
 
               return (
                 <button
                   key={`${iconId}-${idx}`}
+                  ref={isLastIcon ? lastIconRef : null}
                   type="button"
                   onClick={() => handleSelectIcon(icon)}
                   className="group aspect-square border rounded hover:border-primary transition-all p-1 flex items-center justify-center checkerboard-bg"
@@ -134,8 +189,17 @@ export default function IconSearch({ onSelect }: IconSearchProps) {
               );
             })}
           </div>
+
+          {/* Loading More Indicator */}
+          {loadingMore && (
+            <div className="flex items-center justify-center py-2 gap-2">
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">Loading more...</span>
+            </div>
+          )}
+
           <div className="text-center text-[10px] text-muted-foreground pt-2 border-t mt-2">
-            {results.length} icons found
+            {results.length} icons loaded{hasMore ? ' • Scroll for more' : ''}
           </div>
         </div>
       )}
