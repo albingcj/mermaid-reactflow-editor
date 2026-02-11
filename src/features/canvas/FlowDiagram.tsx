@@ -1,5 +1,5 @@
-// @ts-nocheck
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { unstable_batchedUpdates } from 'react-dom';
 import ReactFlow, {
   Connection,
   ConnectionLineType,
@@ -140,13 +140,15 @@ function FlowDiagramInternal({
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       const hasSelectChange = changes.some((c) => c.type === 'select');
-      setNodes((nds) => {
-        const updated = applyNodeChanges(changes, nds);
-        if (hasSelectChange) {
-          const sel = updated.filter((n) => n.selected);
-          setSelectedNodes(sel);
-        }
-        return updated;
+      unstable_batchedUpdates(() => {
+        setNodes((nds) => {
+          const updated = applyNodeChanges(changes, nds);
+          if (hasSelectChange) {
+            const sel = updated.filter((n) => n.selected);
+            setSelectedNodes(sel);
+          }
+          return updated;
+        });
       });
     },
     [setNodes]
@@ -155,13 +157,15 @@ function FlowDiagramInternal({
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       const hasSelectChange = changes.some((c) => c.type === 'select');
-      setEdges((eds) => {
-        const updated = applyEdgeChanges(changes, eds);
-        if (hasSelectChange) {
-          const sel = updated.filter((e) => e.selected);
-          setSelectedEdges(sel);
-        }
-        return updated;
+      unstable_batchedUpdates(() => {
+        setEdges((eds) => {
+          const updated = applyEdgeChanges(changes, eds);
+          if (hasSelectChange) {
+            const sel = updated.filter((e) => e.selected);
+            setSelectedEdges(sel);
+          }
+          return updated;
+        });
       });
     },
     [setEdges]
@@ -248,8 +252,7 @@ function FlowDiagramInternal({
     if (onSelectionChange) {
       onSelectionChange(selectedNodes, selectedEdges);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNodes, selectedEdges]);
+  }, [selectedNodes, selectedEdges, onSelectionChange]);
 
   const handleNodeUpdate = useCallback(
     (nodeId: string, data: any) => {
@@ -338,12 +341,11 @@ function FlowDiagramInternal({
   const onLockNodes = useCallback(() => {
     const newNodes = lockNodes(nodes, selectedNodes);
     setNodes(newNodes);
-    // Update selectedNodes to reflect the new locked state
+    // Update selectedNodes to reflect the new locked state, filtering out any that no longer exist
     setSelectedNodes(prevSelected => 
-      prevSelected.map(selectedNode => {
-        const updatedNode = newNodes.find(n => n.id === selectedNode.id);
-        return updatedNode || selectedNode;
-      })
+      prevSelected
+        .map(selectedNode => newNodes.find(n => n.id === selectedNode.id))
+        .filter((node): node is Node => node !== undefined)
     );
     if (onNodesChangeCallback) onNodesChangeCallback(newNodes);
   }, [selectedNodes, nodes, onNodesChangeCallback]);
@@ -351,12 +353,11 @@ function FlowDiagramInternal({
   const onUnlockNodes = useCallback(() => {
     const newNodes = unlockNodes(nodes, selectedNodes);
     setNodes(newNodes);
-    // Update selectedNodes to reflect the new unlocked state
+    // Update selectedNodes to reflect the new unlocked state, filtering out any that no longer exist
     setSelectedNodes(prevSelected => 
-      prevSelected.map(selectedNode => {
-        const updatedNode = newNodes.find(n => n.id === selectedNode.id);
-        return updatedNode || selectedNode;
-      })
+      prevSelected
+        .map(selectedNode => newNodes.find(n => n.id === selectedNode.id))
+        .filter((node): node is Node => node !== undefined)
     );
     if (onNodesChangeCallback) onNodesChangeCallback(newNodes);
   }, [selectedNodes, nodes, onNodesChangeCallback]);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, memo } from 'react';
+import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 
 interface CustomNodeData {
@@ -51,6 +51,22 @@ function CustomNodeInner(props: CustomNodeProps) {
     [data.imageUrl]
   );
 
+  // Truncate caption for display
+  const truncateCaption = useCallback((text: string, maxLength: number = 20) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
+  }, []);
+
+  const displayCaption = useMemo(() => {
+    if (!data.label?.trim()) return '';
+    return truncateCaption(data.label, 20);
+  }, [data.label, truncateCaption]);
+
+  const hasLongCaption = useMemo(() => {
+    return (data.label?.length || 0) > 20;
+  }, [data.label]);
+
   // Load image and calculate aspect ratio
   useEffect(() => {
     if (!isImageNode) {
@@ -58,28 +74,40 @@ function CustomNodeInner(props: CustomNodeProps) {
       return;
     }
 
+    let cancelled = false;
     const img = new Image();
-    img.onload = () => setImageAspect(img.naturalWidth / img.naturalHeight);
-    img.onerror = () => setImageAspect(null);
+    img.onload = () => {
+      if (!cancelled) {
+        setImageAspect(img.naturalWidth / img.naturalHeight);
+      }
+    };
+    img.onerror = () => {
+      if (!cancelled) {
+        setImageAspect(null);
+      }
+    };
     img.src = data.imageUrl!;
     
     return () => {
+      cancelled = true;
       img.onload = null;
       img.onerror = null;
     };
   }, [data.imageUrl, isImageNode]);
 
-  // Memoize class name calculation
-  const nodeClassName = useMemo(() => {
+  // Memoize base class name calculation (without selection state)
+  const baseClassName = useMemo(() => {
     const classes = ['custom-node', `shape-${data.shape || 'rect'}`];
     
     if (data.imageUrl) classes.push('has-image');
     if (data.shape === 'diamond') classes.push('diamond-node');
-    if (selected) classes.push('selected');
     if (data.locked) classes.push('locked');
     
     return classes.join(' ');
-  }, [data.shape, data.imageUrl, data.locked, selected]);
+  }, [data.shape, data.imageUrl, data.locked]);
+
+  // Apply selection state without recalculating base classes
+  const nodeClassName = selected ? `${baseClassName} selected` : baseClassName;
 
   // Memoize merged styles
   const mergedStyle = useMemo<React.CSSProperties>(() => ({
@@ -172,7 +200,7 @@ function CustomNodeInner(props: CustomNodeProps) {
       )}
       
       {/* Node Content */}
-      <div className="node-content">
+      <div className="node-content" style={{ position: 'relative' }}>
         {isImageNode ? (
           <>
             <div className="node-image-container" style={{ color: (data?.style as any)?.iconColor || undefined }}>
@@ -212,8 +240,21 @@ function CustomNodeInner(props: CustomNodeProps) {
               </div>
             </div>
             {data.label?.trim() && (
-              <div className="image-caption" title={data.label}>
-                {data.label}
+              <div 
+                className="image-caption" 
+                title={hasLongCaption ? `${data.label} (hover to see full text)` : data.label}
+                data-full-text={data.label}
+              >
+                {displayCaption}
+                {hasLongCaption && (
+                  <span style={{ 
+                    marginLeft: '2px', 
+                    opacity: 0.6,
+                    fontSize: '9px'
+                  }}>
+                    ⓘ
+                  </span>
+                )}
               </div>
             )}
           </>
