@@ -47,6 +47,8 @@ export interface AppUIProps {
   setAiSettings: React.Dispatch<React.SetStateAction<AISettings>>;
   aiPrompt: string;
   setAiPrompt: (prompt: string) => void;
+  appMode?: 'diagram' | 'architecture';
+  onToggleMode?: () => void;
 }
 
 export function AppUI({
@@ -60,7 +62,9 @@ export function AppUI({
   aiSettings,
   setAiSettings,
   aiPrompt,
-  setAiPrompt
+  setAiPrompt,
+  appMode,
+  onToggleMode
 }: AppUIProps) {
   const flowMethodsRef = useRef<{
     openSearch?: () => void;
@@ -184,6 +188,8 @@ export function AppUI({
         onExportJSON={handleExportToJSON}
         onToggleMobileMenu={dialog.toggleMobileMenu}
         isMobileMenuOpen={dialog.isMobileMenuOpen}
+        appMode={appMode}
+        onToggleMode={onToggleMode}
       />
 
       {/* Main Content */}

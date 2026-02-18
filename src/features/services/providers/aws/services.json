@@ -1,0 +1,179 @@
+{
+  "provider": "aws",
+  "name": "Amazon Web Services",
+  "version": "1.0.0",
+  "services": [
+    {
+      "id": "aws_s3",
+      "name": "Amazon S3",
+      "aliases": ["S3", "Simple Storage Service", "Object Storage", "Bucket", "S3 Bucket"],
+      "category": "storage",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/simple-storage-service-s3.png",
+      "tags": ["storage", "object", "bucket", "static", "file"],
+      "description": "Scalable object storage service"
+    },
+    {
+      "id": "aws_lambda",
+      "name": "AWS Lambda",
+      "aliases": ["Lambda", "Serverless Function", "Function", "Lambda Function"],
+      "category": "compute",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/lambda.png",
+      "tags": ["serverless", "compute", "function", "faas"],
+      "description": "Serverless compute service"
+    },
+    {
+      "id": "aws_ec2",
+      "name": "Amazon EC2",
+      "aliases": ["EC2", "Elastic Compute Cloud", "Virtual Machine", "VM", "Instance"],
+      "category": "compute",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/ec2.png",
+      "tags": ["compute", "vm", "instance", "server"],
+      "description": "Virtual servers in the cloud"
+    },
+    {
+      "id": "aws_rds",
+      "name": "Amazon RDS",
+      "aliases": ["RDS", "Relational Database Service", "Database", "SQL Database"],
+      "category": "database",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/rds.png",
+      "tags": ["database", "sql", "relational", "mysql", "postgres"],
+      "description": "Managed relational database service"
+    },
+    {
+      "id": "aws_dynamodb",
+      "name": "Amazon DynamoDB",
+      "aliases": ["DynamoDB", "DDB", "NoSQL Database", "NoSQL"],
+      "category": "database",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/dynamodb.png",
+      "tags": ["database", "nosql", "key-value", "document"],
+      "description": "Managed NoSQL database service"
+    },
+    {
+      "id": "aws_api_gateway",
+      "name": "Amazon API Gateway",
+      "aliases": ["API Gateway", "APIGW", "API", "Gateway"],
+      "category": "networking",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/mobile/api-gateway.png",
+      "tags": ["api", "rest", "http", "gateway"],
+      "description": "Managed API service"
+    },
+    {
+      "id": "aws_cloudfront",
+      "name": "Amazon CloudFront",
+      "aliases": ["CloudFront", "CDN", "Content Delivery"],
+      "category": "networking",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/cloudfront.png",
+      "tags": ["cdn", "content", "delivery", "edge"],
+      "description": "Content delivery network"
+    },
+    {
+      "id": "aws_vpc",
+      "name": "Amazon VPC",
+      "aliases": ["VPC", "Virtual Private Cloud", "Network"],
+      "category": "networking",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/vpc.png",
+      "tags": ["network", "vpc", "private", "cloud"],
+      "description": "Virtual private cloud"
+    },
+    {
+      "id": "aws_alb",
+      "name": "Application Load Balancer",
+      "aliases": ["ALB", "Load Balancer", "ELB", "Application LB"],
+      "category": "networking",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/elastic-load-balancing.png",
+      "tags": ["load", "balancer", "alb", "elb"],
+      "description": "Application load balancer"
+    },
+    {
+      "id": "aws_route53",
+      "name": "Amazon Route 53",
+      "aliases": ["Route53", "Route 53", "DNS"],
+      "category": "networking",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/route-53.png",
+      "tags": ["dns", "route", "domain"],
+      "description": "DNS web service"
+    },
+    {
+      "id": "aws_sns",
+      "name": "Amazon SNS",
+      "aliases": ["SNS", "Simple Notification Service", "Notifications"],
+      "category": "messaging",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/simple-notification-service-sns.png",
+      "tags": ["notification", "messaging", "pub-sub"],
+      "description": "Pub/sub messaging service"
+    },
+    {
+      "id": "aws_sqs",
+      "name": "Amazon SQS",
+      "aliases": ["SQS", "Simple Queue Service", "Queue"],
+      "category": "messaging",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/simple-queue-service-sqs.png",
+      "tags": ["queue", "messaging", "async"],
+      "description": "Message queue service"
+    },
+    {
+      "id": "aws_cloudwatch",
+      "name": "Amazon CloudWatch",
+      "aliases": ["CloudWatch", "Monitoring", "Logs"],
+      "category": "management",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/cloudwatch.png",
+      "tags": ["monitoring", "logs", "metrics"],
+      "description": "Monitoring and observability"
+    },
+    {
+      "id": "aws_iam",
+      "name": "AWS IAM",
+      "aliases": ["IAM", "Identity Access Management", "Permissions"],
+      "category": "security",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/identity-and-access-management-iam.png",
+      "tags": ["security", "identity", "access", "permissions"],
+      "description": "Identity and access management"
+    },
+    {
+      "id": "aws_cognito",
+      "name": "Amazon Cognito",
+      "aliases": ["Cognito", "User Pool", "Authentication"],
+      "category": "security",
+      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/cognito.png",
+      "tags": ["auth", "authentication", "user", "identity"],
+      "description": "User authentication service"
+    }
+  ],
+  "categories": [
+    {
+      "id": "compute",
+      "name": "Compute",
+      "color": "#FF9900"
+    },
+    {
+      "id": "storage",
+      "name": "Storage",
+      "color": "#3F8624"
+    },
+    {
+      "id": "database",
+      "name": "Database",
+      "color": "#3B48CC"
+    },
+    {
+      "id": "networking",
+      "name": "Networking",
+      "color": "#8C4FFF"
+    },
+    {
+      "id": "messaging",
+      "name": "Messaging",
+      "color": "#D86613"
+    },
+    {
+      "id": "management",
+      "name": "Management",
+      "color": "#E7157B"
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "color": "#DD344C"
+    }
+  ]
+}

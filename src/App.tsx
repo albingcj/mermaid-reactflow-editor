@@ -7,10 +7,16 @@ import { useToast } from "@/hooks/useToast";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { useDialog } from "@/hooks/useDialog";
 import { AppUI, AISettings } from "@/components/AppUI";
+import { ArchitectureUI } from "@/components/ArchitectureUI";
 import { DEFAULT_AI_SETTINGS } from "@/constants";
 import { logger } from "@/lib/logger";
 
-function App() {
+type AppMode = 'diagram' | 'architecture';
+
+function App() { 
+  // Mode toggle state
+  const [appMode, setAppMode] = useState<AppMode>('diagram');
+
   // Custom hooks for state management
   const diagram = useDiagram();
   const theme = useTheme();
@@ -46,19 +52,32 @@ function App() {
   }, []); // Only run on mount
 
   return (
-    <AppUI
-      diagram={diagram}
-      theme={theme}
-      panel={panel}
-      accordion={accordion}
-      toast={toast}
-      fullscreen={fullscreen}
-      dialog={dialog}
-      aiSettings={aiSettings}
-      setAiSettings={setAiSettings}
-      aiPrompt={aiPrompt}
-      setAiPrompt={setAiPrompt}
-    />
+    <>
+      {/* Render based on mode */}
+      {appMode === 'diagram' ? (
+        <AppUI
+          diagram={diagram}
+          theme={theme}
+          panel={panel}
+          accordion={accordion}
+          toast={toast}
+          fullscreen={fullscreen}
+          dialog={dialog}
+          aiSettings={aiSettings}
+          setAiSettings={setAiSettings}
+          aiPrompt={aiPrompt}
+          setAiPrompt={setAiPrompt}
+          appMode={appMode}
+          onToggleMode={() => setAppMode(prev => prev === 'diagram' ? 'architecture' : 'diagram')}
+        />
+      ) : (
+        <ArchitectureUI 
+          appMode={appMode}
+          onToggleMode={() => setAppMode(prev => prev === 'diagram' ? 'architecture' : 'diagram')}
+          theme={theme}
+        />
+      )}
+    </>
   );
 }
 
