@@ -791,8 +791,8 @@ textarea {
   max-height: 20px;
 }
 
-/* Show full text on hover with smooth expansion */
-.image-caption:hover {
+/* Show full text when expanded (on click) with smooth expansion */
+.image-caption.expanded {
   white-space: normal;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -810,17 +810,6 @@ textarea {
   transform: translateX(-50%) translateY(-2px);
 }
 
-/* Display full text from data attribute on hover */
-.image-caption:hover::before {
-  content: attr(data-full-text);
-  display: block;
-}
-
-/* Hide truncated text on hover */
-.image-caption:hover > * {
-  display: none;
-}
-
 /* Ensure caption is visible when node is selected - subtle blue tint */
 .custom-node.has-image.selected .image-caption {
   z-index: 1001;
@@ -830,14 +819,15 @@ textarea {
   font-weight: 600;
 }
 
-/* Enhanced hover state when node is selected */
-.custom-node.has-image.selected .image-caption:hover {
+/* Enhanced expanded state when node is selected */
+.custom-node.has-image.selected .image-caption.expanded {
   background: rgba(37, 99, 235, 0.15);
   border: 1px solid rgba(37, 99, 235, 0.4);
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
   z-index: 1003;
   color: #0D47A1;
 }
+
 
 .image-fallback {
   width: 100%;

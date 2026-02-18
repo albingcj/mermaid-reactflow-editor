@@ -87,6 +87,7 @@ function FlowDiagramInternal({
   } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [expandedCaptionNodeId, setExpandedCaptionNodeId] = useState<string | null>(null);
   // inspector removed per UX decision
 
   // keep local state in sync if parent props change
@@ -289,6 +290,22 @@ function FlowDiagramInternal({
     [edges, selectedEdgeId]
   );
 
+  // Add caption expansion handler to nodes
+  const nodesWithCaptionHandler = useMemo(
+    () =>
+      nodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          isCaptionExpanded: expandedCaptionNodeId === node.id,
+          onCaptionToggle: () => {
+            setExpandedCaptionNodeId((prev) => (prev === node.id ? null : node.id));
+          },
+        },
+      })),
+    [nodes, expandedCaptionNodeId]
+  );
+
   const onPaneClick = useCallback(() => setSelectedEdgeId(null), []);
 
   // toolbar actions
@@ -477,7 +494,7 @@ function FlowDiagramInternal({
         <div className="flex-1 min-h-0">
         <ReactFlow
           minZoom={0.05}
-          nodes={nodes}
+          nodes={nodesWithCaptionHandler}
           edges={edgesWithSelection}
           onlyRenderVisibleElements
           onNodeDragStart={interactive ? onNodeDragStart : undefined}

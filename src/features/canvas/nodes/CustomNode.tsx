@@ -10,6 +10,8 @@ interface CustomNodeData {
   isDragging?: boolean;
   locked?: boolean;
   onEdit?: () => void;
+  isCaptionExpanded?: boolean;
+  onCaptionToggle?: () => void;
 }
 
 interface CustomNodeProps extends NodeProps {
@@ -241,12 +243,19 @@ function CustomNodeInner(props: CustomNodeProps) {
             </div>
             {data.label?.trim() && (
               <div 
-                className="image-caption" 
-                title={hasLongCaption ? `${data.label} (hover to see full text)` : data.label}
+                className={`image-caption ${data.isCaptionExpanded ? 'expanded' : ''}`}
+                title={hasLongCaption ? `${data.label} (click to see full text)` : data.label}
                 data-full-text={data.label}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasLongCaption && data.onCaptionToggle) {
+                    data.onCaptionToggle();
+                  }
+                }}
+                style={{ cursor: hasLongCaption ? 'pointer' : 'default' }}
               >
-                {displayCaption}
-                {hasLongCaption && (
+                {data.isCaptionExpanded ? data.label : displayCaption}
+                {hasLongCaption && !data.isCaptionExpanded && (
                   <span style={{ 
                     marginLeft: '2px', 
                     opacity: 0.6,
