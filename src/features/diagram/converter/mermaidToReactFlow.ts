@@ -810,29 +810,33 @@ function calculateNodeSize(label: string, shape: string, isImageNode: boolean = 
         }
       }
     } catch {}
-    // Fallback heuristic
-    return text.length * 8;
+    // Fallback heuristic - more accurate character width
+    return text.length * 7.5;
   }
 
   const maxLineWidth = Math.max(...lines.map((line) => Math.ceil(measureLineWidth(line))));
 
-  // Base size from content, with reasonable minimums and padding
-  const baseWidth = maxLineWidth + 30; // text width + padding
-  const baseHeight = lines.length * 18 + 20; // line-height 18 + padding
+  // Tighter padding for more compact nodes
+  const horizontalPadding = 24; // Left + right padding
+  const verticalPadding = 16; // Top + bottom padding
+  const lineHeight = 18; // Line height for text
   
-  // Add some additional space based on content (not rigid minimums)
-  const width = Math.max(80, baseWidth + 30); // Content + 30px extra, min 80px for readability
-  const height = Math.max(40, baseHeight + 20); // Content + 20px extra, min 40px for readability
+  const baseWidth = maxLineWidth + horizontalPadding;
+  const baseHeight = lines.length * lineHeight + verticalPadding;
+  
+  // Reasonable minimums without excessive extra space
+  const width = Math.max(70, baseWidth);
+  const height = Math.max(36, baseHeight);
 
   if (shape === "diamond") {
     return {
-      // Slightly increase to account for diagonal bounding box
-      width: Math.max(90, Math.ceil(width * 1.05)),
-      height: Math.max(90, Math.ceil(height * 1.05)),
+      // Account for diagonal bounding box
+      width: Math.max(80, Math.ceil(width * 1.1)),
+      height: Math.max(80, Math.ceil(height * 1.1)),
     };
   }
   if (shape === "circle") {
-    const size = Math.max(width, height) + 10; // Equal dimensions for circles
+    const size = Math.max(width, height) + 8;
     return { width: size, height: size };
   }
   return { width, height };
@@ -1038,9 +1042,9 @@ function layoutSubgraphs(
     const baseWidth = maxX - minX + SUBGRAPH_PADDING * 2;
     const baseHeight = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN;
 
-  // Use only a small fixed buffer for width/height (no multipliers)
-  const width = baseWidth + 4; // Small buffer (reduced)
-  const height = baseHeight + 4;
+    // Minimal buffer to prevent edge clipping
+    const width = baseWidth + 8;
+    const height = baseHeight + 8;
 
     subgraphLayouts.set(subgraph.id, {
       id: subgraph.id,
@@ -2051,6 +2055,90 @@ export async function debugConvertMermaid(
   };
 }
 
+// Extract layout from Mermaid's actual SVG rendering
+async function extractMermaidLayout(mermaidCode: string): Promise<{
+  nodes: Map<string, { x: number; y: number; width: number; height: number }>;
+  edges: Array<{ source: string; target: string; points: Array<{ x: number; y: number }> }>;
+} | null> {
+  try {
+    // Create a temporary container to render Mermaid
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '-9999px';
+    document.body.appendChild(container);
+
+    // Render the diagram
+    const { svg } = await mermaid.render('temp-mermaid-extract', mermaidCode);
+    container.innerHTML = svg;
+
+    const svgElement = container.querySelector('svg');
+    if (!svgElement) {
+      document.body.removeChild(container);
+      return null;
+    }
+
+    const nodes = new Map<string, { x: number; y: number; width: number; height: number }>();
+    const edges: Array<{ source: string; target: string; points: Array<{ x: number; y: number }> }> = [];
+
+    // Extract node positions from the SVG
+    const nodeElements = svgElement.querySelectorAll('.node');
+    nodeElements.forEach((nodeEl) => {
+      const id = nodeEl.id?.replace('flowchart-', '')?.replace(/-\d+$/, '');
+      if (!id) return;
+
+      // Get the bounding box
+      const bbox = (nodeEl as SVGGraphicsElement).getBBox();
+      
+      // Get transform if any
+      const transform = nodeEl.getAttribute('transform');
+      let tx = 0, ty = 0;
+      if (transform) {
+        const match = transform.match(/translate\(([^,]+),([^)]+)\)/);
+        if (match) {
+          tx = parseFloat(match[1]);
+          ty = parseFloat(match[2]);
+        }
+      }
+
+      nodes.set(id, {
+        x: bbox.x + tx,
+        y: bbox.y + ty,
+        width: bbox.width,
+        height: bbox.height
+      });
+    });
+
+    // Extract edge paths
+    const edgeElements = svgElement.querySelectorAll('.edgePath');
+    edgeElements.forEach((edgeEl) => {
+      const pathEl = edgeEl.querySelector('path');
+      if (!pathEl) return;
+
+      // Parse the path to get points (simplified - just get start/end for now)
+      const d = pathEl.getAttribute('d');
+      if (!d) return;
+
+      // Extract source/target from edge classes or data attributes
+      const classes = edgeEl.getAttribute('class') || '';
+      const match = classes.match(/LS-(\w+)\s+LE-(\w+)/);
+      if (match) {
+        edges.push({
+          source: match[1],
+          target: match[2],
+          points: [] // Could parse path data here if needed
+        });
+      }
+    });
+
+    document.body.removeChild(container);
+    return { nodes, edges };
+  } catch (error) {
+    debugLog('Error extracting Mermaid layout:', error);
+    return null;
+  }
+}
+
 export async function convertMermaidToReactFlow(
   mermaidCode: string
 ): Promise<ReactFlowData> {
@@ -2058,6 +2146,9 @@ export async function convertMermaidToReactFlow(
     debugLog("Starting Mermaid to React Flow conversion");
     debugLog("Mermaid code:", mermaidCode);
 
+    // Try to extract layout from Mermaid's rendering first
+    const mermaidLayout = await extractMermaidLayout(mermaidCode);
+    
     // Parse the Mermaid code
     const { nodes, edges, subgraphs, direction } =
       parseMermaidCode(mermaidCode);
@@ -2071,10 +2162,166 @@ export async function convertMermaidToReactFlow(
       `Parsed ${nodes.length} nodes, ${edges.length} edges, ${subgraphs.length} subgraphs`
     );
 
-    // Layout the graph and return
+    // If we successfully extracted Mermaid's layout, use it
+    if (mermaidLayout && mermaidLayout.nodes.size > 0) {
+      debugLog("Using Mermaid's native layout");
+      return convertMermaidLayoutToReactFlow(nodes, edges, subgraphs, mermaidLayout, direction);
+    }
+
+    // Fallback to Dagre layout
+    debugLog("Falling back to Dagre layout");
     return layoutGraph(nodes, edges, subgraphs, direction);
   } catch (error) {
     console.error("Error converting Mermaid to React Flow:", error);
     return { nodes: [], edges: [] };
   }
+}
+
+// Convert Mermaid's native layout to React Flow format
+function convertMermaidLayoutToReactFlow(
+  nodes: MermaidNode[],
+  edges: MermaidEdge[],
+  subgraphs: SubgraphInfo[],
+  mermaidLayout: { nodes: Map<string, { x: number; y: number; width: number; height: number }> },
+  direction: string
+): ReactFlowData {
+  const reactFlowNodes: Node[] = [];
+  const reactFlowEdges: Edge[] = [];
+
+  const getNodeColors = (shape: string) => {
+    const colorSchemes = {
+      rect: ["#E3F2FD", "#1976D2"],
+      diamond: ["#FFF3E0", "#F57C00"],
+      circle: ["#E8F5E8", "#388E3C"],
+      stadium: ["#F3E5F5", "#7B1FA2"],
+      round: ["#FCE4EC", "#C2185B"],
+    };
+    return colorSchemes[shape as keyof typeof colorSchemes] || ["#F0F4F8", "#2D3748"];
+  };
+
+  const isHorizontal = direction === 'LR' || direction === 'RL';
+  const sourcePos = isHorizontal ? Position.Right : Position.Bottom;
+  const targetPos = isHorizontal ? Position.Left : Position.Top;
+
+  // Create nodes using Mermaid's positions
+  nodes.forEach((node) => {
+    const layout = mermaidLayout.nodes.get(node.id);
+    if (!layout) return;
+
+    const colors = getNodeColors(node.shape);
+    const { imageUrl, cleanLabel } = extractImageUrl(node.label);
+
+    let nodeStyle: any = {
+      backgroundColor: colors[0],
+      borderColor: colors[1],
+      borderWidth: "2px",
+      borderStyle: "solid",
+      borderRadius: "8px",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+    };
+
+    if (imageUrl) {
+      nodeStyle = {
+        backgroundColor: "transparent",
+        background: "transparent",
+        border: "none",
+        borderRadius: "8px",
+        boxShadow: "none",
+      };
+    }
+
+    switch (node.shape) {
+      case "diamond":
+        nodeStyle.borderRadius = "0px";
+        break;
+      case "circle":
+        nodeStyle.borderRadius = "50%";
+        break;
+      case "stadium":
+        nodeStyle.borderRadius = "30px";
+        break;
+      case "round":
+        nodeStyle.borderRadius = "15px";
+        break;
+    }
+
+    const nodeType = node.shape === "diamond" ? "diamond" : "custom";
+    const { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow, ...layoutStyle } = nodeStyle;
+    const visualStyle = nodeType === 'diamond'
+      ? { backgroundColor, borderColor, borderWidth }
+      : { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow };
+
+    reactFlowNodes.push({
+      id: node.id,
+      type: nodeType,
+      position: { x: layout.x, y: layout.y },
+      data: {
+        label: imageUrl ? cleanLabel : node.label,
+        imageUrl: imageUrl || "",
+        description: "",
+        shape: node.shape,
+        colors: { backgroundColor: colors[0], borderColor: colors[1] },
+        style: visualStyle,
+      },
+      style: { ...layoutStyle, width: layout.width, height: layout.height },
+      sourcePosition: sourcePos,
+      targetPosition: targetPos,
+      draggable: true,
+      zIndex: 1,
+    });
+  });
+
+  // Create edges
+  const edgeColors = ["#1976D2", "#388E3C", "#F57C00", "#7B1FA2", "#C2185B"];
+  edges.forEach((edge, index) => {
+    const edgeColor = edgeColors[index % edgeColors.length];
+    
+    let edgeStyle: any = {
+      stroke: edgeColor,
+      strokeWidth: 2.5,
+    };
+
+    switch (edge.type) {
+      case "---":
+        edgeStyle.strokeDasharray = "8,4";
+        break;
+      case "-.-":
+        edgeStyle.strokeDasharray = "4,4";
+        break;
+      case "==>":
+      case "===>":
+        edgeStyle.strokeWidth = 4;
+        break;
+    }
+
+    reactFlowEdges.push({
+      id: `edge-${edge.source}-${edge.target}-${index}`,
+      source: edge.source,
+      target: edge.target,
+      label: edge.label,
+      type: "smoothstep",
+      animated: true,
+      style: edgeStyle,
+      labelStyle: {
+        fontSize: "12px",
+        fontWeight: "500",
+        color: edgeColor,
+        backgroundColor: "white",
+        padding: "2px 6px",
+        borderRadius: "4px",
+        border: `1px solid ${edgeColor}`,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 20,
+        height: 20,
+        color: edgeColor,
+      },
+      sourceHandle: isHorizontal ? 'right-source' : 'bottom-source',
+      targetHandle: isHorizontal ? 'left-target' : 'top-target',
+      zIndex: 0,
+    });
+  });
+
+  return { nodes: reactFlowNodes, edges: reactFlowEdges };
 }

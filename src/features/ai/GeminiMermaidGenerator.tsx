@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Sparkles, Wand2, AlertTriangle, Info, Trash2, Eye, EyeOff, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { extractMermaidFromFences, sanitizeMermaidLabels } from "@/features/diagram/converter";
+import { AI_MODELS, DEFAULT_AI_SETTINGS } from "@/constants/ai";
 
 interface Props {
   onComplete: (mermaidCode: string) => void;
@@ -64,10 +65,10 @@ export default function GeminiMermaidGenerator({
   onClose,
 }: Props) {
   // local fallbacks when parent doesn't control these values
-  const [apiKeyState, setApiKey] = useState("");
-  const [service, setService] = useState("google");
-  const [modelState, setModel] = useState("gemini-2.0-flash");
-  const [userInputState, setUserInput] = useState("");
+  const [apiKeyState, setApiKey] = useState<string>("");
+  const [service, setService] = useState<string>("google");
+  const [modelState, setModel] = useState<string>(AI_MODELS.GEMINI_2_5_FLASH);
+  const [userInputState, setUserInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
@@ -505,7 +506,7 @@ return (
       </div>
       <div className="flex items-center gap-2">
         <Input
-          placeholder="Model id (Gemini models only, e.g. gemini-2.0-flash)"
+          placeholder={`Model id (Gemini models only, e.g. ${AI_MODELS.GEMINI_2_5_FLASH})`}
           value={displayModel}
           onChange={(e) => {
             if (onModelChange) onModelChange(e.target.value);
@@ -520,7 +521,11 @@ return (
             </Button>
           </PopoverTrigger>
           <PopoverContent sideOffset={6} align="center">
-            This feature currently supports Google Gemini models only. Use model ids like "gemini-2.0-flash", "gemini-1.5-pro", or "gemini-pro".
+            This feature currently supports Google Gemini models only. Use model ids like {Object.values(AI_MODELS).slice(0, 3).map((model, i, arr) => (
+              <span key={model}>
+                "{model}"{i < arr.length - 1 ? (i === arr.length - 2 ? ', or ' : ', ') : ''}
+              </span>
+            ))}.
           </PopoverContent>
         </Popover>
         <Button

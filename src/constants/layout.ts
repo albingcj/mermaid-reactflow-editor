@@ -1,26 +1,26 @@
 // constants/layout.ts
 export const LAYOUT_SPACING = {
-  SUBGRAPH_HEADER_HEIGHT: 35, // Increased for proper title clearance
-  SUBGRAPH_PADDING: 8, // Base padding around subgraph edges (reduced to tighten layout)
-  SUBGRAPH_CONTENT_TOP_MARGIN: 10, // Additional space below title before content
+  SUBGRAPH_HEADER_HEIGHT: 32, // Space for subgraph title
+  SUBGRAPH_PADDING: 20, // Padding around subgraph content
+  SUBGRAPH_CONTENT_TOP_MARGIN: 8, // Space below title before content starts
   
-  // Node spacing within subgraphs - controls minimum distance between nodes
-  NODE_SEPARATION_HORIZONTAL: 80, // Minimum horizontal distance between nodes in same rank
-  NODE_SEPARATION_VERTICAL: 100, // Minimum vertical distance between different ranks
+  // Node spacing within subgraphs - balanced for readability
+  NODE_SEPARATION_HORIZONTAL: 60, // Horizontal distance between nodes in same rank
+  NODE_SEPARATION_VERTICAL: 80, // Vertical distance between different ranks
   
-  // Container spacing for meta-graph layout - controls distance between top-level elements
-  CONTAINER_SEPARATION_HORIZONTAL: 120, // Distance between top-level subgraphs/nodes horizontally (reduced)
-  CONTAINER_SEPARATION_VERTICAL: 160, // Distance between top-level subgraphs/nodes vertically (slightly reduced)
+  // Container spacing for meta-graph layout - top-level element separation
+  CONTAINER_SEPARATION_HORIZONTAL: 100, // Distance between top-level subgraphs/nodes horizontally
+  CONTAINER_SEPARATION_VERTICAL: 120, // Distance between top-level subgraphs/nodes vertically
   
-  // Nested subgraph spacing - controls spacing of child subgraphs within parents
-  NESTED_SUBGRAPH_SEPARATION_HORIZONTAL: 120, // Distance between sibling subgraphs (increased)
-  NESTED_SUBGRAPH_SEPARATION_VERTICAL: 140, // Distance between nested subgraph ranks (increased)
+  // Nested subgraph spacing - child subgraphs within parents
+  NESTED_SUBGRAPH_SEPARATION_HORIZONTAL: 80, // Distance between sibling subgraphs
+  NESTED_SUBGRAPH_SEPARATION_VERTICAL: 100, // Distance between nested subgraph ranks
   
   // Margin constants for different layout contexts
-  META_GRAPH_MARGIN: 100, // Outer margin for the entire diagram
-  NESTED_CONTENT_MARGIN: 40, // Margin around content within nested subgraphs (increased)
-  MIXED_CONTENT_VERTICAL_SPACING: 100, // Extra spacing between nodes and nested subgraphs in same parent (increased)
-  MIXED_CONTENT_HORIZONTAL_SPACING: 120, // Extra spacing when laying out children beside nodes (LR/RL)
+  META_GRAPH_MARGIN: 60, // Outer margin for the entire diagram
+  NESTED_CONTENT_MARGIN: 30, // Margin around content within nested subgraphs
+  MIXED_CONTENT_VERTICAL_SPACING: 80, // Spacing between nodes and nested subgraphs in same parent
+  MIXED_CONTENT_HORIZONTAL_SPACING: 100, // Spacing when laying out children beside nodes (LR/RL)
 } as const;
 
 export const LAYOUT_RANKERS = {
