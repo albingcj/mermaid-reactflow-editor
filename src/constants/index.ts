@@ -1,5 +1,6 @@
 // constants/index.ts
 export * from './ai';
+export * from './prompts';
 export * from './theme';
 export * from './panels';
 export * from './alignment';

@@ -10,32 +10,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Sparkles, X } from 'lucide-react';
 import type { UseThemeReturn } from '@/types';
 import { AI_MODELS } from '@/constants/ai';
+import { AWS_ARCHITECTURE_PROMPT_PREFIX } from '@/constants/prompts';
 
 interface ArchitectureUIProps {
   appMode?: 'diagram' | 'architecture';
   onToggleMode?: () => void;
   theme: UseThemeReturn;
 }
-
-const AWS_ARCHITECTURE_PROMPT_PREFIX = `You are an AWS architecture diagram expert. Generate ONLY Mermaid flowchart syntax for AWS cloud architectures.
-
-CRITICAL RULES:
-1. Use ONLY AWS service names (S3, Lambda, EC2, RDS, DynamoDB, API Gateway, CloudFront, VPC, ALB, etc.)
-2. Output ONLY raw Mermaid flowchart code - NO explanations, NO markdown fences
-3. Use simple node labels with AWS service names
-4. Keep it clean and parseable
-
-Example format:
-graph TD
-  A[User] --> B[CloudFront]
-  B --> C[S3]
-  B --> D[API Gateway]
-  D --> E[Lambda]
-  E --> F[DynamoDB]
-
-Now generate an AWS architecture diagram for the following request:
-
-`;
 
 export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }: ArchitectureUIProps) {
   // AI settings state
@@ -126,9 +107,6 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
     setFlowData(prev => ({ ...prev, edges }));
   }, []);
 
-  // Prepend AWS-specific instructions to user input
-  const enhancedUserInput = userInput ? `${AWS_ARCHITECTURE_PROMPT_PREFIX}${userInput}` : '';
-
   return (
     <div className="architecture-ui h-screen w-screen flex flex-col bg-background">
       {/* Reuse the same header with shared theme */}
@@ -185,17 +163,11 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
                     onStop={handleAIStop}
                     apiKey={apiKey}
                     model={model}
-                    userInput={enhancedUserInput}
+                    userInput={userInput}
                     onApiKeyChange={setApiKey}
                     onModelChange={setModel}
-                    onUserInputChange={(value) => {
-                      // Remove the prefix if it exists to get clean user input
-                      if (value.startsWith(AWS_ARCHITECTURE_PROMPT_PREFIX)) {
-                        setUserInput(value.slice(AWS_ARCHITECTURE_PROMPT_PREFIX.length));
-                      } else {
-                        setUserInput(value);
-                      }
-                    }}
+                    onUserInputChange={setUserInput}
+                    transformPrompt={(input) => `${AWS_ARCHITECTURE_PROMPT_PREFIX}${input}`}
                   />
                   
                   <div className="mt-4 pt-4 border-t">
@@ -221,7 +193,7 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
                   </div>
                 </div>
               </ResizablePanel>
-              {(showPreview || flowData.nodes.length > 0) && <ResizableHandle withHandle />}
+              {(showPreview || true) && <ResizableHandle withHandle />}
             </>
           )}
 
@@ -250,59 +222,55 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
                   </pre>
                 </div>
               </ResizablePanel>
-              {flowData.nodes.length > 0 && <ResizableHandle withHandle />}
+              <ResizableHandle withHandle />
             </>
           )}
 
           {/* Canvas Panel */}
-          {flowData.nodes.length > 0 ? (
-            <ResizablePanel
-              defaultSize={showAIPanel && showPreview ? 34 : showAIPanel || showPreview ? 67 : 100}
-              minSize={30}
-              className="flex flex-col min-h-0"
-            >
-              <div className="p-2 border-b flex items-center justify-between bg-muted/30">
-                <span className="font-medium text-sm">Architecture Diagram</span>
-                <div className="flex gap-2">
-                  {!showPreview && generatedMermaid && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPreview(true)}
-                    >
-                      Show Code
-                    </Button>
-                  )}
-                  {!showAIPanel && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAIPanel(true)}
-                    >
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Show AI Panel
-                    </Button>
-                  )}
+          <ResizablePanel
+            defaultSize={showAIPanel && showPreview ? 34 : showAIPanel || showPreview ? 67 : 100}
+            minSize={30}
+            className="flex flex-col min-h-0"
+          >
+            {flowData.nodes.length > 0 ? (
+              <>
+                <div className="p-2 border-b flex items-center justify-between bg-muted/30">
+                  <span className="font-medium text-sm">Architecture Diagram</span>
+                  <div className="flex gap-2">
+                    {!showPreview && generatedMermaid && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPreview(true)}
+                      >
+                        Show Code
+                      </Button>
+                    )}
+                    {!showAIPanel && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAIPanel(true)}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Show AI Panel
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1">
-                <FlowDiagram
-                  nodes={flowData.nodes}
-                  edges={flowData.edges}
-                  onNodesChange={handleNodesChange}
-                  onEdgesChange={handleEdgesChange}
-                  onRegisterMethods={registerFlowMethods}
-                  interactive={!isGenerating}
-                  theme={theme.effectiveTheme}
-                />
-              </div>
-            </ResizablePanel>
-          ) : (
-            <ResizablePanel
-              defaultSize={showAIPanel ? 67 : 100}
-              minSize={30}
-              className="flex flex-col min-h-0"
-            >
+                <div className="flex-1">
+                  <FlowDiagram
+                    nodes={flowData.nodes}
+                    edges={flowData.edges}
+                    onNodesChange={handleNodesChange}
+                    onEdgesChange={handleEdgesChange}
+                    onRegisterMethods={registerFlowMethods}
+                    interactive={!isGenerating}
+                    theme={theme.effectiveTheme}
+                  />
+                </div>
+              </>
+            ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center space-y-4 max-w-md px-4">
                   <div className="text-6xl">🏗️</div>
@@ -320,8 +288,8 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
                   )}
                 </div>
               </div>
-            </ResizablePanel>
-          )}
+            )}
+          </ResizablePanel>
         </ResizablePanelGroup>
       </div>
     </div>
