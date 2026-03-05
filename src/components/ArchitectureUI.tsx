@@ -87,6 +87,27 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
     }
   }, [resolveAWSServices]);
 
+  // Handle AI streaming chunks
+  const handleAIChunk = useCallback(async (partial: string) => {
+    setGeneratedMermaid(partial);
+    
+    try {
+      // Convert partial Mermaid to React Flow for live preview
+      const converted = await convertMermaidToReactFlow(partial);
+      
+      // Resolve AWS services
+      const nodesWithServices = resolveAWSServices(converted.nodes);
+      
+      setFlowData({
+        nodes: nodesWithServices,
+        edges: converted.edges,
+      });
+    } catch (err) {
+      // Silently fail during streaming - partial code might not be valid yet
+      console.debug('Streaming conversion error (expected during partial updates):', err);
+    }
+  }, [resolveAWSServices]);
+
   // Handle AI generation start
   const handleAIStart = useCallback(() => {
     setIsGenerating(true);
@@ -159,6 +180,7 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
                 <div className="flex-1 overflow-y-auto p-4">
                   <GeminiMermaidGenerator
                     onComplete={handleAIComplete}
+                    onChunk={handleAIChunk}
                     onStart={handleAIStart}
                     onStop={handleAIStop}
                     apiKey={apiKey}
