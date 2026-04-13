@@ -29,7 +29,7 @@ function App() {
     if (diagram.mermaidSource.trim() && diagram.mermaidSource !== diagram.lastAppliedMermaidRef.current) {
       diagram.convertMermaid(diagram.mermaidSource);
     }
-  }, [diagram.mermaidSource, diagram.convertMermaid]);
+  }, [diagram.mermaidSource, diagram.convertMermaid, diagram.lastAppliedMermaidRef]);
 
   // Load saved diagrams from sessionStorage on mount
   useEffect(() => {

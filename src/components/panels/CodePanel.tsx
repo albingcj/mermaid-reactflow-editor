@@ -104,6 +104,23 @@ export function CodePanel({
       )}
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+        {diagram.conversionError && (
+          <div className="mx-3 mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2 animate-in slide-in-from-top-2">
+            <div className="flex-1">
+              <p className="text-sm text-destructive font-medium">Conversion Error</p>
+              <p className="text-xs text-destructive/80 mt-1">{diagram.conversionError}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+              onClick={diagram.clearConversionError}
+              title="Dismiss"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
         <MermaidEditor
           value={diagram.mermaidSource}
           theme={theme}

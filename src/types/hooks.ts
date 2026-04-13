@@ -36,6 +36,8 @@ export interface UseDiagramReturn {
   setSavedDiagrams: (diagrams: SavedDiagram[]) => void;
   lastAppliedMermaidRef: React.MutableRefObject<string>;
   convertMermaid: (source: string) => Promise<void>;
+  conversionError: string | null;
+  clearConversionError: () => void;
 }
 
 // ============================================================================

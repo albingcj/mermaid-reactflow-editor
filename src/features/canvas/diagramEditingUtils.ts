@@ -155,12 +155,16 @@ export function sendToBack(nodes: Node[], selectedNodes: Node[]): Node[] {
   );
 }
 
+// Counter to ensure unique IDs even when duplicating rapidly
+let duplicateCounter = 0;
+
 export function duplicateNodes(nodes: Node[], selectedNodes: Node[]): Node[] {
   const newNodes = [...nodes];
+  const timestamp = Date.now();
   selectedNodes.forEach(node => {
     const newNode: Node = {
       ...node,
-      id: `${node.id}_copy_${Date.now()}`,
+      id: `${node.id}_copy_${timestamp}_${duplicateCounter++}`,
       position: { x: node.position.x + 50, y: node.position.y + 50 },
       selected: false,
     };
@@ -173,7 +177,12 @@ export function deleteSelected(nodes: Node[], edges: Edge[], selectedNodes: Node
   const nodeIdsToDelete = selectedNodes.map(n => n.id);
   const edgeIdsToDelete = selectedEdges.map(e => e.id);
   const newNodes = nodes.filter(n => !nodeIdsToDelete.includes(n.id));
-  const newEdges = edges.filter(e => !edgeIdsToDelete.includes(e.id));
+  // Remove selected edges AND edges connected to deleted nodes
+  const newEdges = edges.filter(e => 
+    !edgeIdsToDelete.includes(e.id) && 
+    !nodeIdsToDelete.includes(e.source) && 
+    !nodeIdsToDelete.includes(e.target)
+  );
   return { newNodes, newEdges };
 }
 

@@ -16,27 +16,38 @@ export const useDiagram = (): UseDiagramReturn => {
   const [loading, setLoading] = useState<boolean>(false);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>([]);
+  const [conversionError, setConversionError] = useState<string | null>(null);
   const lastAppliedMermaidRef = useRef<string>("");
 
   const convertMermaid = useCallback(async (source: string) => {
     if (!source.trim()) return;
     
     setLoading(true);
+    setConversionError(null);
     try {
       const data = await convertMermaidToReactFlow(source);
       setFlowData(data);
       lastAppliedMermaidRef.current = source;
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       logger.error('Conversion failed', err);
+      setConversionError(`Failed to convert diagram: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const clearConversionError = useCallback(() => {
+    setConversionError(null);
+  }, []);
+
   const updateMermaidSource = useCallback((source: string) => {
     setMermaidSource(source);
-    // We'll trigger conversion separately to have better control
-  }, []);
+    // Clear error when user starts editing
+    if (conversionError) {
+      setConversionError(null);
+    }
+  }, [conversionError]);
 
   return {
     mermaidSource,
@@ -51,5 +62,7 @@ export const useDiagram = (): UseDiagramReturn => {
     setSavedDiagrams,
     lastAppliedMermaidRef,
     convertMermaid,
+    conversionError,
+    clearConversionError,
   };
 };
