@@ -1,8 +1,6 @@
 // constants/ai.ts
 export const AI_MODELS = {
-  GEMINI_FLASH: 'gemini-2.0-flash',
-  GEMINI_PRO: 'gemini-1.5-pro',
-  GEMINI_PRO_FLASH: 'gemini-pro',
+  GEMINI_FLASH: 'gemini-2.5-flash'
 } as const;
 
 export type AiModel = typeof AI_MODELS[keyof typeof AI_MODELS];
