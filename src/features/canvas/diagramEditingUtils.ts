@@ -14,7 +14,7 @@ export function alignNodes(
     width: node.width || 150,
     height: node.height || 50,
   }));
-  let newNodes = [...nodes];
+  const newNodes = [...nodes];
   switch (alignment) {
     case ALIGNMENT_TYPES.LEFT:
       const leftX = Math.min(...bounds.map(b => b.x));
@@ -95,7 +95,7 @@ export function distributeNodes(
     centerX: node.position.x + (node.width || 150) / 2,
     centerY: node.position.y + (node.height || 50) / 2,
   }));
-  let newNodes = [...nodes];
+  const newNodes = [...nodes];
   if (direction === DISTRIBUTION_TYPES.HORIZONTAL) {
     // Sort by left edge
     bounds.sort((a, b) => a.x - b.x);

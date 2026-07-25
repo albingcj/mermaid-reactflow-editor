@@ -542,7 +542,7 @@ export function parseMermaidCode(code: string): {
       const idMatch = str.slice(startIndex).match(/^\s*([A-Za-z0-9_]+)/);
       if (!idMatch) return null;
       const id = idMatch[1];
-      let idx = startIndex + idMatch[0].length; // position after id (includes leading spaces)
+      const idx = startIndex + idMatch[0].length; // position after id (includes leading spaces)
 
       // if next non-space char is an opening bracket, find its matching close
       const rest = str.slice(idx);
@@ -1878,14 +1878,14 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
   const edgeColor = edgeColors[index % edgeColors.length];
 
   // Default edge style - make all edges consistent
-  let edgeStyle: any = {
+  const edgeStyle: any = {
     stroke: edgeColor,
     strokeWidth: 2.5, // Increased default width
   };
 
   // Always use smoothstep for consistency
   const edgeType = "smoothstep";
-  let animated = true; // Default to animated for all edges
+  const animated = true; // Default to animated for all edges
 
   // Style edges based on type, but keep animation consistent
   switch (edge.type) {
