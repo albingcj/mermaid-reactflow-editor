@@ -11,6 +11,8 @@ import { Sparkles, X } from 'lucide-react';
 import type { UseThemeReturn } from '@/types';
 import { AI_MODELS } from '@/constants/ai';
 import { AWS_ARCHITECTURE_PROMPT_PREFIX } from '@/constants/prompts';
+import { generateClarifyingQuestions, type ClarifyingQuestion } from '@/features/ai/clarify';
+import { ClarifyingQuestionsInline, type ClarifyingAnswers } from '@/components/ClarifyingQuestionsDialog';
 
 interface ArchitectureUIProps {
   appMode?: 'diagram' | 'architecture';
@@ -30,6 +32,23 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
   const [showAIPanel, setShowAIPanel] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [generatedMermaid, setGeneratedMermaid] = useState('');
+  // True while a generation is in flight but no parseable node has streamed
+  // in yet. Drives the canvas "generating your diagram..." placeholder so the
+  // user isn't staring at an empty/unchanged screen while the model streams
+  // its first tokens (which can take a few seconds).
+  const [awaitingFirstNode, setAwaitingFirstNode] = useState(false);
+
+  // Clarifying-questions state: before generating, we ask the model whether
+  // the request is specific enough to design a properly layered architecture.
+  // If not, we show a small AI-generated multiple-choice wizard and fold the
+  // answers back into the prompt.
+  const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyingQuestion[]>([]);
+  const [showClarifyQuestions, setShowClarifyQuestions] = useState(false);
+  const [isCheckingClarity, setIsCheckingClarity] = useState(false);
+  // Resolves the in-flight `beforeGenerate` promise once the user answers,
+  // skips, or cancels the clarifying-questions flow.
+  const clarifyResolveRef = useRef<((result: string | null) => void) | null>(null);
+  const pendingUserInputRef = useRef<string>('');
 
   const flowMethodsRef = useRef<any>(null);
 
@@ -38,32 +57,18 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
     flowMethodsRef.current = methods;
   }, []);
 
-  // Resolve AWS services and attach icons
-  const resolveAWSServices = useCallback((nodes: Node[]): Node[] => {
-    return nodes.map(node => {
-      const label = node.data?.label || '';
-      
-      // Try to resolve the service
-      const resolved = serviceRegistry.resolveService(label, 'aws');
-      
-      if (resolved && resolved.score > 0.3) {
-        // Service matched! Attach icon and metadata
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            imageUrl: resolved.iconUrl || '',
-            serviceId: resolved.id,
-            serviceName: resolved.name,
-            category: resolved.category,
-            label: label, // Keep original label
-          },
-        };
-      }
-      
-      // No match, return as-is
-      return node;
-    });
+  // Resolves a node's label (e.g. "Route 53") to an AWS service icon URL.
+  // Passed into `convertMermaidToReactFlow` so icon resolution happens BEFORE
+  // layout runs, letting the layout engine size these as compact icon nodes
+  // from the start instead of sizing them for a text label and only
+  // discovering afterward that they should have been icons (which is what
+  // previously caused icon boxes to be oversized relative to the icon itself).
+  const resolveNodeImageUrl = useCallback((label: string): string | null => {
+    const resolved = serviceRegistry.resolveService(label, 'aws');
+    if (resolved && resolved.score > 0.3) {
+      return resolved.iconUrl || null;
+    }
+    return null;
   }, []);
 
   // Handle AI generation complete
@@ -72,20 +77,17 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
     setGeneratedMermaid(code);
     
     try {
-      // Convert Mermaid to React Flow
-      const converted = await convertMermaidToReactFlow(code);
-      
-      // Resolve AWS services
-      const nodesWithServices = resolveAWSServices(converted.nodes);
-      
-      setFlowData({
-        nodes: nodesWithServices,
-        edges: converted.edges,
-      });
+      const converted = await convertMermaidToReactFlow(code, resolveNodeImageUrl);
+      setFlowData(converted);
+      if (converted.nodes.length > 0) setAwaitingFirstNode(false);
     } catch (err) {
       console.error('Conversion error:', err);
+    } finally {
+      // Whether conversion succeeded or not, generation has finished — stop
+      // showing the "generating" placeholder either way.
+      setAwaitingFirstNode(false);
     }
-  }, [resolveAWSServices]);
+  }, [resolveNodeImageUrl]);
 
   // Handle AI streaming chunks
   const handleAIChunk = useCallback(async (partial: string) => {
@@ -93,29 +95,102 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
     
     try {
       // Convert partial Mermaid to React Flow for live preview
-      const converted = await convertMermaidToReactFlow(partial);
-      
-      // Resolve AWS services
-      const nodesWithServices = resolveAWSServices(converted.nodes);
-      
-      setFlowData({
-        nodes: nodesWithServices,
-        edges: converted.edges,
-      });
+      const converted = await convertMermaidToReactFlow(partial, resolveNodeImageUrl);
+      setFlowData(converted);
+      // As soon as the streaming partial produces at least one renderable
+      // node, drop the "generating" placeholder in favor of the live canvas
+      // so the user sees the diagram build up in real time.
+      if (converted.nodes.length > 0) setAwaitingFirstNode(false);
     } catch (err) {
       // Silently fail during streaming - partial code might not be valid yet
       console.debug('Streaming conversion error (expected during partial updates):', err);
     }
-  }, [resolveAWSServices]);
+  }, [resolveNodeImageUrl]);
+
+  // Runs before generation starts: ask the model if the request needs
+  // clarification, and if so, pause generation and show the wizard. Returns
+  // the (possibly answer-augmented) prompt to proceed with, or null to cancel.
+  const handleBeforeGenerate = useCallback(
+    async (input: string, key: string, mdl: string): Promise<string | null> => {
+      setIsCheckingClarity(true);
+      try {
+        const questions = await generateClarifyingQuestions(key, mdl, input);
+        setIsCheckingClarity(false);
+
+        if (questions.length === 0) {
+          return input;
+        }
+
+        pendingUserInputRef.current = input;
+        setClarifyingQuestions(questions);
+        setShowClarifyQuestions(true);
+
+        // Suspend here until the dialog resolves (answers submitted, skipped, or cancelled).
+        return new Promise<string | null>((resolve) => {
+          clarifyResolveRef.current = resolve;
+        });
+      } catch (err) {
+        // Never block generation because the clarifying step failed.
+        setIsCheckingClarity(false);
+        console.error('Clarifying-questions check failed, proceeding without it:', err);
+        return input;
+      }
+    },
+    []
+  );
+
+  const closeClarifyQuestions = useCallback(() => {
+    setShowClarifyQuestions(false);
+    setClarifyingQuestions([]);
+  }, []);
+
+  const handleClarifyComplete = useCallback((answers: ClarifyingAnswers) => {
+    const qa = clarifyingQuestions
+      .map((q) => {
+        const selected = answers[q.id];
+        if (!selected || selected.length === 0) return null;
+        return `${q.question} ${selected.join(', ')}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    const augmented = qa
+      ? `${pendingUserInputRef.current}\n\nAdditional context:\n${qa}`
+      : pendingUserInputRef.current;
+
+    closeClarifyQuestions();
+    clarifyResolveRef.current?.(augmented);
+    clarifyResolveRef.current = null;
+  }, [clarifyingQuestions, closeClarifyQuestions]);
+
+  const handleClarifySkip = useCallback(() => {
+    const input = pendingUserInputRef.current;
+    closeClarifyQuestions();
+    clarifyResolveRef.current?.(input);
+    clarifyResolveRef.current = null;
+  }, [closeClarifyQuestions]);
+
+  const handleClarifyBackToPrompt = useCallback(() => {
+    closeClarifyQuestions();
+    // Cancel generation entirely so the user can edit their prompt.
+    clarifyResolveRef.current?.(null);
+    clarifyResolveRef.current = null;
+  }, [closeClarifyQuestions]);
 
   // Handle AI generation start
   const handleAIStart = useCallback(() => {
     setIsGenerating(true);
+    // Clear any previous diagram and show the "generating" placeholder until
+    // the first node from this new generation streams in.
+    setFlowData({ nodes: [], edges: [] });
+    setGeneratedMermaid('');
+    setAwaitingFirstNode(true);
   }, []);
 
   // Handle AI generation stop
   const handleAIStop = useCallback(() => {
     setIsGenerating(false);
+    setAwaitingFirstNode(false);
   }, []);
 
   // Handle nodes change
@@ -149,6 +224,7 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
         isMobileMenuOpen={false}
         appMode={appMode}
         onToggleMode={onToggleMode}
+        modeToggleDisabled={isGenerating}
       />
       
       {/* Main Content with Resizable Panels */}
@@ -171,48 +247,71 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowAIPanel(false)}
-                    className="h-7 w-7 p-0"
+                    disabled={isGenerating}
+                    className="h-7 w-7 p-0 disabled:opacity-40"
+                    title={isGenerating ? "Wait for generation to finish" : "Hide panel"}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-4">
-                  <GeminiMermaidGenerator
-                    onComplete={handleAIComplete}
-                    onChunk={handleAIChunk}
-                    onStart={handleAIStart}
-                    onStop={handleAIStop}
-                    apiKey={apiKey}
-                    model={model}
-                    userInput={userInput}
-                    onApiKeyChange={setApiKey}
-                    onModelChange={setModel}
-                    onUserInputChange={setUserInput}
-                    transformPrompt={(input) => `${AWS_ARCHITECTURE_PROMPT_PREFIX}${input}`}
-                  />
-                  
-                  <div className="mt-4 pt-4 border-t">
-                    <h3 className="text-sm font-medium mb-2">Example Prompts:</h3>
-                    <div className="space-y-2">
-                      {[
-                        'Build a scalable web app with S3, Lambda, and RDS',
-                        'Create a serverless API with API Gateway, Lambda, and DynamoDB',
-                        'Design a data pipeline with S3, Lambda, and Redshift',
-                        'Set up a VPC with public and private subnets, ALB, EC2, and RDS',
-                      ].map((example, i) => (
-                        <Button
-                          key={i}
-                          variant="outline"
-                          size="sm"
-                          className="w-full text-left justify-start h-auto py-2 px-3"
-                          onClick={() => setUserInput(example)}
-                        >
-                          <span className="text-xs">{example}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                  {/* Conditionally show either the clarifying questions or the input */}
+                  {showClarifyQuestions ? (
+                    <ClarifyingQuestionsInline
+                      questions={clarifyingQuestions}
+                      onComplete={handleClarifyComplete}
+                      onSkip={handleClarifySkip}
+                      onBackToPrompt={handleClarifyBackToPrompt}
+                    />
+                  ) : (
+                    <>
+                      <GeminiMermaidGenerator
+                        onComplete={handleAIComplete}
+                        onChunk={handleAIChunk}
+                        onStart={handleAIStart}
+                        onStop={handleAIStop}
+                        apiKey={apiKey}
+                        model={model}
+                        userInput={userInput}
+                        onApiKeyChange={setApiKey}
+                        onModelChange={setModel}
+                        onUserInputChange={setUserInput}
+                        beforeGenerate={handleBeforeGenerate}
+                        transformPrompt={(input) => `${AWS_ARCHITECTURE_PROMPT_PREFIX}${input}`}
+                        useFewShotExamples={false}
+                      />
+                      {isCheckingClarity && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                          Analyzing your request...
+                        </div>
+                      )}
+
+                      {/* Example prompts section */}
+                      <div className="pt-3 border-t">
+                        <p className="text-xs text-muted-foreground mb-2">Try an example:</p>
+                        <div className="flex flex-col gap-1.5">
+                          {[
+                            'Build a scalable web app with S3, Lambda, and RDS',
+                            'Create a serverless API with API Gateway, Lambda, and DynamoDB',
+                            'Design a data pipeline with Kinesis, Lambda, S3, and Redshift',
+                            'Set up a VPC with public and private subnets, ALB, EC2, and RDS',
+                          ].map((example, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              disabled={isGenerating || isCheckingClarity}
+                              className="w-full text-left text-xs px-3 py-2 rounded-md border border-border hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              onClick={() => setUserInput(example)}
+                            >
+                              {example}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </ResizablePanel>
               {(showPreview || true) && <ResizableHandle withHandle />}
@@ -292,6 +391,20 @@ export function ArchitectureUI({ appMode = 'architecture', onToggleMode, theme }
                   />
                 </div>
               </>
+            ) : awaitingFirstNode ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center space-y-4 max-w-md px-4">
+                  <div className="relative mx-auto h-14 w-14">
+                    <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                    <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                    <Sparkles className="absolute inset-0 m-auto h-5 w-5 text-primary" />
+                  </div>
+                  <h2 className="text-lg font-semibold">Designing your architecture...</h2>
+                  <p className="text-sm text-muted-foreground">
+                    The AI is analyzing your request and laying out the diagram. This can take a few seconds — the canvas will update live as services start appearing.
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center space-y-4 max-w-md px-4">

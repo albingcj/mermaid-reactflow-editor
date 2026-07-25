@@ -1,0 +1,3 @@
+200|https://diagrams.mingrammer.com/img/resources/aws/mobile/api-gateway.png
+200|https://diagrams.mingrammer.com/img/resources/aws/network/api-gateway.png
+200|https://diagrams.mingrammer.com/img/resources/aws/network/api-gateway-endpoint.png

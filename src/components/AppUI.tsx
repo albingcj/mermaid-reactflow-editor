@@ -190,6 +190,7 @@ export function AppUI({
         isMobileMenuOpen={dialog.isMobileMenuOpen}
         appMode={appMode}
         onToggleMode={onToggleMode}
+        modeToggleDisabled={diagram.isStreaming}
       />
 
       {/* Main Content */}

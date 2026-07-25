@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 
 interface CustomNodeData {
@@ -10,8 +10,6 @@ interface CustomNodeData {
   isDragging?: boolean;
   locked?: boolean;
   onEdit?: () => void;
-  isCaptionExpanded?: boolean;
-  onCaptionToggle?: () => void;
 }
 
 interface CustomNodeProps extends NodeProps {
@@ -52,22 +50,6 @@ function CustomNodeInner(props: CustomNodeProps) {
     Boolean(data.imageUrl?.trim()), 
     [data.imageUrl]
   );
-
-  // Truncate caption for display
-  const truncateCaption = useCallback((text: string, maxLength: number = 20) => {
-    if (!text) return '';
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + '...';
-  }, []);
-
-  const displayCaption = useMemo(() => {
-    if (!data.label?.trim()) return '';
-    return truncateCaption(data.label, 20);
-  }, [data.label, truncateCaption]);
-
-  const hasLongCaption = useMemo(() => {
-    return (data.label?.length || 0) > 20;
-  }, [data.label]);
 
   // Load image and calculate aspect ratio
   useEffect(() => {
@@ -242,28 +224,8 @@ function CustomNodeInner(props: CustomNodeProps) {
               </div>
             </div>
             {data.label?.trim() && (
-              <div 
-                className={`image-caption ${data.isCaptionExpanded ? 'expanded' : ''}`}
-                title={hasLongCaption ? `${data.label} (click to see full text)` : data.label}
-                data-full-text={data.label}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (hasLongCaption && data.onCaptionToggle) {
-                    data.onCaptionToggle();
-                  }
-                }}
-                style={{ cursor: hasLongCaption ? 'pointer' : 'default' }}
-              >
-                {data.isCaptionExpanded ? data.label : displayCaption}
-                {hasLongCaption && !data.isCaptionExpanded && (
-                  <span style={{ 
-                    marginLeft: '2px', 
-                    opacity: 0.6,
-                    fontSize: '9px'
-                  }}>
-                    ⓘ
-                  </span>
-                )}
+              <div className="image-caption">
+                {data.label}
               </div>
             )}
           </>

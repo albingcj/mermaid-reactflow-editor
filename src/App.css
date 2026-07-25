@@ -761,6 +761,11 @@ textarea {
   outline-offset: 2px;
 }
 
+/* Caption below an icon node. Service names are short by design (the AI
+   prompt now asks for just the service name, e.g. "Route 53" not "Route 53
+   (DNS)"), so the caption is always shown in full - no truncation, no
+   click-to-expand. Width tracks content (white-space: nowrap) rather than a
+   fixed max-width, so longer service names are never cut off. */
 .image-caption {
   position: absolute;
   top: calc(100% + 8px);
@@ -776,38 +781,18 @@ textarea {
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  max-width: 120px;
   min-width: 40px;
+  width: max-content;
+  max-width: 260px;
   line-height: 1.2;
   z-index: 1000;
-  pointer-events: auto;
+  pointer-events: none;
   cursor: default;
-  transition: all 0.2s ease;
-  
-  /* Truncate long text by default */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-height: 20px;
-}
 
-/* Show full text when expanded (on click) with smooth expansion */
-.image-caption.expanded {
+  /* Always show full text - wrap onto a second line rather than truncating. */
   white-space: normal;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  hyphens: auto;
-  max-width: 220px;
-  max-height: 200px;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  padding: 8px 12px;
-  z-index: 1002;
-  font-size: 11px;
-  line-height: 1.4;
-  transform: translateX(-50%) translateY(-2px);
 }
 
 /* Ensure caption is visible when node is selected - subtle blue tint */

@@ -1,9 +1,7 @@
-import { Node, Edge, MarkerType, Position } from "reactflow";
+﻿import { Node, Edge, MarkerType, Position } from "reactflow";
 import mermaid from "mermaid";
 import dagre from "dagre";
 import { LAYOUT_SPACING } from "@/constants/layout";
-import { LAYOUT_DIRECTIONS } from "@/constants/alignment";
-import { NODE_SHAPES } from "@/constants/nodeShapes";
 
 export interface ReactFlowData {
   nodes: Node[];
@@ -25,6 +23,11 @@ interface MermaidNode {
   shape: string;
   subgraph?: string;
   parentSubgraph?: string; // For nested subgraphs
+  // Set by convertMermaidToReactFlow's optional `resolveNodeImage` hook when a
+  // caller (e.g. the AWS architecture flow) wants to attach a service icon
+  // BEFORE layout, so the node is sized as a compact icon node instead of a
+  // text label from the very start.
+  resolvedImageUrl?: string;
 }
 
 interface MermaidEdge {
@@ -45,39 +48,24 @@ interface SubgraphInfo {
   direction?: string; // Optional per-subgraph layout direction (TB/LR/BT/RL)
 }
 
-interface SubgraphLayout {
-  id: string;
-  title: string;
-  nodes: Map<string, { x: number; y: number; width: number; height: number }>;
-  width: number;
-  height: number;
-  position?: { x: number; y: number };
-  parentId?: string;
-}
+// Layout spacing constants used by the compound-graph layout engine below.
+const SUBGRAPH_HEADER_HEIGHT = LAYOUT_SPACING.SUBGRAPH_HEADER_HEIGHT; // Space reserved for each subgraph's title bar
+const SUBGRAPH_CONTENT_TOP_MARGIN = LAYOUT_SPACING.SUBGRAPH_CONTENT_TOP_MARGIN; // Additional space below the title before content starts
 
-// Layout spacing constants - Fine-tune these for better visual separation
-const SUBGRAPH_HEADER_HEIGHT = LAYOUT_SPACING.SUBGRAPH_HEADER_HEIGHT; // Increased for proper title clearance
-const SUBGRAPH_PADDING = LAYOUT_SPACING.SUBGRAPH_PADDING; // Base padding around subgraph edges (reduced to tighten layout)
-const SUBGRAPH_CONTENT_TOP_MARGIN = LAYOUT_SPACING.SUBGRAPH_CONTENT_TOP_MARGIN; // Additional space below title before content
+// Node spacing - controls minimum distance between nodes/clusters in the same rank/across ranks
+const NODE_SEPARATION_HORIZONTAL = LAYOUT_SPACING.NODE_SEPARATION_HORIZONTAL;
+const NODE_SEPARATION_VERTICAL = LAYOUT_SPACING.NODE_SEPARATION_VERTICAL;
 
-// Node spacing within subgraphs - controls minimum distance between nodes
-const NODE_SEPARATION_HORIZONTAL = LAYOUT_SPACING.NODE_SEPARATION_HORIZONTAL; // Minimum horizontal distance between nodes in same rank
-const NODE_SEPARATION_VERTICAL = LAYOUT_SPACING.NODE_SEPARATION_VERTICAL; // Minimum vertical distance between different ranks
+// Outer margin for the entire diagram
+const META_GRAPH_MARGIN = LAYOUT_SPACING.META_GRAPH_MARGIN;
 
-// Container spacing for meta-graph layout - controls distance between top-level elements
-const CONTAINER_SEPARATION_HORIZONTAL = LAYOUT_SPACING.CONTAINER_SEPARATION_HORIZONTAL; // Distance between top-level subgraphs/nodes horizontally (reduced)
-const CONTAINER_SEPARATION_VERTICAL = LAYOUT_SPACING.CONTAINER_SEPARATION_VERTICAL; // Distance between top-level subgraphs/nodes vertically (slightly reduced)
-
-// Nested subgraph spacing - controls spacing of child subgraphs within parents
-const NESTED_SUBGRAPH_SEPARATION_HORIZONTAL = LAYOUT_SPACING.NESTED_SUBGRAPH_SEPARATION_HORIZONTAL; // Distance between sibling subgraphs (increased)
-const NESTED_SUBGRAPH_SEPARATION_VERTICAL = LAYOUT_SPACING.NESTED_SUBGRAPH_SEPARATION_VERTICAL; // Distance between nested subgraph ranks (increased)
-
-// Margin constants for different layout contexts
-const META_GRAPH_MARGIN = LAYOUT_SPACING.META_GRAPH_MARGIN; // Outer margin for the entire diagram
-const NESTED_CONTENT_MARGIN = LAYOUT_SPACING.NESTED_CONTENT_MARGIN; // Margin around content within nested subgraphs (increased)
-const MIXED_CONTENT_VERTICAL_SPACING = LAYOUT_SPACING.MIXED_CONTENT_VERTICAL_SPACING; // Extra spacing between nodes and nested subgraphs in same parent (increased)
-const MIXED_CONTENT_HORIZONTAL_SPACING = LAYOUT_SPACING.MIXED_CONTENT_HORIZONTAL_SPACING; // Extra spacing when laying out children beside nodes (LR/RL)
 const DAGRE_RANKER: 'network-simplex' | 'tight-tree' | 'longest-path' = 'tight-tree';
+
+// Fixed square size for service-icon nodes (e.g. AWS architecture diagrams).
+// Deliberately small and constant - the icon graphic itself is always the
+// same visual size regardless of how long the service name is; only the
+// separate floating caption below the node varies with label length.
+const ICON_NODE_SIZE = 56;
 
 const DEBUG = (typeof process !== 'undefined' && typeof process.env !== 'undefined' && process.env.DEBUG_MERMAID === 'true');
  
@@ -790,9 +778,14 @@ export function parseMermaidCode(code: string): {
 
 // Calculate dynamic node sizes based on label length
 function calculateNodeSize(label: string, shape: string, isImageNode: boolean = false) {
-  // Fixed size for image nodes
+  // Fixed, small icon size for image (service icon) nodes. This is
+  // intentionally independent of the label/caption length - the caption
+  // renders in a separate floating element below the node (see
+  // `.image-caption` in App.css) and is never truncated, so the icon box
+  // itself should stay a consistent compact size no matter how long the
+  // service name is.
   if (isImageNode) {
-    return { width: 80, height: 80 };
+    return { width: ICON_NODE_SIZE, height: ICON_NODE_SIZE };
   }
 
   const lines = label.split("\n");
@@ -842,8 +835,16 @@ function calculateNodeSize(label: string, shape: string, isImageNode: boolean = 
   return { width, height };
 }
 
-// Helper function to detect and extract image URLs from labels
-function extractImageUrl(label: string): { imageUrl: string | null; cleanLabel: string } {
+// Helper function to detect and extract image URLs from labels. If a
+// `resolvedImageUrl` was already attached to the node (via the
+// `resolveNodeImage` hook passed to `convertMermaidToReactFlow`), that takes
+// priority over scanning the label text for an embedded URL - the label text
+// itself (e.g. "Route 53") is then used as-is for the caption, unmodified.
+function extractImageUrl(label: string, resolvedImageUrl?: string): { imageUrl: string | null; cleanLabel: string } {
+  if (resolvedImageUrl) {
+    return { imageUrl: resolvedImageUrl, cleanLabel: label };
+  }
+
   // Match common image URL patterns
   const imageUrlPattern = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|svg|webp)(\?[^\s]*)?/i;
   const match = label.match(imageUrlPattern);
@@ -905,850 +906,293 @@ function processSubgraphsInHierarchicalOrder(
   return result;
 }
 
-// Phase 1: Layout each subgraph independently
-function layoutSubgraphs(
+// ============================================================================
+// Compound-graph layout engine
+// ============================================================================
+//
+// This replaces an earlier multi-phase approach that laid out each subgraph
+// independently with its own `dagre.layout()` call, then tried to glue the
+// results together with a separate "meta-graph" pass and manual bounding-box
+// math. That approach had no way to give dagre visibility into edges that
+// cross subgraph boundaries during ranking, so containers were frequently
+// undersized, overlapping, or misaligned relative to their real content
+// whenever a diagram had cross-boundary edges (which real AWS architecture
+// diagrams have constantly - e.g. a Lambda inside a VPC calling out to
+// DynamoDB outside it).
+//
+// This was verified against Mermaid's own flowchart renderer source
+// (mermaid-js/mermaid, packages/mermaid/src/rendering-util/layout-algorithms/
+// dagre/{index.js,mermaid-graphlib.js}) and against dagre's own compound-graph
+// primitives (dagre/lib/{graphlib.js,nesting-graph.js,add-border-segments.js}).
+// Mermaid builds ONE compound graph via `graphlib.Graph({compound: true})` and
+// `graph.setParent(nodeId, parentId)`, then calls `dagre.layout()` ONCE. Dagre
+// natively supports this via its "nesting graph" technique (Sander, "Layout of
+// Compound Directed Graphs"): it inserts border dummy nodes for every cluster's
+// top/bottom rank and inflates `minlen` on edges so cluster contents are always
+// ranked between those borders, then `removeBorderNodes` computes the final
+// cluster width/height directly from the border nodes' actual positions after
+// layout - not from a separate manual bounding-box pass.
+//
+// The one thing raw dagre's compound API cannot do is have an edge whose
+// endpoint IS a cluster node itself (e.g. `subgraphA --> subgraphB`) - it
+// throws inside rank assignment. Mermaid works around this by rewriting such
+// edges to point at an actual descendant leaf node instead (an "anchor"),
+// which is exactly what we do below in `resolveEdgeEndpoint`.
+//
+// Node/cluster sizing:
+// - Leaf node sizes come from `calculateNodeSize` (existing helper, unchanged).
+// - Cluster (subgraph) sizes are NOT computed manually. We let dagre size them
+//   via its native border-node mechanism, then apply the same post-layout
+//   header-height inflation Mermaid itself applies (`node.height += title
+//   margin; node.y -= title margin / 2`) to reserve room for the title bar
+//   without disturbing dagre's own containment math.
+
+interface CompoundLayoutResult {
+  // Absolute (top-level-graph) center-based positions/sizes for every node id
+  // (both leaf mermaid nodes and subgraph container ids).
+  nodes: Map<string, { x: number; y: number; width: number; height: number }>;
+  edges: Array<{
+    source: string;
+    target: string;
+    // The edge as originally authored - used to look up label/type after layout.
+    original: MermaidEdge;
+  }>;
+}
+
+/**
+ * Builds a single dagre compound graph for the entire diagram (all nodes and
+ * subgraphs, nested to any depth) and runs one `dagre.layout()` pass, mirroring
+ * how Mermaid's own flowchart renderer works. This gives dagre full visibility
+ * into cross-boundary edges while ranking, so subgraph containers end up
+ * correctly sized and positioned around their actual content in a single
+ * coherent optimization, instead of several independent layouts glued
+ * together afterward.
+ */
+function layoutCompoundGraph(
   nodes: MermaidNode[],
   edges: MermaidEdge[],
   subgraphs: SubgraphInfo[],
   direction: string
-): Map<string, SubgraphLayout> {
-  const subgraphLayouts = new Map<string, SubgraphLayout>();
-
-  // Process subgraphs in hierarchical order
-  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
-
-  debugLog(
-    `Laying out ${orderedSubgraphs.length} subgraphs in hierarchical order`
-  );
-
-  orderedSubgraphs.forEach((subgraph) => {
-    const subgraphNodes = nodes.filter((n) => n.subgraph === subgraph.id);
-    const subgraphEdges = edges.filter((e) => {
-      const sourceNode = nodes.find((n) => n.id === e.source);
-      const targetNode = nodes.find((n) => n.id === e.target);
-      return (
-        sourceNode?.subgraph === subgraph.id &&
-        targetNode?.subgraph === subgraph.id
-      );
-    });
-
-    debugLog(
-      `Laying out subgraph: ${subgraph.id} with ${subgraphNodes.length} nodes and ${subgraphEdges.length} edges`
-    );
-
-    // Create a new graph for this subgraph with proper node spacing
-    const g = new dagre.graphlib.Graph();
-    g.setGraph({
-      rankdir: subgraph.direction || direction,
-      // Node separation settings - ensure minimum distance between nodes
-      nodesep: NODE_SEPARATION_HORIZONTAL, // Horizontal spacing between nodes in same rank
-      ranksep: NODE_SEPARATION_VERTICAL,   // Vertical spacing between different ranks
-      // Margins - space around the entire subgraph content area
-      marginx: SUBGRAPH_PADDING,
-      marginy: SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN,
-      ranker: DAGRE_RANKER, // Algorithm for ranking nodes (tight-tree gives compact layouts)
-    });
-    g.setDefaultEdgeLabel(() => ({}));
-
-    // Add nodes
-    subgraphNodes.forEach((node) => {
-      const { imageUrl } = extractImageUrl(node.label);
-      const size = calculateNodeSize(node.label, node.shape, !!imageUrl);
-      g.setNode(node.id, { width: size.width, height: size.height });
-    });
-
-    // Add edges
-    subgraphEdges.forEach((edge) => {
-      g.setEdge(edge.source, edge.target);
-    });
-
-  // Layout this subgraph
-    dagre.layout(g);
-
-    // Calculate bounding box
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    const nodePositions = new Map<
-      string,
-      { x: number; y: number; width: number; height: number }
-    >();
-
-    // Transform dagre coordinates to React Flow coordinates
-    // Dagre gives us center-based coordinates, but we need to track bounding boxes
-    // for proper subgraph sizing and relative positioning
-    subgraphNodes.forEach((node) => {
-      const nodeLayout = g.node(node.id);
-      if (!nodeLayout) {
-        debugLog(
-          `Warning: No layout information for node ${node.id} in subgraph ${subgraph.id}`
-        );
-        return;
-      }
-
-      const size = calculateNodeSize(node.label, node.shape);
-
-      // Store center-based coordinates from dagre (will be converted to top-left later)
-      nodePositions.set(node.id, {
-        x: nodeLayout.x,
-        y: nodeLayout.y,
-        width: size.width,
-        height: size.height,
-      });
-
-      // Calculate bounding box for subgraph sizing
-      // Note: dagre coordinates are center-based, so we calculate edges
-      minX = Math.min(minX, nodeLayout.x - size.width / 2);
-      maxX = Math.max(maxX, nodeLayout.x + size.width / 2);
-      minY = Math.min(minY, nodeLayout.y - size.height / 2);
-      maxY = Math.max(maxY, nodeLayout.y + size.height / 2);
-    });
-
-    // Handle empty subgraphs by providing minimum dimensions
-    if (subgraphNodes.length === 0 || minX === Infinity || minY === Infinity) {
-      // Set default size for empty subgraph
-      const defaultWidth = 200;
-      const defaultHeight = 100;
-      minX = 0;
-      minY = 0;
-      maxX = defaultWidth;
-      maxY = defaultHeight;
-      debugLog(
-        `Using default dimensions for subgraph ${subgraph.id}: ${defaultWidth}x${defaultHeight}`
-      );
-    }
-
-    // Normalize positions for React Flow coordinate system
-    // React Flow expects top-left coordinates, but dagre gives center coordinates
-    // We offset everything so the content starts at the proper position within the subgraph
-    const offsetX = -minX + SUBGRAPH_PADDING;
-    const offsetY = -minY + SUBGRAPH_PADDING + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN;
-
-    // Convert center-based coordinates to top-left coordinates for React Flow
-    nodePositions.forEach((pos, nodeId) => {
-      nodePositions.set(nodeId, {
-        ...pos,
-        // Apply offset and convert from center to top-left
-        x: pos.x + offsetX,
-        y: pos.y + offsetY,
-      });
-    });
-
-    // Validate that nodes have adequate spacing (helps debug layout issues)
-    validateNodeSpacing(nodePositions, subgraph.id);
-
-    // Calculate base size from actual content including header and content margin
-    const baseWidth = maxX - minX + SUBGRAPH_PADDING * 2;
-    const baseHeight = maxY - minY + SUBGRAPH_PADDING * 2 + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN;
-
-    // Minimal buffer to prevent edge clipping
-    const width = baseWidth + 8;
-    const height = baseHeight + 8;
-
-    subgraphLayouts.set(subgraph.id, {
-      id: subgraph.id,
-      title: subgraph.title,
-      nodes: nodePositions,
-      width,
-      height,
-      parentId: subgraph.parentId,
-    });
-
-    debugLog(
-      `Subgraph ${subgraph.id} sizing: base(${baseWidth.toFixed(1)}x${baseHeight.toFixed(1)}) = final(${width.toFixed(1)}x${height.toFixed(1)})`
-    );
-  });
-
-  // Recalculate parent subgraph sizes to accommodate nested subgraphs
-  recalculateParentSubgraphSizes(subgraphLayouts, orderedSubgraphs, direction);
-
-  return subgraphLayouts;
-}
-
-// Recalculate parent subgraph sizes to include nested subgraphs
-// This runs AFTER child positioning to ensure accurate sizing
-function recalculateParentSubgraphSizes(
-  subgraphLayouts: Map<string, SubgraphLayout>,
-  orderedSubgraphs: SubgraphInfo[],
-  direction: string
-) {
-  // Process in reverse order (children first, then parents)
-  for (let i = orderedSubgraphs.length - 1; i >= 0; i--) {
-    const subgraph = orderedSubgraphs[i];
-    const layout = subgraphLayouts.get(subgraph.id);
-    
-    if (!layout) continue;
-
-    // Find all direct child subgraphs
-    const childSubgraphs = orderedSubgraphs.filter(sg => sg.parentId === subgraph.id);
-    
-    if (childSubgraphs.length === 0) continue;
-
-  // Calculate the minimum required size based on actual content
-  let maxContentRight = 0;
-  let maxContentBottom = 0;
-
-    // Consider existing nodes in the parent
-    layout.nodes.forEach((nodePos) => {
-      const nodeRight = nodePos.x + nodePos.width / 2;
-      const nodeBottom = nodePos.y + nodePos.height / 2;
-      maxContentRight = Math.max(maxContentRight, nodeRight);
-      maxContentBottom = Math.max(maxContentBottom, nodeBottom);
-    });
-
-    const isHorizontal = direction === 'LR' || direction === 'RL';
-
-    // Consider child subgraphs (they will be positioned with proper spacing)
-    childSubgraphs.forEach(childSg => {
-      const childLayout = subgraphLayouts.get(childSg.id);
-      if (childLayout) {
-        // Estimate child position accounting for dagre spacing and mixed content
-        const estimatedChildX = isHorizontal
-          ? Math.max(
-              SUBGRAPH_PADDING + childLayout.width / 2,
-              maxContentRight + MIXED_CONTENT_HORIZONTAL_SPACING + childLayout.width / 2
-            )
-          : SUBGRAPH_PADDING + childLayout.width / 2;
-        const estimatedChildY = isHorizontal
-          ? Math.max(
-              SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING + childLayout.height / 2,
-              childLayout.height / 2 // keep near top content area when horizontal
-            )
-          : Math.max(
-              SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING + childLayout.height / 2,
-              maxContentBottom + MIXED_CONTENT_VERTICAL_SPACING + childLayout.height / 2
-            );
-
-        const childRight = estimatedChildX + childLayout.width / 2;
-        const childBottom = estimatedChildY + childLayout.height / 2;
-
-        maxContentRight = Math.max(maxContentRight, childRight);
-        maxContentBottom = Math.max(maxContentBottom, childBottom);
-      }
-    });
-
-    // Calculate minimum required parent size with generous padding
-  const minRequiredWidth = maxContentRight + SUBGRAPH_PADDING * 3; // Extra padding for visual breathing room
-  const minRequiredHeight = maxContentBottom + SUBGRAPH_PADDING * 3;
-    
-    // Ensure minimum size for readability
-    const absoluteMinWidth = 300;
-    const absoluteMinHeight = 200;
-    
-    const finalWidth = Math.max(layout.width, minRequiredWidth, absoluteMinWidth);
-    const finalHeight = Math.max(layout.height, minRequiredHeight, absoluteMinHeight);
-
-    // Update parent size if it needs to be larger
-    if (finalWidth > layout.width || finalHeight > layout.height) {
-      const oldWidth = layout.width;
-      const oldHeight = layout.height;
-      layout.width = finalWidth;
-      layout.height = finalHeight;
-      
-      debugLog(
-        `Pre-sized parent ${subgraph.id}: ${oldWidth}x${oldHeight} → ${layout.width}x${layout.height} to contain ${childSubgraphs.length} children + nodes`
-      );
-      
-      // Also log the child details for debugging
-      childSubgraphs.forEach(child => {
-        const childLayout = subgraphLayouts.get(child.id);
-        if (childLayout) {
-          debugLog(`  Child ${child.id}: ${childLayout.width}x${childLayout.height}`);
-        }
-      });
-    }
-  }
-}
-
-// Calculate connection weights between containers
-function calculateConnectionWeights(
-  nodes: MermaidNode[],
-  edges: MermaidEdge[]
-): Map<string, Map<string, number>> {
-  const weights = new Map<string, Map<string, number>>();
-
-  edges.forEach((edge) => {
-    const sourceNode = nodes.find((n) => n.id === edge.source);
-    const targetNode = nodes.find((n) => n.id === edge.target);
-
-    if (!sourceNode || !targetNode) return;
-
-    // Get container IDs (either subgraph ID or node ID for standalone nodes)
-    const sourceContainer = sourceNode.subgraph || sourceNode.id;
-    const targetContainer = targetNode.subgraph || targetNode.id;
-
-    // Skip self-connections within the same container
-    if (sourceContainer === targetContainer) return;
-
-    // Initialize maps if needed
-    if (!weights.has(sourceContainer)) {
-      weights.set(sourceContainer, new Map<string, number>());
-    }
-
-    const sourceWeights = weights.get(sourceContainer)!;
-    const currentWeight = sourceWeights.get(targetContainer) || 0;
-    sourceWeights.set(targetContainer, currentWeight + 1);
-  });
-
-  return weights;
-}
-
-// Post-positioning size adjustment: ensure parent containers properly contain all positioned children
-function adjustParentSizesAfterPositioning(
-  subgraphLayouts: Map<string, SubgraphLayout>,
-  subgraphPositions: Map<string, { x: number; y: number }>,
-  orderedSubgraphs: SubgraphInfo[],
-  direction: string
-): void {
-  const isHorizontal = direction === 'LR' || direction === 'RL';
-
-  // Iterate a few times to propagate size growth up through ancestors
-  let changed = true;
-  let iterations = 0;
-  while (changed && iterations < 5) {
-    iterations++;
-    changed = false;
-
-    // Process parents ensuring they contain both own nodes and positioned children
-    orderedSubgraphs.forEach((subgraph) => {
-      const layout = subgraphLayouts.get(subgraph.id);
-      const position = subgraphPositions.get(subgraph.id);
-      if (!layout || !position) return;
-
-      // Bounds from this parent's own nodes (relative to parent origin)
-      let maxNodeRight = 0;
-      let maxNodeBottom = SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING; // at least header zone
-      layout.nodes.forEach((nodePos) => {
-        const nodeRight = nodePos.x + nodePos.width / 2;
-        const nodeBottom = nodePos.y + nodePos.height / 2;
-        maxNodeRight = Math.max(maxNodeRight, nodeRight);
-        maxNodeBottom = Math.max(maxNodeBottom, nodeBottom);
-      });
-
-      // Bounds from child subgraphs (direct children only)
-      let maxChildRight = 0;
-      let maxChildBottom = 0;
-      const childSubgraphs = orderedSubgraphs.filter((sg) => sg.parentId === subgraph.id);
-      childSubgraphs.forEach((child) => {
-        const childLayout = subgraphLayouts.get(child.id);
-        const childPosition = subgraphPositions.get(child.id);
-        if (!childLayout || !childPosition) return;
-        const relX = childPosition.x - position.x;
-        const relY = childPosition.y - position.y;
-        maxChildRight = Math.max(maxChildRight, relX + childLayout.width);
-        maxChildBottom = Math.max(maxChildBottom, relY + childLayout.height);
-      });
-
-      // Combine bounds
-      const contentMaxRight = Math.max(maxNodeRight, maxChildRight);
-      const contentMaxBottom = Math.max(maxNodeBottom, maxChildBottom);
-
-      // Required dimensions with safety margins
-      const requiredWidth = contentMaxRight + (isHorizontal ? SUBGRAPH_PADDING * 4 : SUBGRAPH_PADDING * 3);
-      const requiredHeight = contentMaxBottom + SUBGRAPH_PADDING * 3;
-
-  const newWidth = Math.max(layout.width, requiredWidth, isHorizontal ? 600 : 240);
-      const newHeight = Math.max(layout.height, requiredHeight, 200);
-
-      if (newWidth > layout.width || newHeight > layout.height) {
-        debugLog(
-          `Post-positioning resize (iter ${iterations}): ${subgraph.id} ${layout.width}x${layout.height} → ${newWidth}x${newHeight}`
-        );
-        layout.width = newWidth;
-        layout.height = newHeight;
-        changed = true;
-      }
-    });
-  }
-}
-
-// Helper function to calculate the bottom boundary of nodes within a parent subgraph
-function getParentNodesBottomBoundary(
-  parentId: string, 
-  parentLayout: SubgraphLayout
-): number {
-  let maxBottom = 0;
-  
-  // Check all nodes that belong directly to this parent subgraph
-  parentLayout.nodes.forEach((nodePos) => {
-    // nodePos contains center-based coordinates and dimensions
-    const nodeBottom = nodePos.y + nodePos.height / 2;
-    maxBottom = Math.max(maxBottom, nodeBottom);
-  });
-  
-  debugLog(`Parent ${parentId} nodes extend to bottom Y=${maxBottom}`);
-  return maxBottom;
-}
-
-// Validate and enforce minimum spacing between nodes
-function validateNodeSpacing(
-  nodePositions: Map<string, { x: number; y: number; width: number; height: number }>,
-  subgraphId: string
-): void {
-  const positions = Array.from(nodePositions.values());
-  let hasOverlap = false;
-
-  // Check for overlapping nodes
-  for (let i = 0; i < positions.length; i++) {
-    for (let j = i + 1; j < positions.length; j++) {
-      const node1 = positions[i];
-      const node2 = positions[j];
-      
-      // Calculate distance between node centers
-      const centerDistance = Math.sqrt(
-        Math.pow(node1.x - node2.x, 2) + Math.pow(node1.y - node2.y, 2)
-      );
-      
-      // Calculate minimum required distance (sum of half-widths + half-heights + padding)
-      const minDistance = (node1.width + node2.width) / 2 + (node1.height + node2.height) / 2 + 20;
-      
-      if (centerDistance < minDistance) {
-        hasOverlap = true;
-        debugLog(`Warning: Potential node overlap in subgraph ${subgraphId} - distance: ${centerDistance.toFixed(1)}, required: ${minDistance.toFixed(1)}`);
-      }
-    }
-  }
-  
-  if (!hasOverlap) {
-    debugLog(`✓ Node spacing validated for subgraph ${subgraphId} - no overlaps detected`);
-  }
-}
-
-// Phase 2: Layout meta-graph (containers + standalone nodes)
-function layoutMetaGraph(
-  nodes: MermaidNode[],
-  edges: MermaidEdge[],
-  subgraphLayouts: Map<string, SubgraphLayout>,
-  direction: string
-): {
-  subgraphPositions: Map<string, { x: number; y: number }>;
-  standalonePositions: Map<string, { x: number; y: number }>;
-} {
-  // Create meta-graph for top-level layout with generous spacing
-  const g = new dagre.graphlib.Graph();
+): CompoundLayoutResult {
+  const g = new dagre.graphlib.Graph({ compound: true, multigraph: true });
   g.setGraph({
     rankdir: direction,
-    // Container separation - ensure top-level elements don't overlap
-    nodesep: CONTAINER_SEPARATION_HORIZONTAL,  // Horizontal spacing between top-level containers
-    ranksep: CONTAINER_SEPARATION_VERTICAL,   // Vertical spacing between container ranks
-    // Outer margins for the entire diagram
-    marginx: META_GRAPH_MARGIN,   
+    nodesep: NODE_SEPARATION_HORIZONTAL,
+    ranksep: NODE_SEPARATION_VERTICAL,
+    marginx: META_GRAPH_MARGIN,
     marginy: META_GRAPH_MARGIN,
-    ranker: DAGRE_RANKER, // Use tight-tree for better container arrangement
+    ranker: DAGRE_RANKER,
   });
   g.setDefaultEdgeLabel(() => ({}));
 
-  debugLog("Laying out meta-graph");
+  const subgraphById = new Map(subgraphs.map((sg) => [sg.id, sg]));
 
-  // Calculate connection weights between containers
-  const connectionWeights = calculateConnectionWeights(nodes, edges);
-
-  // Add subgraph containers as nodes
-  subgraphLayouts.forEach((layout, id) => {
-    // Skip nested subgraphs - they'll be positioned relative to their parents
-    if (!layout.parentId) {
-      g.setNode(id, { width: layout.width, height: layout.height });
-      debugLog(
-        `Added subgraph ${id} to meta-graph (width=${layout.width}, height=${layout.height})`
-      );
+  // 1. Add every subgraph as a cluster (parent) node. No explicit width/height -
+  //    dagre computes these from the border nodes it inserts for the cluster's
+  //    content, exactly like Mermaid's own renderer relies on.
+  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
+  orderedSubgraphs.forEach((sg) => {
+    g.setNode(sg.id, {});
+  });
+  // Parent relationships must be set after all cluster nodes exist, and parents
+  // before children (processSubgraphsInHierarchicalOrder already guarantees
+  // parent-before-child ordering, but setParent itself requires the parent
+  // node to already exist in the graph, which the loop above ensures).
+  orderedSubgraphs.forEach((sg) => {
+    if (sg.parentId && subgraphById.has(sg.parentId)) {
+      g.setParent(sg.id, sg.parentId);
     }
   });
 
-  // Add standalone nodes
-  const standaloneNodes = nodes.filter((n) => !n.subgraph);
-  standaloneNodes.forEach((node) => {
-    const { imageUrl } = extractImageUrl(node.label);
+  // 2. Add every leaf mermaid node, parented to its subgraph (if any).
+  nodes.forEach((node) => {
+    const { imageUrl } = extractImageUrl(node.label, node.resolvedImageUrl);
     const size = calculateNodeSize(node.label, node.shape, !!imageUrl);
     g.setNode(node.id, { width: size.width, height: size.height });
-    debugLog(`Added standalone node ${node.id} to meta-graph`);
+    if (node.subgraph && subgraphById.has(node.subgraph)) {
+      g.setParent(node.id, node.subgraph);
+    }
   });
 
-  // Add edges between containers and standalone nodes with weights
-  connectionWeights.forEach((targets, sourceId) => {
-    targets.forEach((weight, targetId) => {
-      // Skip edges between nested subgraphs and their parents
-      const sourceLayout = subgraphLayouts.get(sourceId);
-      const targetLayout = subgraphLayouts.get(targetId);
+  // 3. Resolve every edge endpoint to a real (non-cluster) node id before
+  //    calling dagre.layout(). Raw dagre's compound-graph rank assignment
+  //    crashes if an edge's source or target is itself a node that has
+  //    children (a cluster) - see mermaid's `adjustClustersAndEdges` /
+  //    `getAnchorId` for the equivalent workaround in their renderer.
+  //
+  //    We only need to rewrite edges whose endpoint IS a subgraph id; edges
+  //    between two ordinary leaf nodes work correctly with dagre's compound
+  //    API even when one or both are nested many levels deep inside clusters
+  //    (verified empirically - dagre's nesting-graph handles that natively).
+  const resolveEdgeEndpoint = (id: string): string | undefined => {
+    if (!subgraphById.has(id)) return id; // already a leaf node
+    // Descend into the first available leaf descendant. Prefer nodes that
+    // belong directly to this subgraph; if it has none (only nested child
+    // subgraphs), recurse into the first child subgraph.
+    const sg = subgraphById.get(id)!;
+    const directChild = nodes.find((n) => n.subgraph === id);
+    if (directChild) return directChild.id;
+    const childSubgraph = orderedSubgraphs.find((s) => s.parentId === id);
+    if (childSubgraph) return resolveEdgeEndpoint(childSubgraph.id);
+    return undefined; // empty subgraph with no descendants at all
+  };
 
-      if (
-        (sourceLayout && sourceLayout.parentId === targetId) ||
-        (targetLayout && targetLayout.parentId === sourceId)
-      ) {
-        return;
-      }
+  const resolvedEdges: Array<{ source: string; target: string; original: MermaidEdge }> = [];
+  let syntheticEdgeCounter = 0;
+  edges.forEach((edge) => {
+    const sourceId = resolveEdgeEndpoint(edge.source);
+    const targetId = resolveEdgeEndpoint(edge.target);
+    if (!sourceId || !targetId) {
+      debugLog(`Skipping edge with unresolvable endpoint: ${edge.source} -> ${edge.target}`);
+      return;
+    }
+    resolvedEdges.push({ source: sourceId, target: targetId, original: edge });
 
-      // Only add edges between top-level containers or standalone nodes
-      const sourceIsTopLevel = !sourceLayout || !sourceLayout.parentId;
-      const targetIsTopLevel = !targetLayout || !targetLayout.parentId;
-
-      if (sourceIsTopLevel && targetIsTopLevel) {
-        // Check if both nodes exist in the graph
-        if (g.hasNode(sourceId) && g.hasNode(targetId)) {
-          if (!g.hasEdge(sourceId, targetId)) {
-            g.setEdge(sourceId, targetId, { weight });
-            debugLog(
-              `Added meta-edge from ${sourceId} to ${targetId} with weight ${weight}`
-            );
-          }
-        }
-      }
-    });
+    if (sourceId === targetId) {
+      // Self-loop after anchor resolution (e.g. an edge between a subgraph and
+      // one of its own descendants). Dagre handles true self-edges (v === w)
+      // gracefully on its own (verified empirically), so just pass it through
+      // as-is rather than trying to special-case it.
+      g.setEdge(sourceId, targetId, {}, `edge-${syntheticEdgeCounter++}`);
+      return;
+    }
+    if (!g.hasEdge(sourceId, targetId)) {
+      g.setEdge(sourceId, targetId, {}, `edge-${syntheticEdgeCounter++}`);
+    }
   });
 
-  // Layout the meta-graph
+  // 4. Run dagre's compound-graph layout ONCE for the whole diagram.
   dagre.layout(g);
 
-  // Extract positions
-  const subgraphPositions = new Map<string, { x: number; y: number }>();
-  const standalonePositions = new Map<string, { x: number; y: number }>();
-
-  // Position top-level subgraphs
-  subgraphLayouts.forEach((layout, id) => {
-    if (!layout.parentId) {
-      const node = g.node(id);
-      if (node) {
-        subgraphPositions.set(id, {
-          x: node.x - layout.width / 2,
-          y: node.y - layout.height / 2,
-        });
-        debugLog(
-          `Positioned subgraph ${id} at (${node.x - layout.width / 2}, ${
-            node.y - layout.height / 2
-          })`
-        );
-      } else {
-        debugLog(`Warning: No position for subgraph ${id} in meta-graph`);
-      }
-    }
+  // 5. Reserve title-bar space for every cluster by inflating its height and
+  //    shifting it up, exactly as Mermaid's own renderer does post-layout
+  //    (`node.height += subGraphTitleTotalMargin; node.y -= .../2`). Doing
+  //    this after layout (rather than trying to reserve the space with a
+  //    dummy title node before layout) avoids destabilizing dagre's rank
+  //    assignment - verified empirically that pre-layout title dummy nodes
+  //    can trigger rank-assignment crashes on deeply nested graphs, while
+  //    post-layout inflation is simple, safe, and matches upstream Mermaid.
+  const titleReserve = SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN;
+  subgraphs.forEach((sg) => {
+    const node = g.node(sg.id);
+    if (!node) return;
+    node.height += titleReserve;
+    node.y -= titleReserve / 2;
   });
 
-  // Dagre-based positioning for nested subgraphs within each parent container
-  // Access ordered subgraphs to read per-subgraph direction
-  const orderedForMeta = processSubgraphsInHierarchicalOrder(
-    Array.from(new Set(
-      Array.from(subgraphLayouts.keys()).map(id => ({
-        id,
-        parentId: subgraphLayouts.get(id)?.parentId,
-        title: subgraphLayouts.get(id)?.title || id,
-      }))
-    )) as any
-  );
-  const processedSubgraphs = new Set<string>();
-
-  function layoutChildrenWithinParent(parentId: string): boolean {
-    const parentPos = subgraphPositions.get(parentId);
-    const parentLayout = subgraphLayouts.get(parentId);
-    if (!parentPos || !parentLayout) return false;
-
-    // Collect direct child subgraphs
-    const childIds: string[] = [];
-    subgraphLayouts.forEach((layout, id) => {
-      if (layout.parentId === parentId) childIds.push(id);
-    });
-
-    if (childIds.length === 0) return false;
-
-    // CRITICAL FIX: Calculate the occupied space by existing nodes in the parent
-    // This prevents nested subgraphs from overlapping with parent's direct nodes
-    let maxNodeBottom = 0;
-    const parentNodesBottom = getParentNodesBottomBoundary(parentId, parentLayout);
-    if (parentNodesBottom > 0) {
-      maxNodeBottom = parentNodesBottom;
-      debugLog(`Parent ${parentId} has nodes extending to Y=${maxNodeBottom}, will position child subgraphs below this`);
-    }
-
-  // Build a dagre graph for child subgraphs with proper nested spacing
-    const cg = new dagre.graphlib.Graph();
-  // We didn't carry direction through here; default to global direction for meta stage
-  const parentDir = direction;
-    cg.setGraph({
-      rankdir: parentDir,
-      // Nested subgraph separation - spacing between sibling subgraphs within parent
-      nodesep: NESTED_SUBGRAPH_SEPARATION_HORIZONTAL,   // Horizontal spacing between sibling subgraphs
-      ranksep: NESTED_SUBGRAPH_SEPARATION_VERTICAL,     // Vertical spacing between subgraph ranks
-      // Margins within parent content area
-      marginx: NESTED_CONTENT_MARGIN,  
-      marginy: NESTED_CONTENT_MARGIN,
-      ranker: DAGRE_RANKER, // Consistent ranking algorithm
-    });
-    cg.setDefaultEdgeLabel(() => ({}));
-
-    // Add child subgraphs as nodes with their sizes
-    childIds.forEach((cid) => {
-      const cl = subgraphLayouts.get(cid)!;
-      cg.setNode(cid, { width: cl.width, height: cl.height });
-    });
-
-    // Add edges between children based on connection weights in the full graph
-    // Only include edges where both source and target are in childIds
-    let hasEdges = false;
-    childIds.forEach((sourceId) => {
-      const targets = connectionWeights.get(sourceId);
-      if (!targets) return;
-      targets.forEach((weight, targetId) => {
-        if (childIds.includes(targetId) && !cg.hasEdge(sourceId, targetId)) {
-          cg.setEdge(sourceId, targetId, { weight });
-          hasEdges = true;
-        }
-      });
-    });
-
-    // If there are no inter-child edges, create a simple flow layout
-    if (!hasEdges && childIds.length > 1) {
-      // Create a simple chain to spread them out better
-      for (let i = 0; i < childIds.length - 1; i++) {
-        cg.setEdge(childIds[i], childIds[i + 1], { weight: 1 });
-      }
-    }
-
-    dagre.layout(cg);
-
-    // Compute bounding box of children from dagre positions
-    let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
-    const childTopLefts = new Map<string, { x: number; y: number }>();
-
-    childIds.forEach((cid) => {
-      const n = cg.node(cid);
-      const cl = subgraphLayouts.get(cid)!;
-      const left = n.x - cl.width / 2;
-      const top = n.y - cl.height / 2;
-      const right = n.x + cl.width / 2;
-      const bottom = n.y + cl.height / 2;
-      childTopLefts.set(cid, { x: left, y: top });
-      minLeft = Math.min(minLeft, left);
-      minTop = Math.min(minTop, top);
-      maxRight = Math.max(maxRight, right);
-      maxBottom = Math.max(maxBottom, bottom);
-    });
-
-  // Origin inside parent content area (absolute coords) - below header with content margin
-  let contentOriginX = parentPos.x + SUBGRAPH_PADDING;
-  let contentOriginY = parentPos.y + SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING;
-
-    // CRITICAL: If parent has nodes, position child subgraphs below them with adequate spacing
-  const isHorizontal = parentDir === 'LR' || parentDir === 'RL';
-    if (isHorizontal) {
-      // In horizontal flow, keep children near the top content band and shift X if parent has wide nodes
-      const parentNodesMaxRight = Array.from(parentLayout.nodes.values()).reduce((acc, n) => Math.max(acc, n.x + n.width / 2), 0);
-      if (parentNodesMaxRight > 0) {
-        const proposedX = parentPos.x + Math.max(SUBGRAPH_PADDING, parentNodesMaxRight + MIXED_CONTENT_HORIZONTAL_SPACING);
-        contentOriginX = Math.max(contentOriginX, proposedX);
-        debugLog(`Adjusted child subgraph start position to X=${contentOriginX} for LR/RL to avoid parent nodes`);
-      }
-      // Keep Y anchored at content start for LR/RL to avoid growing height unnecessarily
-    } else {
-      if (maxNodeBottom > 0) {
-        const nodeBottomInParentCoords = maxNodeBottom;
-        const proposedY = parentPos.y + nodeBottomInParentCoords + MIXED_CONTENT_VERTICAL_SPACING;
-        // Use the lower of the two positions (either normal content start or below existing nodes)
-        contentOriginY = Math.max(contentOriginY, proposedY);
-        debugLog(`Adjusted child subgraph start position to Y=${contentOriginY} to avoid parent nodes (added ${MIXED_CONTENT_VERTICAL_SPACING}px spacing)`);
-      }
-    }
-
-    // Calculate the available space in the parent for centering (accounting for header + content margin)
-  const availableWidth = parentLayout.width - (SUBGRAPH_PADDING * 2);
-  const usedVerticalSpace = contentOriginY - parentPos.y;
-  const availableHeight = parentLayout.height - usedVerticalSpace - SUBGRAPH_PADDING;
-    
-    // Calculate the actual content dimensions
-    const contentWidth = maxRight - minLeft;
-    const contentHeight = maxBottom - minTop;
-    
-  // Align children within the available parent space
-  // For vertical flows (TB/BT), left-align to avoid excess right whitespace; center only horizontally oriented layouts
-  const centerOffsetX = isHorizontal ? Math.max(0, (availableWidth - contentWidth) / 2) : 0;
-  const centerOffsetY = isHorizontal ? 0 : Math.max(0, (availableHeight - contentHeight) / 2);
-
-    // Position children with centering offset
-    childIds.forEach((cid) => {
-      const tl = childTopLefts.get(cid)!;
-      const absX = contentOriginX + centerOffsetX + (tl.x - minLeft);
-      const absY = contentOriginY + centerOffsetY + (tl.y - minTop);
-      subgraphPositions.set(cid, { x: absX, y: absY });
-      processedSubgraphs.add(cid);
-      debugLog(`Positioned nested subgraph "${cid}" within parent ${parentId} at (${absX}, ${absY}) with centering`);
-    });
-
-    // Ensure parent is large enough to contain both existing nodes and the centered children
-    // Use generous padding to prevent overflow issues
-    const requiredWidth = isHorizontal
-      ? Math.max(contentWidth + SUBGRAPH_PADDING * 6, (contentOriginX - parentPos.x) + contentWidth + SUBGRAPH_PADDING * 3)
-      : contentWidth + (SUBGRAPH_PADDING * 6); // Extra generous padding for centering and overflow prevention
-
-    // Calculate required height considering both node content and child subgraphs
-    const childrenBottomBoundary = contentOriginY + centerOffsetY + (maxBottom - minTop) - parentPos.y;
-    const minRequiredHeight = isHorizontal
-      ? Math.max(SUBGRAPH_HEADER_HEIGHT + SUBGRAPH_CONTENT_TOP_MARGIN + SUBGRAPH_PADDING * 2 + contentHeight + SUBGRAPH_PADDING * 2, 300)
-      : Math.max(
-          childrenBottomBoundary + SUBGRAPH_PADDING * 4, // Height to fit positioned children with safety margin
-          maxNodeBottom + MIXED_CONTENT_VERTICAL_SPACING + contentHeight + SUBGRAPH_PADDING * 4 // Height for nodes + spacing + children with safety margin
-        );
-
-    // Apply minimum dimensions to prevent cramped layouts
-    const finalRequiredWidth = Math.max(requiredWidth, isHorizontal ? 600 : 400); // Wider min for LR/RL
-    const finalRequiredHeight = Math.max(minRequiredHeight, 300); // Minimum height for readability
-    
-    if (finalRequiredWidth > parentLayout.width || finalRequiredHeight > parentLayout.height) {
-      const oldWidth = parentLayout.width;
-      const oldHeight = parentLayout.height;
-      parentLayout.width = Math.max(parentLayout.width, finalRequiredWidth);
-      parentLayout.height = Math.max(parentLayout.height, finalRequiredHeight);
-      debugLog(`Expanded parent ${parentId} from ${oldWidth}x${oldHeight} to ${parentLayout.width}x${parentLayout.height} to fit nodes + ${childIds.length} child subgraphs (overflow-safe)`);
-    }
-
-    return true;
-  }
-
-  // Process parents in waves from top-level down until all nested are positioned
-  const processedParents = new Set<string>();
-  let madeProgress = true;
-  let safetyCounter = 0;
-  while (madeProgress && safetyCounter < 100) {
-    safetyCounter++;
-    madeProgress = false;
-    // For each subgraph that already has an absolute position, try to lay out its direct children once
-    subgraphLayouts.forEach((_, id) => {
-      if (subgraphPositions.has(id) && !processedParents.has(id)) {
-        const progressed = layoutChildrenWithinParent(id);
-        if (progressed) {
-          madeProgress = true;
-          processedParents.add(id);
-        }
-      }
-    });
-  }
-  if (safetyCounter === 100) {
-    debugLog("Warning: nested subgraph layout reached iteration cap; potential cyclic dependency");
-  }
-
-  // Position standalone nodes
-  standaloneNodes.forEach((node) => {
-    const nodeLayout = g.node(node.id);
-    if (nodeLayout) {
-      const size = calculateNodeSize(node.label, node.shape);
-      standalonePositions.set(node.id, {
-        x: nodeLayout.x - size.width / 2,
-        y: nodeLayout.y - size.height / 2,
-      });
-      debugLog(
-        `Positioned standalone node ${node.id} at (${
-          nodeLayout.x - size.width / 2
-        }, ${nodeLayout.y - size.height / 2})`
-      );
-    } else {
-      debugLog(
-        `Warning: No position for standalone node ${node.id} in meta-graph`
-      );
-    }
+  // 6. Collect absolute positions for every node (leaves + clusters).
+  const resultNodes = new Map<string, { x: number; y: number; width: number; height: number }>();
+  g.nodes().forEach((id: string) => {
+    const n = g.node(id);
+    if (!n || typeof n.x !== "number") return;
+    resultNodes.set(id, { x: n.x, y: n.y, width: n.width, height: n.height });
   });
 
-  return { subgraphPositions, standalonePositions };
+  return { nodes: resultNodes, edges: resolvedEdges };
 }
 
-// Phase 3: Combine layouts and create React Flow elements
-function createReactFlowElements(
+/**
+ * Converts the flat, absolute-coordinate compound layout into React Flow
+ * nodes/edges. Subgraph containers become `type: "group"` nodes; leaf nodes
+ * and nested subgraphs get `parentNode` set to their immediate container with
+ * positions made relative to that container's top-left corner, as required by
+ * React Flow's parent/child node model.
+ */
+function compoundLayoutToReactFlow(
   nodes: MermaidNode[],
   edges: MermaidEdge[],
   subgraphs: SubgraphInfo[],
-  subgraphLayouts: Map<string, SubgraphLayout>,
-  subgraphPositions: Map<string, { x: number; y: number }>,
-  standalonePositions: Map<string, { x: number; y: number }>,
+  layout: CompoundLayoutResult,
   direction: string
 ): ReactFlowData {
   const reactFlowNodes: Node[] = [];
+  const subgraphById = new Map(subgraphs.map((sg) => [sg.id, sg]));
 
-  debugLog("Creating React Flow elements");
-
-  // Color schemes
   const getNodeColors = (shape: string) => {
-    const colorSchemes = {
-      rect: ["#E3F2FD", "#1976D2"], // Blue
-      diamond: ["#FFF3E0", "#F57C00"], // Orange
-      circle: ["#E8F5E8", "#388E3C"], // Green
-      stadium: ["#F3E5F5", "#7B1FA2"], // Purple
-      round: ["#FCE4EC", "#C2185B"], // Pink
+    const colorSchemes: Record<string, [string, string]> = {
+      rect: ["#E3F2FD", "#1976D2"],
+      diamond: ["#FFF3E0", "#F57C00"],
+      circle: ["#E8F5E8", "#388E3C"],
+      stadium: ["#F3E5F5", "#7B1FA2"],
+      round: ["#FCE4EC", "#C2185B"],
     };
-
-    const defaultColors = ["#F0F4F8", "#2D3748"];
-    const colors =
-      colorSchemes[shape as keyof typeof colorSchemes] || defaultColors;
-
-    return {
-      backgroundColor: colors[0],
-      borderColor: colors[1],
-    };
+    const colors = colorSchemes[shape] || ["#F0F4F8", "#2D3748"];
+    return { backgroundColor: colors[0], borderColor: colors[1] };
   };
 
   const getSubgraphColors = (index: number) => {
     const subgraphColors = [
-      { bg: "rgba(227, 242, 253, 0.4)", border: "#1976D2" }, // Blue
-      { bg: "rgba(232, 245, 233, 0.4)", border: "#388E3C" }, // Green
-      { bg: "rgba(243, 229, 245, 0.4)", border: "#7B1FA2" }, // Purple
-      { bg: "rgba(255, 243, 224, 0.4)", border: "#F57C00" }, // Orange
-      { bg: "rgba(252, 228, 236, 0.4)", border: "#C2185B" }, // Pink
+      { bg: "rgba(227, 242, 253, 0.4)", border: "#1976D2" },
+      { bg: "rgba(232, 245, 233, 0.4)", border: "#388E3C" },
+      { bg: "rgba(243, 229, 245, 0.4)", border: "#7B1FA2" },
+      { bg: "rgba(255, 243, 224, 0.4)", border: "#F57C00" },
+      { bg: "rgba(252, 228, 236, 0.4)", border: "#C2185B" },
     ];
     return subgraphColors[index % subgraphColors.length];
   };
 
-  // Process subgraphs in hierarchical order (parents first for proper rendering)
+  const isHorizontal = direction === "LR" || direction === "RL";
+  const sourcePos = isHorizontal ? Position.Right : Position.Bottom;
+  const targetPos = isHorizontal ? Position.Left : Position.Top;
+
+  // Absolute top-left position of a node/cluster from its center-based dagre box.
+  const topLeftOf = (id: string) => {
+    const box = layout.nodes.get(id);
+    if (!box) return null;
+    return { x: box.x - box.width / 2, y: box.y - box.height / 2, width: box.width, height: box.height };
+  };
+
+  // Subgraph containers, parents before children so React Flow can resolve
+  // `parentNode` references on first render.
   const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
+  orderedSubgraphs.forEach((sg, index) => {
+    const box = topLeftOf(sg.id);
+    if (!box) return;
 
-  // Add subgraph containers in the correct order (parents before children)
-  orderedSubgraphs.forEach((subgraph, index) => {
-    const layout = subgraphLayouts.get(subgraph.id);
-    const position = subgraphPositions.get(subgraph.id);
-
-    if (layout && position) {
-      const colors = getSubgraphColors(index);
-
-      // React Flow expects child positions to be RELATIVE to their parent.
-      // Our layoutMetaGraph currently stores ABSOLUTE positions for all subgraphs.
-      // Convert to relative coordinates for nested subgraphs so they render in place
-      // immediately (without requiring a drag to reflow).
-      let finalPosition = position;
-      if (layout.parentId) {
-        const parentAbsPos = subgraphPositions.get(layout.parentId);
-        if (parentAbsPos) {
-          finalPosition = {
-            x: position.x - parentAbsPos.x,
-            y: position.y - parentAbsPos.y,
-          };
-        }
+    let relX = box.x;
+    let relY = box.y;
+    if (sg.parentId) {
+      const parentBox = topLeftOf(sg.parentId);
+      if (parentBox) {
+        relX = box.x - parentBox.x;
+        relY = box.y - parentBox.y;
       }
-
-      reactFlowNodes.push({
-        id: `subgraph-${subgraph.id}`,
-        type: "group",
-        position: finalPosition,
-        data: {
-          label: subgraph.title,
-          isSubgraph: true,
-        },
-        style: {
-          backgroundColor: colors.bg,
-          border: `3px solid ${colors.border}`,
-          borderRadius: "12px",
-          width: layout.width,
-          height: layout.height,
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-            zIndex: 0,
-        },
-        selectable: true,
-        draggable: true,
-        connectable: true,
-        parentNode: layout.parentId ? `subgraph-${layout.parentId}` : undefined,
-        extent: layout.parentId ? "parent" : undefined,
-        zIndex: layout.parentId ? 1 : 0, // Child subgraphs should render above parents
-      });
     }
+
+    const colors = getSubgraphColors(index);
+    reactFlowNodes.push({
+      id: `subgraph-${sg.id}`,
+      type: "group",
+      position: { x: relX, y: relY },
+      data: { label: sg.title, isSubgraph: true },
+      style: {
+        backgroundColor: colors.bg,
+        border: `3px solid ${colors.border}`,
+        borderRadius: "12px",
+        width: box.width,
+        height: box.height,
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+        zIndex: 0,
+      },
+      selectable: true,
+      draggable: true,
+      connectable: true,
+      parentNode: sg.parentId ? `subgraph-${sg.parentId}` : undefined,
+      extent: sg.parentId ? "parent" : undefined,
+      zIndex: sg.parentId ? 1 : 0,
+    });
   });
 
-  // Add nodes
+  // Leaf nodes.
   nodes.forEach((node) => {
+    const box = topLeftOf(node.id);
+    if (!box) {
+      debugLog(`Warning: no layout position for node ${node.id}`);
+      return;
+    }
+
     const colors = getNodeColors(node.shape);
-    const { imageUrl, cleanLabel } = extractImageUrl(node.label);
+    const { imageUrl, cleanLabel } = extractImageUrl(node.label, node.resolvedImageUrl);
 
     let nodeStyle: any = {
       backgroundColor: colors.backgroundColor,
@@ -1758,8 +1202,6 @@ function createReactFlowElements(
       borderRadius: "8px",
       boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
     };
-
-    // Special handling for image nodes - remove borders and background completely
     if (imageUrl) {
       nodeStyle = {
         backgroundColor: "transparent",
@@ -1769,8 +1211,6 @@ function createReactFlowElements(
         boxShadow: "none",
       };
     }
-
-    // Adjust style based on shape
     switch (node.shape) {
       case "diamond":
         nodeStyle.borderRadius = "0px";
@@ -1786,271 +1226,131 @@ function createReactFlowElements(
         break;
     }
 
-    // Calculate node position based on whether it's in a subgraph or standalone
-    let position: { x: number; y: number };
+    let position = { x: box.x, y: box.y };
     let parentNode: string | undefined;
-
-    if (node.subgraph) {
-      // Node positioning within a subgraph
-      const subgraphLayout = subgraphLayouts.get(node.subgraph);
-      const subgraphPosition = subgraphPositions.get(node.subgraph);
-      const nodeLayout = subgraphLayout?.nodes.get(node.id);
-
-      if (nodeLayout && subgraphPosition) {
-        // CRITICAL: React Flow expects positions relative to parent group
-        // nodeLayout coordinates are already positioned relative to subgraph (0,0)
-        // We convert from center-based to top-left coordinates for React Flow
-        position = {
-          x: nodeLayout.x - nodeLayout.width / 2,  // Convert center-x to top-left-x
-          y: nodeLayout.y - nodeLayout.height / 2, // Convert center-y to top-left-y
-        };
-        parentNode = `subgraph-${node.subgraph}`;
-        
-        debugLog(`Node ${node.id} positioned at (${position.x}, ${position.y}) within subgraph ${node.subgraph}`);
-      } else {
-        // Fallback position if layout data is missing
-        position = { x: 0, y: 0 };
-        debugLog(`Warning: Missing layout data for node ${node.id} in subgraph ${node.subgraph}`);
+    if (node.subgraph && subgraphById.has(node.subgraph)) {
+      const parentBox = topLeftOf(node.subgraph);
+      if (parentBox) {
+        position = { x: box.x - parentBox.x, y: box.y - parentBox.y };
       }
-    } else {
-      // Standalone node positioning (global coordinates)
-      const standalonePos = standalonePositions.get(node.id);
-      position = standalonePos || { x: 0, y: 0 };
-      
-      debugLog(`Standalone node ${node.id} positioned at (${position.x}, ${position.y})`);
+      parentNode = `subgraph-${node.subgraph}`;
     }
 
-  // Source/Target handle preference by layout direction
-  const isHorizontal = direction === 'LR' || direction === 'RL';
-  const sourcePos = isHorizontal ? Position.Right : Position.Bottom;
-  const targetPos = isHorizontal ? Position.Left : Position.Top;
-
-    // Split visual vs layout styles. Visuals should live in node.data.style so the
-    // inner `.custom-node` element can own appearance while the wrapper keeps layout props.
-    const { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow, ...layoutStyle } = nodeStyle;
+    const { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow, ...layoutStyle } =
+      nodeStyle;
     const nodeType = node.shape === "diamond" ? "diamond" : "custom";
-    // For diamond nodes, keep the wrapper clean (no background/border). Only pass colors into data.style.
-    const visualStyle = nodeType === 'diamond'
-      ? { backgroundColor, borderColor, borderWidth }
-      : { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow };
-
-    // Determine concrete width/height for the React Flow node wrapper:
-    // - For nodes inside subgraphs, use the subgraph layout node dimensions
-    // - For standalone nodes, compute based on label/shape (same as used for Dagre)
-    let wrapperWidth = 150;
-    let wrapperHeight = 60;
-    if (node.subgraph) {
-      const subgraphLayout = subgraphLayouts.get(node.subgraph);
-      const nodeLayout = subgraphLayout?.nodes.get(node.id);
-      if (nodeLayout) {
-        wrapperWidth = Math.max(20, Math.round(nodeLayout.width));
-        wrapperHeight = Math.max(20, Math.round(nodeLayout.height));
-      }
-    } else {
-      const size = calculateNodeSize(node.label, node.shape, !!imageUrl);
-      wrapperWidth = Math.max(20, Math.round(size.width));
-      wrapperHeight = Math.max(20, Math.round(size.height));
-    }
+    const visualStyle =
+      nodeType === "diamond"
+        ? { backgroundColor, borderColor, borderWidth }
+        : { backgroundColor, borderColor, borderWidth, borderStyle, borderRadius, boxShadow };
 
     reactFlowNodes.push({
       id: node.id,
       type: nodeType,
-      position: position,
+      position,
       data: {
         label: imageUrl ? cleanLabel : node.label,
         imageUrl: imageUrl || "",
-        // githubUrl: "",
         description: "",
         shape: node.shape,
         colors,
         style: visualStyle,
       },
-  // Keep layout-only style on the node wrapper and ensure width/height are explicit
-  style: { ...layoutStyle, width: wrapperWidth, height: wrapperHeight },
+      style: { ...layoutStyle, width: Math.max(20, Math.round(box.width)), height: Math.max(20, Math.round(box.height)) },
       sourcePosition: sourcePos,
       targetPosition: targetPos,
-      parentNode: parentNode,
+      parentNode,
       extent: parentNode ? "parent" : undefined,
       draggable: true,
-      zIndex: 1,
+      zIndex: parentNode ? 2 : 1,
     });
   });
 
-  // Create edges with consistent styling
-const reactFlowEdges: Edge[] = edges.map((edge, index) => {
+  // Edges: rendered using the ORIGINAL authored source/target ids (so an edge
+  // authored as `A --> B` still visually connects nodes A and B), while the
+  // anchor-resolution above was only used to keep dagre's ranking algorithm
+  // from crashing on cluster-to-cluster edges. If the original endpoint was a
+  // subgraph, point the rendered edge at the subgraph's React Flow group node
+  // instead of the leaf anchor, matching the user's intent.
   const edgeColors = ["#1976D2", "#388E3C", "#F57C00", "#7B1FA2", "#C2185B"];
-  const edgeColor = edgeColors[index % edgeColors.length];
+  const reactFlowEdges: Edge[] = edges.map((edge, index) => {
+    const edgeColor = edgeColors[index % edgeColors.length];
+    const edgeStyle: any = { stroke: edgeColor, strokeWidth: 2.5 };
+    switch (edge.type) {
+      case "---":
+        edgeStyle.strokeDasharray = "8,4";
+        break;
+      case "-.-":
+        edgeStyle.strokeDasharray = "4,4";
+        break;
+      case "==>":
+      case "===>":
+        edgeStyle.strokeWidth = 4;
+        break;
+    }
 
-  // Default edge style - make all edges consistent
-  let edgeStyle: any = {
-    stroke: edgeColor,
-    strokeWidth: 2.5, // Increased default width
-  };
+    const sourceId = subgraphById.has(edge.source) ? `subgraph-${edge.source}` : edge.source;
+    const targetId = subgraphById.has(edge.target) ? `subgraph-${edge.target}` : edge.target;
 
-  // Always use smoothstep for consistency
-  const edgeType = "smoothstep";
-  let animated = true; // Default to animated for all edges
-
-  // Style edges based on type, but keep animation consistent
-  switch (edge.type) {
-    case "-->":
-    case "->":
-      // Already has default animation and width
-      break;
-    case "---":
-      edgeStyle.strokeDasharray = "8,4";
-      break;
-    case "-.-":
-      edgeStyle.strokeDasharray = "4,4";
-      break;
-    case "==>":
-    case "===>":
-      edgeStyle.strokeWidth = 4;
-      break;
-  }
-
-  // Adjust source and target IDs if they refer to subgraphs
-  const sourceId = edge.isSourceSubgraph
-    ? `subgraph-${edge.source}`
-    : edge.source;
-  const targetId = edge.isTargetSubgraph
-    ? `subgraph-${edge.target}`
-    : edge.target;
-
-  // Create edge with explicit properties - ensure consistent styling
-  return {
-    id: `edge-${edge.source}-${edge.target}-${index}`,
-    source: sourceId,
-    target: targetId,
-    label: edge.label,
-    type: edgeType,
-    animated, // Apply animation to ALL edges
-    style: edgeStyle,
-    labelStyle: {
-      fontSize: "12px",
-      fontWeight: "500",
-      color: edgeColor,
-      backgroundColor: "white",
-      padding: "2px 6px",
-      borderRadius: "4px",
-      border: `1px solid ${edgeColor}`,
-    },
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      width: 20,
-      height: 20,
-      color: edgeColor,
-    },
-  // Attach to side based on layout direction for better alignment
-  sourceHandle: (direction === 'LR' || direction === 'RL') ? 'right-source' : 'bottom-source',
-  targetHandle: (direction === 'LR' || direction === 'RL') ? 'left-target' : 'top-target',
-    zIndex: 0,
-  };
-});
-
+    return {
+      id: `edge-${edge.source}-${edge.target}-${index}`,
+      source: sourceId,
+      target: targetId,
+      label: edge.label,
+      type: "smoothstep",
+      animated: true,
+      style: edgeStyle,
+      labelStyle: {
+        fontSize: "12px",
+        fontWeight: "500",
+        color: edgeColor,
+        backgroundColor: "white",
+        padding: "2px 6px",
+        borderRadius: "4px",
+        border: `1px solid ${edgeColor}`,
+      },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: edgeColor },
+      sourceHandle: isHorizontal ? "right-source" : "bottom-source",
+      targetHandle: isHorizontal ? "left-target" : "top-target",
+      zIndex: 0,
+    };
+  });
 
   return { nodes: reactFlowNodes, edges: reactFlowEdges };
 }
 
-// Main layout function using the three-phase approach
+// Main layout function: builds one compound dagre graph for the whole diagram
+// and converts the result to React Flow nodes/edges. See the comment block at
+// the top of this section for the full rationale and the upstream Mermaid
+// source references this was verified against.
 function layoutGraph(
   nodes: MermaidNode[],
   edges: MermaidEdge[],
   subgraphs: SubgraphInfo[],
   direction: string
-): { nodes: Node[]; edges: Edge[] } {
-  debugLog("Starting graph layout with direction:", direction);
-  debugLog(
-    `Input: ${nodes.length} nodes, ${edges.length} edges, ${subgraphs.length} subgraphs`
-  );
+): ReactFlowData {
+  debugLog("Starting compound-graph layout with direction:", direction);
+  debugLog(`Input: ${nodes.length} nodes, ${edges.length} edges, ${subgraphs.length} subgraphs`);
 
-  // Phase 1: Layout each subgraph independently
-  const subgraphLayouts = layoutSubgraphs(nodes, edges, subgraphs, direction);
-
-  // Phase 2: Layout meta-graph (containers + standalone nodes)
-  const { subgraphPositions, standalonePositions } = layoutMetaGraph(
-    nodes,
-    edges,
-    subgraphLayouts,
-    direction
-  );
-
-  // Phase 2.5: Post-positioning adjustment - ensure parent containers properly contain positioned children
-  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
-  adjustParentSizesAfterPositioning(subgraphLayouts, subgraphPositions, orderedSubgraphs, direction);
-
-  // Phase 3: Combine layouts and create React Flow elements
-  return createReactFlowElements(
-    nodes,
-    edges,
-    subgraphs,
-    subgraphLayouts,
-    subgraphPositions,
-    standalonePositions,
-    direction
-  );
+  const layout = layoutCompoundGraph(nodes, edges, subgraphs, direction);
+  return compoundLayoutToReactFlow(nodes, edges, subgraphs, layout, direction);
 }
 
 // Debug helper: run full conversion but return intermediate structures for inspection
-export async function debugConvertMermaid(
-  mermaidCode: string
-): Promise<any> {
+export async function debugConvertMermaid(mermaidCode: string): Promise<any> {
   const { nodes, edges, subgraphs, direction } = parseMermaidCode(mermaidCode);
 
-  const subgraphLayouts = layoutSubgraphs(nodes, edges, subgraphs, direction);
-  const { subgraphPositions, standalonePositions } = layoutMetaGraph(
-    nodes,
-    edges,
-    subgraphLayouts,
-    direction
-  );
+  const layout = layoutCompoundGraph(nodes, edges, subgraphs, direction);
+  const reactFlowData = compoundLayoutToReactFlow(nodes, edges, subgraphs, layout, direction);
 
-  const orderedSubgraphs = processSubgraphsInHierarchicalOrder(subgraphs);
-  adjustParentSizesAfterPositioning(
-    subgraphLayouts,
-    subgraphPositions,
-    orderedSubgraphs,
-    direction
-  );
-
-  const reactFlowData = createReactFlowElements(
-    nodes,
-    edges,
-    subgraphs,
-    subgraphLayouts,
-    subgraphPositions,
-    standalonePositions,
-    direction
-  );
-
-  // Convert Maps to plain objects/arrays for JSON-friendly output
-  const subgraphLayoutsPlain: Record<string, any> = {};
-  subgraphLayouts.forEach((v, k) => {
-    subgraphLayoutsPlain[k] = {
-      id: v.id,
-      title: v.title,
-      width: v.width,
-      height: v.height,
-      parentId: v.parentId,
-      nodes: Array.from(v.nodes.entries()).map(([nid, pos]) => ({ id: nid, ...pos })),
-    };
-  });
-
-  const subgraphPositionsPlain = Object.fromEntries(
-    Array.from(subgraphPositions.entries())
-  );
-  const standalonePositionsPlain = Object.fromEntries(
-    Array.from(standalonePositions.entries())
-  );
+  const nodePositionsPlain = Object.fromEntries(Array.from(layout.nodes.entries()));
 
   return {
     nodes,
     edges,
     subgraphs,
     direction,
-    subgraphLayouts: subgraphLayoutsPlain,
-    subgraphPositions: subgraphPositionsPlain,
-    standalonePositions: standalonePositionsPlain,
+    nodePositions: nodePositionsPlain,
     reactFlowData,
   };
 }
@@ -2060,21 +1360,22 @@ async function extractMermaidLayout(mermaidCode: string): Promise<{
   nodes: Map<string, { x: number; y: number; width: number; height: number }>;
   edges: Array<{ source: string; target: string; points: Array<{ x: number; y: number }> }>;
 } | null> {
-  try {
-    // Create a temporary container to render Mermaid
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '-9999px';
-    document.body.appendChild(container);
+  // Create a temporary container to render Mermaid. Declared outside the try
+  // block so the finally clause can always clean it up, even if mermaid.render
+  // throws (which happens frequently on partial/invalid code while streaming).
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '-9999px';
+  document.body.appendChild(container);
 
+  try {
     // Render the diagram
     const { svg } = await mermaid.render('temp-mermaid-extract', mermaidCode);
     container.innerHTML = svg;
 
     const svgElement = container.querySelector('svg');
     if (!svgElement) {
-      document.body.removeChild(container);
       return null;
     }
 
@@ -2131,16 +1432,35 @@ async function extractMermaidLayout(mermaidCode: string): Promise<{
       }
     });
 
-    document.body.removeChild(container);
     return { nodes, edges };
   } catch (error) {
     debugLog('Error extracting Mermaid layout:', error);
     return null;
+  } finally {
+    // Always remove the temp container, even on error, to avoid leaking
+    // detached-looking (but body-attached) DOM nodes on every streamed chunk.
+    if (container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
   }
 }
 
+/**
+ * Optional hook to resolve a node's label to an icon image URL BEFORE layout
+ * runs. This matters because node sizing depends on whether a node is an
+ * "image node" (fixed small icon size) vs a text node (size grows with label
+ * length) - if icon resolution happens after layout (as it previously did in
+ * ArchitectureUI, attaching `imageUrl` post-hoc), the layout engine sizes the
+ * box for a plain-text label and the icon then gets dropped into a box sized
+ * for text it never actually displays, which is why icon boxes ended up much
+ * larger than the icon itself. Returning null/undefined means "not an image
+ * node" (falls back to normal text sizing).
+ */
+export type NodeImageResolver = (label: string, nodeId: string) => string | null | undefined;
+
 export async function convertMermaidToReactFlow(
-  mermaidCode: string
+  mermaidCode: string,
+  resolveNodeImage?: NodeImageResolver
 ): Promise<ReactFlowData> {
   try {
     debugLog("Starting Mermaid to React Flow conversion");
@@ -2158,18 +1478,45 @@ export async function convertMermaidToReactFlow(
       return { nodes: [], edges: [] };
     }
 
+    // Resolve icon images (if a resolver was supplied) BEFORE any layout
+    // math runs, so node sizing can correctly treat these as compact icon
+    // nodes from the start instead of sizing them for a text label.
+    if (resolveNodeImage) {
+      nodes.forEach((node) => {
+        const resolved = resolveNodeImage(node.label, node.id);
+        if (resolved) {
+          (node as any).resolvedImageUrl = resolved;
+        }
+      });
+    }
+
     debugLog(
       `Parsed ${nodes.length} nodes, ${edges.length} edges, ${subgraphs.length} subgraphs`
     );
 
-    // If we successfully extracted Mermaid's layout, use it
-    if (mermaidLayout && mermaidLayout.nodes.size > 0) {
-      debugLog("Using Mermaid's native layout");
+    // Mermaid's native SVG layout gives us pixel-accurate node positions, but
+    // its internal cluster (subgraph) element IDs are generated by Mermaid's
+    // own renderer and do NOT reliably correspond to the subgraph ids our
+    // parser derives from titles (especially for quoted/anonymous subgraphs,
+    // e.g. `subgraph "AWS Region (e.g. us-east-1)"`). Trying to correlate the
+    // two id spaces caused some nested levels to be found and others missed,
+    // which left child nodes referencing a `parentNode` that was never
+    // created â€” React Flow then throws "Parent node ... not found" and the
+    // whole canvas crashes.
+    //
+    // The Dagre-based layout path below builds subgraph containers using our
+    // own self-consistent ids end-to-end, so nesting is always internally
+    // consistent. We only use Mermaid's native layout as a fast path for
+    // diagrams with NO subgraphs at all, where there is no nesting to get
+    // wrong.
+    if (subgraphs.length === 0 && mermaidLayout && mermaidLayout.nodes.size > 0) {
+      debugLog("Using Mermaid's native layout (no subgraphs present)");
       return convertMermaidLayoutToReactFlow(nodes, edges, subgraphs, mermaidLayout, direction);
     }
 
-    // Fallback to Dagre layout
-    debugLog("Falling back to Dagre layout");
+    // Dagre layout: used whenever the diagram has subgraphs (VPC/AZ/subnet
+    // nesting), and as the fallback when Mermaid's own rendering fails.
+    debugLog("Using Dagre layout");
     return layoutGraph(nodes, edges, subgraphs, direction);
   } catch (error) {
     console.error("Error converting Mermaid to React Flow:", error);
@@ -2182,7 +1529,9 @@ function convertMermaidLayoutToReactFlow(
   nodes: MermaidNode[],
   edges: MermaidEdge[],
   subgraphs: SubgraphInfo[],
-  mermaidLayout: { nodes: Map<string, { x: number; y: number; width: number; height: number }> },
+  mermaidLayout: {
+    nodes: Map<string, { x: number; y: number; width: number; height: number }>;
+  },
   direction: string
 ): ReactFlowData {
   const reactFlowNodes: Node[] = [];
@@ -2203,13 +1552,19 @@ function convertMermaidLayoutToReactFlow(
   const sourcePos = isHorizontal ? Position.Right : Position.Bottom;
   const targetPos = isHorizontal ? Position.Left : Position.Top;
 
+  // NOTE: This function is only invoked when `subgraphs.length === 0` (see
+  // `convertMermaidToReactFlow`), so there are no subgraph containers to
+  // build here. Nested VPC/AZ/subnet-style diagrams always go through the
+  // Dagre-based `layoutGraph` path instead, which builds subgraph containers
+  // using self-consistent ids (see that function for details).
+
   // Create nodes using Mermaid's positions
   nodes.forEach((node) => {
     const layout = mermaidLayout.nodes.get(node.id);
     if (!layout) return;
 
     const colors = getNodeColors(node.shape);
-    const { imageUrl, cleanLabel } = extractImageUrl(node.label);
+    const { imageUrl, cleanLabel } = extractImageUrl(node.label, node.resolvedImageUrl);
 
     let nodeStyle: any = {
       backgroundColor: colors[0],

@@ -47,19 +47,58 @@ export function sanitizeMermaidLabels(src: string) {
     return m;
   });
 
-  // Sanitize subgraph titles like: subgraph Frontend (Global)
-  const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)([^\n\r]+)(\|[^\n\r]*)?$/gmi, (m, pre, title, rest) => {
-    let t = String(title).trim();
-    if (/^[\"']/.test(t)) return m;
-    if (/[()\"\[\],:;]/.test(t)) {
-      const esc = t.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
-      return `${pre}\"${esc}\"${rest || ""}`;
+  // Sanitize subgraph headers. Mermaid supports two forms:
+  //   1. Bare title:        subgraph Frontend (Global)
+  //   2. Explicit id+title: subgraph ide1 [Some Title]   (or  ide1 ["Some Title"])
+  //
+  // IMPORTANT: a naive regex that treats the entire rest of the line as "the
+  // title" will misfire on form (2). For example `subgraph VPC["VPC"]` would
+  // get its whole `VPC["VPC"]` chunk (id + brackets + quotes) wrapped in an
+  // outer quote and escaped, producing the corrupted, unparseable header
+  // `subgraph "VPC[\"VPC\"]"`. That single broken header desyncs id/title
+  // parsing for the whole nested block, which is what caused garbled nested
+  // VPC/AZ/subnet containers and crossed edges in rendered diagrams.
+  //
+  // So we must first detect the id+bracket form and only touch the bracketed
+  // title portion, leaving the id token outside untouched.
+  const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)(.+)$/gmi, (m, pre, rest) => {
+    const trimmed = String(rest).trim();
+
+    // Already a quoted bare title, e.g. subgraph "Some Title" -- leave as-is.
+    if (/^["']/.test(trimmed)) return m;
+
+    // Form: id [title]  or  id ["title"]
+    const idBracketMatch = trimmed.match(/^([^\s\[]+)\s*\[(.+)\]$/);
+    if (idBracketMatch) {
+      const id = idBracketMatch[1];
+      const rawTitle = idBracketMatch[2];
+      const alreadyQuoted = /^["'](.*)["']$/.test(rawTitle);
+      const innerTitle = alreadyQuoted ? rawTitle.slice(1, -1) : rawTitle;
+
+      // Only re-wrap if the title actually needs quoting (contains punctuation
+      // that could break parsing) or was already quoted (re-emit consistently).
+      if (alreadyQuoted || /[()"\[\],:;]/.test(innerTitle)) {
+        const esc = innerTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        return `${pre}${id}["${esc}"]`;
+      }
+      return m;
+    }
+
+    // Bare title, no explicit id/brackets, e.g. subgraph Frontend (Global)
+    if (/[()"\[\],:;]/.test(trimmed)) {
+      const esc = trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      return `${pre}"${esc}"`;
     }
     return m;
   });
 
-  // Enforce single diagram: keep only the first diagram block
-  const diagRegex = /\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i;
+  // Enforce single diagram: keep only the first diagram block.
+  // IMPORTANT: only treat a diagram keyword as the start of a *new* diagram
+  // when it appears at the start of a line (optionally indented). Matching
+  // anywhere in the text would misfire on perfectly valid node labels like
+  // "Knowledge Graph" or "Customer Journey", silently truncating the rest
+  // of the diagram.
+  const diagRegex = /^[ \t]*(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i;
   const allStarts: number[] = [];
   let mm: RegExpExecArray | null;
   const globalRegex = new RegExp(diagRegex.source, 'gim');

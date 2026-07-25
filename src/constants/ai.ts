@@ -14,7 +14,7 @@ export type AiProvider = typeof AI_PROVIDERS[keyof typeof AI_PROVIDERS];
 
 export const DEFAULT_AI_SETTINGS = {
   apiKey: '',
-  model: AI_MODELS.GEMINI_2_0_FLASH,
+  model: AI_MODELS.GEMINI_2_5_FLASH,
   isEditingSettings: false,
   provider: AI_PROVIDERS.GOOGLE,
 } as const;

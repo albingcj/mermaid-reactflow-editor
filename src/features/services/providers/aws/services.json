@@ -1,179 +1,133 @@
 {
   "provider": "aws",
   "name": "Amazon Web Services",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "services": [
-    {
-      "id": "aws_s3",
-      "name": "Amazon S3",
-      "aliases": ["S3", "Simple Storage Service", "Object Storage", "Bucket", "S3 Bucket"],
-      "category": "storage",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/simple-storage-service-s3.png",
-      "tags": ["storage", "object", "bucket", "static", "file"],
-      "description": "Scalable object storage service"
-    },
-    {
-      "id": "aws_lambda",
-      "name": "AWS Lambda",
-      "aliases": ["Lambda", "Serverless Function", "Function", "Lambda Function"],
-      "category": "compute",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/lambda.png",
-      "tags": ["serverless", "compute", "function", "faas"],
-      "description": "Serverless compute service"
-    },
-    {
-      "id": "aws_ec2",
-      "name": "Amazon EC2",
-      "aliases": ["EC2", "Elastic Compute Cloud", "Virtual Machine", "VM", "Instance"],
-      "category": "compute",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/ec2.png",
-      "tags": ["compute", "vm", "instance", "server"],
-      "description": "Virtual servers in the cloud"
-    },
-    {
-      "id": "aws_rds",
-      "name": "Amazon RDS",
-      "aliases": ["RDS", "Relational Database Service", "Database", "SQL Database"],
-      "category": "database",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/rds.png",
-      "tags": ["database", "sql", "relational", "mysql", "postgres"],
-      "description": "Managed relational database service"
-    },
-    {
-      "id": "aws_dynamodb",
-      "name": "Amazon DynamoDB",
-      "aliases": ["DynamoDB", "DDB", "NoSQL Database", "NoSQL"],
-      "category": "database",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/dynamodb.png",
-      "tags": ["database", "nosql", "key-value", "document"],
-      "description": "Managed NoSQL database service"
-    },
-    {
-      "id": "aws_api_gateway",
-      "name": "Amazon API Gateway",
-      "aliases": ["API Gateway", "APIGW", "API", "Gateway"],
-      "category": "networking",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/mobile/api-gateway.png",
-      "tags": ["api", "rest", "http", "gateway"],
-      "description": "Managed API service"
-    },
-    {
-      "id": "aws_cloudfront",
-      "name": "Amazon CloudFront",
-      "aliases": ["CloudFront", "CDN", "Content Delivery"],
-      "category": "networking",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/cloudfront.png",
-      "tags": ["cdn", "content", "delivery", "edge"],
-      "description": "Content delivery network"
-    },
-    {
-      "id": "aws_vpc",
-      "name": "Amazon VPC",
-      "aliases": ["VPC", "Virtual Private Cloud", "Network"],
-      "category": "networking",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/vpc.png",
-      "tags": ["network", "vpc", "private", "cloud"],
-      "description": "Virtual private cloud"
-    },
-    {
-      "id": "aws_alb",
-      "name": "Application Load Balancer",
-      "aliases": ["ALB", "Load Balancer", "ELB", "Application LB"],
-      "category": "networking",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/elastic-load-balancing.png",
-      "tags": ["load", "balancer", "alb", "elb"],
-      "description": "Application load balancer"
-    },
-    {
-      "id": "aws_route53",
-      "name": "Amazon Route 53",
-      "aliases": ["Route53", "Route 53", "DNS"],
-      "category": "networking",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/route-53.png",
-      "tags": ["dns", "route", "domain"],
-      "description": "DNS web service"
-    },
-    {
-      "id": "aws_sns",
-      "name": "Amazon SNS",
-      "aliases": ["SNS", "Simple Notification Service", "Notifications"],
-      "category": "messaging",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/simple-notification-service-sns.png",
-      "tags": ["notification", "messaging", "pub-sub"],
-      "description": "Pub/sub messaging service"
-    },
-    {
-      "id": "aws_sqs",
-      "name": "Amazon SQS",
-      "aliases": ["SQS", "Simple Queue Service", "Queue"],
-      "category": "messaging",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/simple-queue-service-sqs.png",
-      "tags": ["queue", "messaging", "async"],
-      "description": "Message queue service"
-    },
-    {
-      "id": "aws_cloudwatch",
-      "name": "Amazon CloudWatch",
-      "aliases": ["CloudWatch", "Monitoring", "Logs"],
-      "category": "management",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/cloudwatch.png",
-      "tags": ["monitoring", "logs", "metrics"],
-      "description": "Monitoring and observability"
-    },
-    {
-      "id": "aws_iam",
-      "name": "AWS IAM",
-      "aliases": ["IAM", "Identity Access Management", "Permissions"],
-      "category": "security",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/identity-and-access-management-iam.png",
-      "tags": ["security", "identity", "access", "permissions"],
-      "description": "Identity and access management"
-    },
-    {
-      "id": "aws_cognito",
-      "name": "Amazon Cognito",
-      "aliases": ["Cognito", "User Pool", "Authentication"],
-      "category": "security",
-      "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/cognito.png",
-      "tags": ["auth", "authentication", "user", "identity"],
-      "description": "User authentication service"
-    }
+    { "id": "aws_ec2", "name": "Amazon EC2", "aliases": ["EC2", "Elastic Compute Cloud", "Virtual Machine", "VM", "Instance"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/ec2.png", "tags": ["compute", "vm", "instance", "server"], "description": "Virtual servers in the cloud" },
+    { "id": "aws_lambda", "name": "AWS Lambda", "aliases": ["Lambda", "Serverless Function", "Function", "Lambda Function"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/lambda.png", "tags": ["serverless", "compute", "function", "faas"], "description": "Serverless compute service" },
+    { "id": "aws_ecs", "name": "Amazon ECS", "aliases": ["ECS", "Elastic Container Service", "Containers"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/elastic-container-service.png", "tags": ["container", "docker", "ecs"], "description": "Managed container orchestration" },
+    { "id": "aws_eks", "name": "Amazon EKS", "aliases": ["EKS", "Elastic Kubernetes Service", "Kubernetes"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/elastic-kubernetes-service.png", "tags": ["container", "kubernetes", "k8s", "eks"], "description": "Managed Kubernetes service" },
+    { "id": "aws_fargate", "name": "AWS Fargate", "aliases": ["Fargate", "Serverless Containers"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/fargate.png", "tags": ["container", "serverless", "fargate"], "description": "Serverless compute for containers" },
+    { "id": "aws_auto_scaling", "name": "Auto Scaling Group", "aliases": ["Auto Scaling Group", "ASG", "Auto Scaling"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/ec2-auto-scaling.png", "tags": ["compute", "scaling", "asg", "ec2"], "description": "Automatically scales EC2 capacity" },
+    { "id": "aws_elastic_beanstalk", "name": "AWS Elastic Beanstalk", "aliases": ["Elastic Beanstalk", "Beanstalk"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/elastic-beanstalk.png", "tags": ["paas", "deployment"], "description": "Easy application deployment platform" },
+    { "id": "aws_lightsail", "name": "Amazon Lightsail", "aliases": ["Lightsail"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/lightsail.png", "tags": ["vps", "simple", "compute"], "description": "Simplified virtual private servers" },
+    { "id": "aws_batch", "name": "AWS Batch", "aliases": ["Batch", "Batch Processing"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/batch.png", "tags": ["batch", "jobs", "compute"], "description": "Batch computing at any scale" },
+    { "id": "aws_app_runner", "name": "AWS App Runner", "aliases": ["App Runner"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/app-runner.png", "tags": ["container", "web", "serverless"], "description": "Run containerized web apps and APIs" },
+    { "id": "aws_outposts", "name": "AWS Outposts", "aliases": ["Outposts"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/outposts.png", "tags": ["hybrid", "on-premises"], "description": "Run AWS infrastructure on-premises" },
+    { "id": "aws_serverless_app_repo", "name": "AWS Serverless Application Repository", "aliases": ["Serverless Application Repository", "SAR"], "category": "compute", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/compute/serverless-application-repository.png", "tags": ["serverless", "repository"], "description": "Repository for serverless applications" },
+
+    { "id": "aws_s3", "name": "Amazon S3", "aliases": ["S3", "Simple Storage Service", "Object Storage", "Bucket", "S3 Bucket"], "category": "storage", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/simple-storage-service-s3.png", "tags": ["storage", "object", "bucket", "static", "file"], "description": "Scalable object storage service" },
+    { "id": "aws_ebs", "name": "Amazon EBS", "aliases": ["EBS", "Elastic Block Store", "Block Storage"], "category": "storage", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/elastic-block-store-ebs.png", "tags": ["storage", "block", "volume", "ec2"], "description": "Persistent block storage for EC2" },
+    { "id": "aws_efs", "name": "Amazon EFS", "aliases": ["EFS", "Elastic File System", "File Storage"], "category": "storage", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/elastic-file-system-efs.png", "tags": ["storage", "file", "nfs", "shared"], "description": "Managed elastic file storage" },
+    { "id": "aws_fsx", "name": "Amazon FSx", "aliases": ["FSx"], "category": "storage", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/fsx.png", "tags": ["storage", "file", "windows", "lustre"], "description": "Managed third-party file systems" },
+    { "id": "aws_storage_gateway", "name": "AWS Storage Gateway", "aliases": ["Storage Gateway"], "category": "storage", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/storage-gateway.png", "tags": ["hybrid", "storage", "gateway"], "description": "Hybrid cloud storage integration" },
+    { "id": "aws_s3_glacier", "name": "Amazon S3 Glacier", "aliases": ["S3 Glacier", "Glacier", "Archive Storage"], "category": "storage", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/s3-glacier.png", "tags": ["storage", "archive", "cold", "backup"], "description": "Low-cost archival storage" },
+    { "id": "aws_backup", "name": "AWS Backup", "aliases": ["Backup"], "category": "storage", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/storage/backup.png", "tags": ["backup", "recovery"], "description": "Centralized backup service" },
+
+    { "id": "aws_rds", "name": "Amazon RDS", "aliases": ["RDS", "Relational Database Service", "Database", "SQL Database"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/rds.png", "tags": ["database", "sql", "relational", "mysql", "postgres"], "description": "Managed relational database service" },
+    { "id": "aws_dynamodb", "name": "Amazon DynamoDB", "aliases": ["DynamoDB", "DDB", "NoSQL Database", "NoSQL"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/dynamodb.png", "tags": ["database", "nosql", "key-value", "document"], "description": "Managed NoSQL database service" },
+    { "id": "aws_aurora", "name": "Amazon Aurora", "aliases": ["Aurora"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/aurora.png", "tags": ["database", "sql", "mysql", "postgres"], "description": "High-performance managed relational database" },
+    { "id": "aws_elasticache", "name": "Amazon ElastiCache", "aliases": ["ElastiCache", "Redis", "Memcached", "Cache"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/elasticache.png", "tags": ["cache", "redis", "memcached", "in-memory"], "description": "In-memory caching service" },
+    { "id": "aws_redshift", "name": "Amazon Redshift", "aliases": ["Redshift", "Data Warehouse"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/redshift.png", "tags": ["warehouse", "analytics", "sql"], "description": "Cloud data warehouse" },
+    { "id": "aws_neptune", "name": "Amazon Neptune", "aliases": ["Neptune", "Graph Database"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/neptune.png", "tags": ["graph", "database"], "description": "Managed graph database" },
+    { "id": "aws_documentdb", "name": "Amazon DocumentDB", "aliases": ["DocumentDB", "MongoDB Compatible"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/documentdb-mongodb-compatibility.png", "tags": ["document", "mongodb", "nosql"], "description": "MongoDB-compatible document database" },
+    { "id": "aws_timestream", "name": "Amazon Timestream", "aliases": ["Timestream", "Time Series Database"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/timestream.png", "tags": ["timeseries", "database"], "description": "Managed time series database" },
+    { "id": "aws_dms", "name": "AWS Database Migration Service", "aliases": ["DMS", "Database Migration Service"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/database-migration-service.png", "tags": ["migration", "database"], "description": "Database migration service" },
+    { "id": "aws_qldb", "name": "Amazon QLDB", "aliases": ["QLDB", "Quantum Ledger Database"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/quantum-ledger-database-qldb.png", "tags": ["ledger", "database"], "description": "Immutable ledger database" },
+    { "id": "aws_keyspaces", "name": "Amazon Keyspaces", "aliases": ["Keyspaces", "Managed Cassandra"], "category": "database", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/database/keyspaces-managed-apache-cassandra-service.png", "tags": ["cassandra", "nosql"], "description": "Managed Apache Cassandra-compatible database" },
+
+    { "id": "aws_vpc", "name": "Amazon VPC", "aliases": ["VPC", "Virtual Private Cloud", "Network"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/vpc.png", "tags": ["network", "vpc", "private", "cloud"], "description": "Virtual private cloud" },
+    { "id": "aws_api_gateway", "name": "Amazon API Gateway", "aliases": ["API Gateway", "APIGW", "API", "Gateway"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/api-gateway.png", "tags": ["api", "rest", "http", "gateway"], "description": "Managed API service" },
+    { "id": "aws_cloudfront", "name": "Amazon CloudFront", "aliases": ["CloudFront", "CDN", "Content Delivery"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/cloudfront.png", "tags": ["cdn", "content", "delivery", "edge"], "description": "Content delivery network" },
+    { "id": "aws_alb", "name": "Application Load Balancer", "aliases": ["ALB", "Application LB"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/elb-application-load-balancer.png", "tags": ["load", "balancer", "alb"], "description": "Application load balancer" },
+    { "id": "aws_nlb", "name": "Network Load Balancer", "aliases": ["NLB", "Network LB"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/elb-network-load-balancer.png", "tags": ["load", "balancer", "nlb"], "description": "Network load balancer" },
+    { "id": "aws_elb", "name": "Elastic Load Balancing", "aliases": ["ELB", "Load Balancer", "Classic Load Balancer"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/elastic-load-balancing.png", "tags": ["load", "balancer", "elb"], "description": "Elastic load balancing service" },
+    { "id": "aws_route53", "name": "Amazon Route 53", "aliases": ["Route53", "Route 53", "DNS"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/route-53.png", "tags": ["dns", "route", "domain"], "description": "DNS web service" },
+    { "id": "aws_internet_gateway", "name": "Internet Gateway", "aliases": ["IGW", "Internet Gateway"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/internet-gateway.png", "tags": ["network", "gateway", "internet", "vpc"], "description": "VPC internet access gateway" },
+    { "id": "aws_nat_gateway", "name": "NAT Gateway", "aliases": ["NAT Gateway", "NAT"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/nat-gateway.png", "tags": ["network", "nat", "outbound"], "description": "Outbound internet access for private subnets" },
+    { "id": "aws_route_table", "name": "Route Table", "aliases": ["Route Table", "Routing"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/route-table.png", "tags": ["network", "routing", "route"], "description": "VPC subnet route table" },
+    { "id": "aws_vpc_router", "name": "VPC Router", "aliases": ["Router", "VPC Router"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/vpc-router.png", "tags": ["network", "router", "vpc"], "description": "Implicit VPC router" },
+    { "id": "aws_vpn_gateway", "name": "VPN Gateway", "aliases": ["VPN Gateway", "VPN"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/vpn-gateway.png", "tags": ["network", "vpn", "hybrid"], "description": "Site-to-site VPN connection" },
+    { "id": "aws_direct_connect", "name": "AWS Direct Connect", "aliases": ["Direct Connect", "DX"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/direct-connect.png", "tags": ["network", "hybrid", "dedicated"], "description": "Dedicated network connection to AWS" },
+    { "id": "aws_transit_gateway", "name": "AWS Transit Gateway", "aliases": ["Transit Gateway", "TGW"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/transit-gateway.png", "tags": ["network", "hub", "routing"], "description": "Central hub for VPC and network connections" },
+    { "id": "aws_global_accelerator", "name": "AWS Global Accelerator", "aliases": ["Global Accelerator"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/global-accelerator.png", "tags": ["network", "performance", "routing"], "description": "Improves availability and performance of applications" },
+    { "id": "aws_network_firewall", "name": "AWS Network Firewall", "aliases": ["Network Firewall"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/network-firewall.png", "tags": ["security", "firewall", "network"], "description": "Managed network firewall service" },
+    { "id": "aws_privatelink", "name": "AWS PrivateLink", "aliases": ["PrivateLink"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/privatelink.png", "tags": ["network", "private", "endpoint"], "description": "Private connectivity between VPCs and services" },
+    { "id": "aws_app_mesh", "name": "AWS App Mesh", "aliases": ["App Mesh", "Service Mesh"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/app-mesh.png", "tags": ["mesh", "microservices"], "description": "Application-level networking service mesh" },
+    { "id": "aws_cloud_map", "name": "AWS Cloud Map", "aliases": ["Cloud Map", "Service Discovery"], "category": "networking", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/network/cloud-map.png", "tags": ["discovery", "service"], "description": "Service discovery for cloud resources" },
+
+    { "id": "aws_iam", "name": "AWS IAM", "aliases": ["IAM", "Identity Access Management", "Permissions"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/identity-and-access-management-iam.png", "tags": ["security", "identity", "access"], "description": "Identity and access management" },
+    { "id": "aws_cognito", "name": "Amazon Cognito", "aliases": ["Cognito", "User Pool", "Authentication"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/cognito.png", "tags": ["auth", "authentication", "user"], "description": "User authentication service" },
+    { "id": "aws_waf", "name": "AWS WAF", "aliases": ["WAF", "Web Application Firewall"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/waf.png", "tags": ["security", "firewall", "waf"], "description": "Web application firewall" },
+    { "id": "aws_secrets_manager", "name": "AWS Secrets Manager", "aliases": ["Secrets Manager", "Secrets"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/secrets-manager.png", "tags": ["security", "secrets", "credentials"], "description": "Manages and rotates secrets" },
+    { "id": "aws_kms", "name": "AWS KMS", "aliases": ["KMS", "Key Management Service", "Encryption Key"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/key-management-service.png", "tags": ["security", "encryption", "keys"], "description": "Managed encryption keys" },
+    { "id": "aws_shield", "name": "AWS Shield", "aliases": ["Shield", "DDoS Protection"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/shield.png", "tags": ["security", "ddos", "protection"], "description": "DDoS protection service" },
+    { "id": "aws_guardduty", "name": "Amazon GuardDuty", "aliases": ["GuardDuty", "Threat Detection"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/guardduty.png", "tags": ["security", "threat", "detection"], "description": "Intelligent threat detection service" },
+    { "id": "aws_certificate_manager", "name": "AWS Certificate Manager", "aliases": ["ACM", "Certificate Manager", "SSL Certificate"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/certificate-manager.png", "tags": ["ssl", "tls", "certificate"], "description": "Provision and manage SSL/TLS certificates" },
+    { "id": "aws_security_hub", "name": "AWS Security Hub", "aliases": ["Security Hub"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/security-hub.png", "tags": ["security", "compliance", "dashboard"], "description": "Centralized security findings dashboard" },
+    { "id": "aws_macie", "name": "Amazon Macie", "aliases": ["Macie"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/macie.png", "tags": ["security", "data", "privacy"], "description": "Discovers and protects sensitive data" },
+    { "id": "aws_firewall_manager", "name": "AWS Firewall Manager", "aliases": ["Firewall Manager"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/firewall-manager.png", "tags": ["security", "firewall", "management"], "description": "Centrally configure firewall rules" },
+    { "id": "aws_directory_service", "name": "AWS Directory Service", "aliases": ["Directory Service", "Managed AD"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/directory-service.png", "tags": ["identity", "directory", "ad"], "description": "Managed Microsoft Active Directory" },
+    { "id": "aws_sso", "name": "AWS Single Sign-On", "aliases": ["SSO", "Single Sign-On", "IAM Identity Center"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/single-sign-on.png", "tags": ["identity", "sso"], "description": "Centralized single sign-on access" },
+    { "id": "aws_cloudhsm", "name": "AWS CloudHSM", "aliases": ["CloudHSM", "Hardware Security Module"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/cloudhsm.png", "tags": ["security", "hsm", "keys"], "description": "Hardware-based key storage" },
+    { "id": "aws_inspector", "name": "Amazon Inspector", "aliases": ["Inspector", "Vulnerability Scanning"], "category": "security", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/security/inspector.png", "tags": ["security", "vulnerability", "scanning"], "description": "Automated security assessment service" },
+
+    { "id": "aws_sns", "name": "Amazon SNS", "aliases": ["SNS", "Simple Notification Service", "Notifications"], "category": "messaging", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/simple-notification-service-sns.png", "tags": ["notification", "messaging", "pub-sub"], "description": "Pub/sub messaging service" },
+    { "id": "aws_sqs", "name": "Amazon SQS", "aliases": ["SQS", "Simple Queue Service", "Queue"], "category": "messaging", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/simple-queue-service-sqs.png", "tags": ["queue", "messaging", "async"], "description": "Message queue service" },
+    { "id": "aws_step_functions", "name": "AWS Step Functions", "aliases": ["Step Functions", "State Machine", "Workflow"], "category": "messaging", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/step-functions.png", "tags": ["orchestration", "workflow"], "description": "Serverless workflow orchestration" },
+    { "id": "aws_eventbridge", "name": "Amazon EventBridge", "aliases": ["EventBridge", "Event Bus"], "category": "messaging", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/eventbridge.png", "tags": ["events", "bus"], "description": "Serverless event bus" },
+    { "id": "aws_appsync", "name": "AWS AppSync", "aliases": ["AppSync", "GraphQL"], "category": "messaging", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/appsync.png", "tags": ["graphql", "api", "realtime"], "description": "Managed GraphQL API service" },
+    { "id": "aws_mq", "name": "Amazon MQ", "aliases": ["MQ", "ActiveMQ", "RabbitMQ"], "category": "messaging", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/integration/mq.png", "tags": ["messaging", "broker"], "description": "Managed message broker service" },
+
+    { "id": "aws_cloudwatch", "name": "Amazon CloudWatch", "aliases": ["CloudWatch", "Monitoring", "Logs"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/cloudwatch.png", "tags": ["monitoring", "logs", "metrics"], "description": "Monitoring and observability" },
+    { "id": "aws_cloudtrail", "name": "AWS CloudTrail", "aliases": ["CloudTrail", "Audit Log"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/cloudtrail.png", "tags": ["audit", "logging", "compliance"], "description": "API call auditing and logging" },
+    { "id": "aws_cloudformation", "name": "AWS CloudFormation", "aliases": ["CloudFormation", "IaC"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/cloudformation.png", "tags": ["iac", "infrastructure", "template"], "description": "Infrastructure as code service" },
+    { "id": "aws_systems_manager", "name": "AWS Systems Manager", "aliases": ["Systems Manager", "SSM"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/systems-manager.png", "tags": ["management", "operations"], "description": "Operational management and automation" },
+    { "id": "aws_config", "name": "AWS Config", "aliases": ["Config", "Compliance"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/config.png", "tags": ["compliance", "config", "audit"], "description": "Resource configuration tracking" },
+    { "id": "aws_organizations", "name": "AWS Organizations", "aliases": ["Organizations", "Multi-Account"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/organizations.png", "tags": ["accounts", "governance"], "description": "Multi-account management" },
+    { "id": "aws_control_tower", "name": "AWS Control Tower", "aliases": ["Control Tower"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/control-tower.png", "tags": ["governance", "landing zone"], "description": "Set up and govern a multi-account environment" },
+    { "id": "aws_trusted_advisor", "name": "AWS Trusted Advisor", "aliases": ["Trusted Advisor"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/trusted-advisor.png", "tags": ["optimization", "advisor"], "description": "Real-time guidance to optimize AWS resources" },
+    { "id": "aws_service_catalog", "name": "AWS Service Catalog", "aliases": ["Service Catalog"], "category": "management", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/management/service-catalog.png", "tags": ["catalog", "provisioning"], "description": "Create and manage IT service catalogs" },
+
+    { "id": "aws_athena", "name": "Amazon Athena", "aliases": ["Athena"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/athena.png", "tags": ["query", "sql", "analytics"], "description": "Serverless interactive query service" },
+    { "id": "aws_emr", "name": "Amazon EMR", "aliases": ["EMR", "Elastic MapReduce"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/emr.png", "tags": ["hadoop", "spark", "bigdata"], "description": "Big data processing platform" },
+    { "id": "aws_glue", "name": "AWS Glue", "aliases": ["Glue", "ETL"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/glue.png", "tags": ["etl", "data", "catalog"], "description": "Serverless data integration service" },
+    { "id": "aws_kinesis", "name": "Amazon Kinesis", "aliases": ["Kinesis", "Streaming Data"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/kinesis.png", "tags": ["streaming", "realtime", "data"], "description": "Real-time data streaming service" },
+    { "id": "aws_kinesis_firehose", "name": "Amazon Kinesis Data Firehose", "aliases": ["Kinesis Firehose", "Data Firehose"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/kinesis-data-firehose.png", "tags": ["streaming", "delivery"], "description": "Load streaming data into data stores" },
+    { "id": "aws_opensearch", "name": "Amazon OpenSearch Service", "aliases": ["OpenSearch", "Elasticsearch"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/amazon-opensearch-service.png", "tags": ["search", "log", "analytics"], "description": "Managed search and analytics engine" },
+    { "id": "aws_quicksight", "name": "Amazon QuickSight", "aliases": ["QuickSight", "BI Dashboard"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/quicksight.png", "tags": ["bi", "dashboard", "visualization"], "description": "Business intelligence service" },
+    { "id": "aws_lake_formation", "name": "AWS Lake Formation", "aliases": ["Lake Formation", "Data Lake"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/lake-formation.png", "tags": ["data lake", "governance"], "description": "Build and manage a secure data lake" },
+    { "id": "aws_msk", "name": "Amazon MSK", "aliases": ["MSK", "Managed Kafka"], "category": "analytics", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/analytics/managed-streaming-for-kafka.png", "tags": ["kafka", "streaming"], "description": "Managed Apache Kafka service" },
+
+    { "id": "aws_sagemaker", "name": "Amazon SageMaker", "aliases": ["SageMaker", "Machine Learning"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/sagemaker.png", "tags": ["ml", "ai", "model"], "description": "Build, train, and deploy ML models" },
+    { "id": "aws_rekognition", "name": "Amazon Rekognition", "aliases": ["Rekognition", "Image Recognition"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/rekognition.png", "tags": ["vision", "image", "ai"], "description": "Image and video analysis" },
+    { "id": "aws_comprehend", "name": "Amazon Comprehend", "aliases": ["Comprehend", "NLP"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/comprehend.png", "tags": ["nlp", "text", "ai"], "description": "Natural language processing service" },
+    { "id": "aws_polly", "name": "Amazon Polly", "aliases": ["Polly", "Text to Speech"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/polly.png", "tags": ["speech", "audio", "ai"], "description": "Text-to-speech service" },
+    { "id": "aws_lex", "name": "Amazon Lex", "aliases": ["Lex", "Chatbot"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/lex.png", "tags": ["chatbot", "conversational", "ai"], "description": "Conversational AI chatbot service" },
+    { "id": "aws_textract", "name": "Amazon Textract", "aliases": ["Textract", "OCR"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/textract.png", "tags": ["ocr", "document", "ai"], "description": "Extract text and data from documents" },
+    { "id": "aws_transcribe", "name": "Amazon Transcribe", "aliases": ["Transcribe", "Speech to Text"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/transcribe.png", "tags": ["speech", "transcription", "ai"], "description": "Speech-to-text service" },
+    { "id": "aws_translate", "name": "Amazon Translate", "aliases": ["Translate"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/translate.png", "tags": ["translation", "language", "ai"], "description": "Neural machine translation service" },
+    { "id": "aws_bedrock", "name": "Amazon Bedrock", "aliases": ["Bedrock", "Generative AI"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/bedrock.png", "tags": ["genai", "llm", "ai"], "description": "Foundation models for generative AI" },
+    { "id": "aws_forecast", "name": "Amazon Forecast", "aliases": ["Forecast"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/forecast.png", "tags": ["forecasting", "timeseries", "ai"], "description": "Time-series forecasting service" },
+    { "id": "aws_personalize", "name": "Amazon Personalize", "aliases": ["Personalize", "Recommendations"], "category": "ml", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/ml/personalize.png", "tags": ["recommendation", "ai"], "description": "Real-time personalization and recommendations" },
+
+    { "id": "aws_codepipeline", "name": "AWS CodePipeline", "aliases": ["CodePipeline", "CI/CD"], "category": "devtools", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/devtools/codepipeline.png", "tags": ["cicd", "pipeline"], "description": "Continuous delivery pipeline service" },
+    { "id": "aws_codebuild", "name": "AWS CodeBuild", "aliases": ["CodeBuild"], "category": "devtools", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/devtools/codebuild.png", "tags": ["build", "cicd"], "description": "Managed build service" },
+    { "id": "aws_codedeploy", "name": "AWS CodeDeploy", "aliases": ["CodeDeploy"], "category": "devtools", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/devtools/codedeploy.png", "tags": ["deployment", "cicd"], "description": "Automated deployment service" },
+    { "id": "aws_codecommit", "name": "AWS CodeCommit", "aliases": ["CodeCommit", "Git Repository"], "category": "devtools", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/devtools/codecommit.png", "tags": ["git", "repository", "vcs"], "description": "Managed source control service" },
+    { "id": "aws_cloud9", "name": "AWS Cloud9", "aliases": ["Cloud9", "IDE"], "category": "devtools", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/devtools/cloud9.png", "tags": ["ide", "development"], "description": "Cloud-based IDE" },
+    { "id": "aws_xray", "name": "AWS X-Ray", "aliases": ["X-Ray", "Tracing"], "category": "devtools", "iconUrl": "https://diagrams.mingrammer.com/img/resources/aws/devtools/x-ray.png", "tags": ["tracing", "debugging", "observability"], "description": "Distributed tracing service" }
   ],
   "categories": [
-    {
-      "id": "compute",
-      "name": "Compute",
-      "color": "#FF9900"
-    },
-    {
-      "id": "storage",
-      "name": "Storage",
-      "color": "#3F8624"
-    },
-    {
-      "id": "database",
-      "name": "Database",
-      "color": "#3B48CC"
-    },
-    {
-      "id": "networking",
-      "name": "Networking",
-      "color": "#8C4FFF"
-    },
-    {
-      "id": "messaging",
-      "name": "Messaging",
-      "color": "#D86613"
-    },
-    {
-      "id": "management",
-      "name": "Management",
-      "color": "#E7157B"
-    },
-    {
-      "id": "security",
-      "name": "Security",
-      "color": "#DD344C"
-    }
+    { "id": "compute", "name": "Compute", "color": "#FF9900" },
+    { "id": "storage", "name": "Storage", "color": "#3F8624" },
+    { "id": "database", "name": "Database", "color": "#3B48CC" },
+    { "id": "networking", "name": "Networking", "color": "#8C4FFF" },
+    { "id": "messaging", "name": "Messaging", "color": "#D86613" },
+    { "id": "management", "name": "Management", "color": "#E7157B" },
+    { "id": "security", "name": "Security", "color": "#DD344C" },
+    { "id": "analytics", "name": "Analytics", "color": "#8C4FFF" },
+    { "id": "ml", "name": "Machine Learning", "color": "#01A88D" },
+    { "id": "devtools", "name": "Developer Tools", "color": "#C925D1" }
   ]
 }

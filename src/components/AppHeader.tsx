@@ -23,6 +23,9 @@ export interface AppHeaderProps {
   isMobileMenuOpen: boolean;
   appMode?: 'diagram' | 'architecture';
   onToggleMode?: () => void;
+  // When true, disables the mode-switch control (e.g. while an AI generation
+  // is in flight, so switching modes can't silently abandon it).
+  modeToggleDisabled?: boolean;
 }
 
 export function AppHeader({
@@ -35,14 +38,20 @@ export function AppHeader({
   isMobileMenuOpen,
   appMode = 'diagram',
   onToggleMode,
+  modeToggleDisabled = false,
 }: AppHeaderProps) {
   return (
     <header className="border-b bg-card px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <button
-          onClick={onToggleMode}
-          className="flex items-center gap-2 group cursor-pointer hover:opacity-80 transition-opacity"
-          title={`Switch to ${appMode === 'diagram' ? 'Architecture' : 'Diagram'} Mode`}
+          onClick={modeToggleDisabled ? undefined : onToggleMode}
+          disabled={modeToggleDisabled}
+          className="flex items-center gap-2 group cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50"
+          title={
+            modeToggleDisabled
+              ? "Wait for generation to finish"
+              : `Switch to ${appMode === 'diagram' ? 'Architecture' : 'Diagram'} Mode`
+          }
         >
           <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
             <Logo className="h-6 w-6 text-primary-foreground" aria-hidden />

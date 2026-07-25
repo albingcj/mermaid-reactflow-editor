@@ -33,6 +33,17 @@ interface Props {
   onClose?: () => void;
   // Optional function to transform user input before sending to AI (e.g., add system prompts)
   transformPrompt?: (userInput: string) => string;
+  // Optional async hook run before generation starts (e.g. an AI clarifying-questions
+  // step). Receives the raw user input, api key, and model. Return the (possibly
+  // augmented) user input to proceed with generation, or null to cancel entirely.
+  beforeGenerate?: (userInput: string, apiKey: string, model: string) => Promise<string | null>;
+  // Whether to prepend the generic Mermaid few-shot examples (large nested
+  // banking/e-commerce diagrams) to the prompt. These help bias the general
+  // Mermaid Editor mode toward good structure, but they're irrelevant bulk for
+  // domain-specific prompts (like the AWS architecture prompt, which already
+  // includes its own compact example) and measurably slow time-to-first-token.
+  // Defaults to true for backward compatibility with the general editor.
+  useFewShotExamples?: boolean;
 }
 
 export default function GeminiMermaidGenerator({
@@ -48,6 +59,8 @@ export default function GeminiMermaidGenerator({
   onUserInputChange,
   onClose,
   transformPrompt,
+  beforeGenerate,
+  useFewShotExamples = true,
 }: Props) {
   // local fallbacks when parent doesn't control these values
   const [apiKeyState, setApiKey] = useState<string>("");
@@ -91,18 +104,35 @@ export default function GeminiMermaidGenerator({
   let curUserInput = propUserInput ?? userInputState;
   const curModel = propModel ?? modelState;
 
-    // Apply transformation if provided (e.g., add AWS architecture prompt prefix)
-    if (transformPrompt && curUserInput) {
-      curUserInput = transformPrompt(curUserInput);
-    }
-
     if (!curApiKey || !curUserInput) {
       setError("Please provide both API key and prompt");
       return;
     }
 
-  setLoading(true);
-  setError("");
+    // Disable the button immediately on click, before any async work starts.
+    // Previously this was set after `beforeGenerate` resolved, which left the
+    // button clickable during the clarifying-questions check (and could let
+    // a user fire off a second, overlapping generation).
+    setLoading(true);
+    setError("");
+
+    // Give the caller a chance to run a pre-generation step (e.g. an AI
+    // clarifying-questions flow) before we build the final prompt. The hook
+    // can augment the raw user input (e.g. append Q&A context) or cancel
+    // generation entirely by returning null.
+    if (beforeGenerate) {
+      const augmented = await beforeGenerate(curUserInput, curApiKey, curModel);
+      if (augmented === null) {
+        setLoading(false);
+        return;
+      }
+      curUserInput = augmented;
+    }
+
+    // Apply transformation if provided (e.g., add AWS architecture prompt prefix)
+    if (transformPrompt && curUserInput) {
+      curUserInput = transformPrompt(curUserInput);
+    }
 
     if (onStart) onStart();
 
@@ -111,10 +141,14 @@ export default function GeminiMermaidGenerator({
       { role: "system", content: MERMAID_SYSTEM_PROMPT },
     ];
 
-    // Add few-shot examples
-    for (const ex of FEW_SHOT_EXAMPLES) {
-      messages.push({ role: "user", content: ex.user });
-      messages.push({ role: "assistant", content: ex.assistant });
+    // Add few-shot examples (skipped for domain-specific prompts like the AWS
+    // architecture mode, which already bundle their own compact example and
+    // don't need the general-purpose nested-diagram examples slowing things down)
+    if (useFewShotExamples) {
+      for (const ex of FEW_SHOT_EXAMPLES) {
+        messages.push({ role: "user", content: ex.user });
+        messages.push({ role: "assistant", content: ex.assistant });
+      }
     }
 
     // Add current user input
@@ -125,55 +159,12 @@ export default function GeminiMermaidGenerator({
     // is explicit and will be included as the user's prompt.
     const userPrompt = USER_PROMPT_TEMPLATE(curUserInput);
 
-    // Post-generation sanitizer: ensure node labels with parentheses are quoted.
-    function sanitizeMermaidLabels(src: string) {
-      if (!src) return src;
-      // Replace unquoted square-bracket node labels that contain parentheses or double quotes
-      const replaced = src.replace(/([A-Za-z0-9_]+)\[((?:(?!["']).)*?)\]/g, (m, id, label) => {
-        // If label already starts with a quote, leave it alone
-        if (/^["']/.test(label)) return m;
-        // If label contains parentheses, double quotes, or problematic punctuation, quote it
-        if (/[()"\[\],:;]/.test(label)) {
-          const esc = label.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
-          return `${id}["${esc}"]`;
-        }
-        return m;
-      });
-
-      // Also sanitize subgraph titles like: subgraph Frontend (Global)
-      const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)([^|\n\r]+)(\|[^\n\r]*)?$/gmi, (m, pre, title, rest) => {
-        let t = String(title).trim();
-        // If already quoted, leave alone
-        if (/^["']/.test(t)) return m;
-        // If title contains parentheses or other punctuation that may break parsing, quote it
-        if (/[()"\[\],:;]/.test(t)) {
-          const esc = t.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
-          return `${pre}\"${esc}\"${rest || ""}`;
-        }
-        return m;
-      });
-
-      // Enforce single diagram: keep only the first diagram block that starts with a known diagram keyword
-      const diagRegex = /\b(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|gantt|journey|erDiagram|gitGraph|pie|timeline|infoDiagram)\b/i;
-      const allStarts: number[] = [];
-      let m: RegExpExecArray | null;
-      const globalRegex = new RegExp(diagRegex.source, 'gim');
-      while ((m = globalRegex.exec(subgraphFixed)) !== null) {
-        allStarts.push(m.index);
-        // Prevent infinite loops
-        if (globalRegex.lastIndex === m.index) globalRegex.lastIndex++;
-      }
-
-      if (allStarts.length <= 1) {
-        return subgraphFixed;
-      }
-
-      // Keep from first start to just before second start
-      const first = allStarts[0];
-      const second = allStarts[1];
-      const single = subgraphFixed.slice(first, second).trim();
-      return single;
-    }
+    // NOTE: sanitizeMermaidLabels is imported from `@/features/diagram/converter`
+    // (see top of file) and used in the stream parser's `onDone` handler below.
+    // A local duplicate used to be defined here, which shadowed the imported
+    // one — meaning fixes to the canonical sanitizer never actually took
+    // effect for this component. Removed to avoid that drift; there must be
+    // exactly one implementation of this logic.
 
   messages.push({ role: "user", content: userPrompt });
 
@@ -215,11 +206,15 @@ export default function GeminiMermaidGenerator({
         // Build a combined prompt by including few-shot examples before the user input.
         // Use the same user prompt template so the Google stream receives the
         // ground rules upfront and the actual request embedded at the end.
+        // Skipped for domain-specific prompts (see `useFewShotExamples` doc) to
+        // reduce input token count and improve time-to-first-token.
         let combinedPrompt = "";
-        for (const ex of FEW_SHOT_EXAMPLES) {
-          combinedPrompt += `User: ${ex.user}\nAssistant:\n${ex.assistant}\n\n`;
+        if (useFewShotExamples) {
+          for (const ex of FEW_SHOT_EXAMPLES) {
+            combinedPrompt += `User: ${ex.user}\nAssistant:\n${ex.assistant}\n\n`;
+          }
         }
-        combinedPrompt += USER_PROMPT_TEMPLATE;
+        combinedPrompt += USER_PROMPT_TEMPLATE(curUserInput);
 
         try {
           const final = await streamGemini(curApiKey, curModel, MERMAID_SYSTEM_PROMPT, combinedPrompt, (txt) => {
@@ -411,16 +406,23 @@ return (
         <Textarea
           placeholder="Describe your diagram..."
           value={displayUserInput}
+          disabled={loading}
           onChange={(e) => {
             if (onUserInputChange) onUserInputChange(e.target.value);
             else setUserInput(e.target.value);
           }}
-          className="flex-1 hover:border-primary/50 focus:border-primary transition-colors pr-10 resize-none overflow-y-auto custom-scrollbar"
-          style={{ height: '40px', minHeight: '40px', resize: 'none' }}
+          className="flex-1 hover:border-primary/50 focus:border-primary transition-colors pr-10 resize-none overflow-y-auto custom-scrollbar disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{ minHeight: '40px', maxHeight: '200px', resize: 'none' }}
+          onInput={(e) => {
+            // Auto-expand textarea to fit content, up to maxHeight
+            const el = e.currentTarget;
+            el.style.height = 'auto';
+            el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              generateMermaid();
+              if (!loading) generateMermaid();
             }
           }}
         />
@@ -428,7 +430,8 @@ return (
           type="button"
           variant="ghost"
           size="sm"
-          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
+          disabled={loading}
+          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent disabled:opacity-40"
           onClick={() => setIsModalOpen(true)}
           title="Expand editor"
         >
@@ -458,12 +461,13 @@ return (
           placeholder="API Key"
           type={showApiKey ? "text" : "password"}
           value={displayApiKey}
+          disabled={loading}
           onChange={(e) => {
             if (onApiKeyChange) onApiKeyChange(e.target.value);
             else setApiKey(e.target.value);
           }}
           className={cn(
-            "hover:border-primary/50 focus:border-primary transition-colors pr-10",
+            "hover:border-primary/50 focus:border-primary transition-colors pr-10 disabled:opacity-60 disabled:cursor-not-allowed",
             error && (error.includes("API key not valid") || error.includes("API_KEY_INVALID")) && "border-destructive focus:border-destructive"
           )}
         />
@@ -471,7 +475,8 @@ return (
           type="button"
           variant="ghost"
           size="sm"
-          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
+          disabled={loading}
+          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent disabled:opacity-40"
           onClick={() => setShowApiKey(!showApiKey)}
           title={showApiKey ? "Hide API Key" : "Show API Key"}
         >
@@ -486,15 +491,16 @@ return (
         <Input
           placeholder={`Model id (Gemini models only, e.g. ${AI_MODELS.GEMINI_2_5_FLASH})`}
           value={displayModel}
+          disabled={loading}
           onChange={(e) => {
             if (onModelChange) onModelChange(e.target.value);
             else setModel(e.target.value);
           }}
-          className="hover:border-primary/50 focus:border-primary transition-colors"
+          className="hover:border-primary/50 focus:border-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         />
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={loading}>
               <Info className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
@@ -509,7 +515,9 @@ return (
         <Button
           variant="ghost"
           size="sm"
+          disabled={loading}
           title="Clear AI inputs"
+          className="disabled:opacity-40"
           onClick={() => {
             // Only clear parent-controlled values via callback; otherwise clear local state
             if (onApiKeyChange) onApiKeyChange(""); else setApiKey("");
@@ -574,11 +582,12 @@ return (
           <Textarea
             placeholder="Describe your diagram in detail..."
             value={displayUserInput}
+            disabled={loading}
             onChange={(e) => {
               if (onUserInputChange) onUserInputChange(e.target.value);
               else setUserInput(e.target.value);
             }}
-            className="min-h-[400px] resize-none overflow-y-auto custom-scrollbar"
+            className="min-h-[400px] resize-none overflow-y-auto custom-scrollbar disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ resize: 'none' }}
             autoFocus
           />
