@@ -163,7 +163,7 @@ export default function GeminiMermaidGenerator({
 
       // Also sanitize subgraph titles like: subgraph Frontend (Global)
       const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)([^|\n\r]+)(\|[^\n\r]*)?$/gmi, (m, pre, title, rest) => {
-        let t = String(title).trim();
+        const t = String(title).trim();
         // If already quoted, leave alone
         if (/^["']/.test(t)) return m;
         // If title contains parentheses or other punctuation that may break parsing, quote it

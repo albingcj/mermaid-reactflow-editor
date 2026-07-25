@@ -49,7 +49,7 @@ export function sanitizeMermaidLabels(src: string) {
 
   // Sanitize subgraph titles like: subgraph Frontend (Global)
   const subgraphFixed = replaced.replace(/^([ \t]*subgraph\s+)([^\n\r]+)(\|[^\n\r]*)?$/gmi, (m, pre, title, rest) => {
-    let t = String(title).trim();
+    const t = String(title).trim();
     if (/^[\"']/.test(t)) return m;
     if (/[()\"\[\],:;]/.test(t)) {
       const esc = t.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');

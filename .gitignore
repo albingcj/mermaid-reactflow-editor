@@ -9,3 +9,4 @@ build/
 *.md
 
 sample-ui/
+.kiro/
